@@ -2,7 +2,7 @@
 - 👀 I’m currently transitioning to backend
 - 🌱 I’m currently learning Node.js
 - 💞️ I’m looking to collaborate on projects
-- 📫 How to reach me +234 915 1702 377
+- 📫 How to reach me +2349134503480
 
 <!---
 kounchi07/kounchi07 is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
