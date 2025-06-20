@@ -1,6 +1,6 @@
 - 👋 Hi, I’m @kounchi07
-- 👀 I’m interested in learning react
-- 🌱 I’m currently learning javascript
+- 👀 I’m currently transitioning to backend
+- 🌱 I’m currently learning Node.js
 - 💞️ I’m looking to collaborate on projects
 - 📫 How to reach me +234 915 1702 377
 
