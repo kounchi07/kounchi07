@@ -1,0 +1,101 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+html,body{margin:0;background:#000;overflow:hidden}
+svg{display:block}
+.cap{font-family:Inter,'DejaVu Sans',sans-serif;font-weight:800;font-size:84px;fill:#fff;stroke:#120a08;stroke-width:16px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle}
+</style></head>
+<body>
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="vign" cx=".5" cy=".48" r=".72"><stop offset=".55" stop-color="#0d0610" stop-opacity="0"/><stop offset="1" stop-color="#0d0610" stop-opacity=".8"/></radialGradient></defs>
+  <g id="cam"><g id="back"></g><ellipse id="shadow" fill="#000" opacity=".35"/><g id="actor"></g><g id="light"></g></g>
+  <rect width="1080" height="1920" fill="url(#vign)"/>
+  <rect width="1080" height="1920" fill="#ff9a50" opacity=".06" style="mix-blend-mode:soft-light"/>
+  <text id="cap" class="cap" x="540" y="560"></text>
+</svg>
+<script src="src/rig.js"></script>
+<script src="src/props.js"></script>
+<script src="characters/scholar.js"></script>
+<script src="scenes/study.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const { walk, blend, alive, clamp, EASE } = Rig2D;
+const room = Study.build();
+$('back').innerHTML = room.back;
+$('light').innerHTML = room.light;
+const hero = new Rig2D.Actor(Scholar.spec, { id: 'hero' });
+
+const S = 1.3, GROUND = 1790, SPEED = 200 * S;   // walk() stride 200 per 1 s cycle -> screen px/s
+const smooth = (t, a, b) => EASE.inOut(clamp((t - a) / (b - a), 0, 1));
+
+const standSide = {
+  bones: { root: { x: 0 }, hips: { y: 0, rot: 0 }, chest: { rot: 0 }, head: { rot: 0 },
+    upperArmL: { rot: 0 }, upperArmR: { rot: 0 }, lowerArmL: { rot: 0 }, lowerArmR: { rot: 0 } },
+  ik: { legL: { x: -12, y: -14, endRot: 0, weight: 1 }, legR: { x: 14, y: -14, endRot: 0, weight: 1 } },
+};
+const standFront = { ik: { legL: { x: -32, y: -14 }, legR: { x: 32, y: -14 } } };
+
+// How much of the walk is "on" at time t (ramps in and out so starts/stops ease).
+const walkAmt = t => (1 - smooth(t, 2.55, 3.0)) * (t < 3.2 ? 1 : 0) + (t > 6.5 ? smooth(t, 6.55, 6.95) : 0);
+// Screen x by integrating speed * walkAmt (stateless, so any frame can render alone).
+function screenX(t) {
+  let x = -170, dt = 1 / 120;
+  for (let u = 0; u < t; u += dt) {
+    const dir = u < 6 ? 1 : -1;
+    x += dir * SPEED * walkAmt(u) * Math.min(dt, t - u);
+  }
+  return x;
+}
+
+const words = [[0.3, 'Every'], [0.6, 'night,'], [1.0, 'the'], [1.15, 'scholar'], [1.6, 'came'], [1.85, 'back'], [2.1, 'to'], [2.25, 'the'], [2.4, 'study...'],
+  [3.6, '"I'], [3.85, 'found'], [4.15, 'it!"'], [4.9, 'The'], [5.1, 'secret'], [5.5, 'was'], [5.7, 'OUTSIDE.'], [6.75, 'So'], [6.95, 'he'], [7.15, 'went'], [7.45, 'to'], [7.6, 'find'], [7.9, 'it.'], [8.7, '']];
+
+window.DURATION = 9.4;
+window.render = function (t) {
+  let st, facing = 1, view = 'side';
+  if (t < 3.25) {                       // walk in, slow to a stop, start turning the head
+    const w = walk(t, {}); w.bones.root.x = 0;
+    st = blend(standSide, w, walkAmt(t));
+    st.face = { turn: 1 - 0.45 * smooth(t, 3.0, 3.25), mouthSmile: 0.3, lookX: 0.6 * (1 - smooth(t, 3.0, 3.25)) };
+  } else if (t < 6.4) {                 // front view: talk, wave, point
+    view = 'front';
+    const talk = (t > 3.6 && t < 4.6) ? 0.12 + 0.4 * Math.abs(Math.sin((t - 3.6) * 13)) : 0;
+    const shock = t > 5.6 && t < 6.2;
+    st = Rig2D.merge(standFront, {
+      face: Object.assign({}, Rig2D.FACE_DEFAULTS, {
+        turn: 0.55 * (1 - smooth(t, 3.25, 3.5)) - 0.5 * smooth(t, 4.8, 5.1) + 0.5 * smooth(t, 5.55, 5.7) - 0.55 * smooth(t, 6.2, 6.4),
+        lookX: -smooth(t, 4.8, 5.1) + smooth(t, 5.55, 5.7), mouthSmile: 0.75, mouthOpen: talk, browRaise: 0.35,
+      }, shock ? Rig2D.EXPRESSIONS.shock : {}),
+      ik: {
+        armR: { x: 250 + 35 * Math.sin((t - 3.6) * 10), y: -540, weight: smooth(t, 3.5, 3.75) * (1 - smooth(t, 4.5, 4.75)) },
+        armL: { x: -350, y: -520, weight: smooth(t, 4.85, 5.15) * (1 - smooth(t, 5.5, 5.7)) },
+      },
+      bones: { chest: { rot: -6 * smooth(t, 4.85, 5.15) * (1 - smooth(t, 5.5, 5.7)) },
+        hips: { y: shock ? -40 * Math.sin(Math.PI * clamp((t - 5.6) / 0.3, 0, 1)) : 0 },
+        head: { sx: shock ? 1.06 : 1, sy: shock ? 0.95 : 1 } },
+    });
+  } else {                              // turn away and walk off to the left
+    facing = -1;
+    const w = walk(t - 6.55, {}); w.bones.root.x = 0;
+    st = blend(standSide, w, walkAmt(t));
+    st.face = { turn: 0.55 + 0.45 * smooth(t, 6.4, 6.55), mouthSmile: 0.4 };
+  }
+  st = alive(st, t, { seed: 6, sway: 0.8 });
+  st.view = view; st.facing = facing;
+  hero.pose(st);
+  const x = screenX(t);
+  $('actor').innerHTML = hero.render({ x, y: GROUND, scale: S, t });
+  $('shadow').setAttribute('cx', x); $('shadow').setAttribute('cy', GROUND + 4);
+  $('shadow').setAttribute('rx', (view === 'side' ? 120 : 150) * S); $('shadow').setAttribute('ry', 20 * S);
+  room.update(t);
+  $('cam').setAttribute('transform', `translate(540 1150) scale(${1 + 0.05 * Math.sin(t * 0.35)}) translate(-540 -1150)`);
+  let cur = '', st0 = 0;
+  for (let i = 0; i < words.length - 1; i++) if (t >= words[i][0] && t < words[i + 1][0]) { cur = words[i][1]; st0 = words[i][0]; }
+  const pop = 1 + 0.18 * Math.max(0, 1 - (t - st0) / 0.09);
+  $('cap').textContent = cur;
+  $('cap').setAttribute('transform', `translate(540 560) scale(${pop}) translate(-540 -560)`);
+  $('cap').style.fill = cur === 'OUTSIDE.' ? '#ffd84a' : '#fff';
+};
+window.render(0);
+</script>
+</body></html>

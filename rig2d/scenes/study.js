@@ -10,6 +10,7 @@
   const INK = '#2b1d16';
 
   function build(seed = 11) {
+    const P = root.Props;
     const R = root.Rig2D.rng(seed), rr = (a, b) => a + (b - a) * R(), pick = a => a[Math.floor(R() * a.length)];
     const WIN = 'M110,800 L110,470 A180,180 0 0 1 470,470 L470,800 Z';
 
@@ -57,29 +58,24 @@
     for (const x of [200, 290, 380]) s += `<rect x="${x - 6}" y="290" width="12" height="512" fill="#5a3622" stroke="${INK}" stroke-width="3"/>`;
     for (const y of [560, 680]) s += `<rect x="110" y="${y - 6}" width="360" height="12" fill="#5a3622" stroke="${INK}" stroke-width="3"/>`;
     s += `<path d="${WIN}" fill="none" stroke="${INK}" stroke-width="34"/><path d="${WIN}" fill="none" stroke="#6e4429" stroke-width="24"/><path d="${WIN}" fill="none" stroke="#9a6a42" stroke-width="3" transform="translate(-6,-4)" opacity=".7"/>`;
-    s += `<rect x="84" y="800" width="412" height="34" rx="4" fill="url(#st-wood)" stroke="${INK}" stroke-width="5"/><rect x="88" y="804" width="404" height="6" fill="#a06a40" opacity=".7"/><g transform="translate(410,800)">`;
-    for (let i = 0; i < 9; i++) { const a = -150 + i * 15 + rr(-6, 6), L = rr(60, 95), rad = a * Math.PI / 180, ex = Math.cos(rad) * L, ey = Math.sin(rad) * L; s += `<path d="M0,-40 Q${ex * .4 - 6},${ey * .6 - 50} ${ex},${ey - 40} Q${ex * .6 + 6},${ey * .4 - 34} 0,-40 Z" fill="${i % 2 ? '#4f7d3a' : '#5f9444'}" stroke="${INK}" stroke-width="3"/><path d="M0,-40 Q${ex * .5},${ey * .5 - 42} ${ex * .9},${ey * .9 - 40}" stroke="#2f5224" stroke-width="2" fill="none"/>`; }
-    s += `<path d="M-36,-46 L36,-46 L28,0 L-28,0 Z" fill="#b65e38" stroke="${INK}" stroke-width="4"/><rect x="-40" y="-52" width="80" height="12" rx="3" fill="#c96d43" stroke="${INK}" stroke-width="3"/><path d="M-30,-24 L30,-24" stroke="#8a3f22" stroke-width="3"/></g>`;
+    s += `<rect x="84" y="800" width="412" height="34" rx="4" fill="url(#st-wood)" stroke="${INK}" stroke-width="5"/><rect x="88" y="804" width="404" height="6" fill="#a06a40" opacity=".7"/>`;
+    s += P.plant({ x: 410, y: 800, seed: 3 });
 
     // shelf
     s += `<rect x="652" y="300" width="380" height="820" fill="#3e2416" stroke="${INK}" stroke-width="5"/>`;
     for (let i = 0; i < 10; i++) s += `<path d="M${660 + i * 38},305 L${662 + i * 38},1110" stroke="#2c180d" stroke-width="2" opacity=".6"/>`;
     const bookCols = ['#7a2e2a', '#2f4f6f', '#5c6b2f', '#8a5a2b', '#4a3260', '#a0442c', '#2d5d52', '#6b2f45', '#7c6a3a'];
-    const books = y0 => { let o = '', x = 668; while (x < 1005) { const w = rr(22, 36), h = rr(105, 165), c = pick(bookCols); if (x + w > 1012) break; const lean = (R() < .12 && x > 900) ? rr(-10, -6) : 0; o += `<g transform="rotate(${lean} ${x + w} ${y0})"><rect x="${x}" y="${y0 - h}" width="${w}" height="${h}" rx="3" fill="${c}" stroke="${INK}" stroke-width="3"/><rect x="${x + w - 6}" y="${y0 - h + 2}" width="5" height="${h - 4}" fill="#000" opacity=".25"/><rect x="${x + 2}" y="${y0 - h + 2}" width="4" height="${h - 4}" fill="#fff" opacity=".15"/><path d="M${x},${y0 - h + 16} h${w} M${x},${y0 - h + 22} h${w} M${x},${y0 - 20} h${w}" stroke="#d8b25a" stroke-width="2.5"/><rect x="${x + w * .2}" y="${y0 - h * .6}" width="${w * .6}" height="${h * .18}" fill="#e9dcc0" stroke="${INK}" stroke-width="1.5" opacity=".85"/></g>`; x += w + rr(0, 3); } return o; };
-    const board = y => `<rect x="652" y="${y}" width="380" height="24" fill="url(#st-wood)" stroke="${INK}" stroke-width="4"/><rect x="652" y="${y + 24}" width="380" height="10" fill="#000" opacity=".35"/>`;
-    const jar = (cx, base, w, h, col, band) => `<path d="M${cx - w * .3},${base} C${cx - w * .62},${base - h * .3} ${cx - w * .6},${base - h * .8} ${cx - w * .25},${base - h * .85} L${cx - w * .2},${base - h} L${cx + w * .2},${base - h} L${cx + w * .25},${base - h * .85} C${cx + w * .6},${base - h * .8} ${cx + w * .62},${base - h * .3} ${cx + w * .3},${base} Z" fill="${col}" stroke="${INK}" stroke-width="3.5"/><path d="M${cx - w * .47},${base - h * .55} Q${cx},${base - h * .5} ${cx + w * .47},${base - h * .55}" stroke="${band}" stroke-width="5" fill="none"/><path d="M${cx - w * .44},${base - h * .42} Q${cx},${base - h * .37} ${cx + w * .44},${base - h * .42}" stroke="${band}" stroke-width="2" fill="none"/><path d="M${cx - w * .3},${base - h * .75} Q${cx - w * .42},${base - h * .5} ${cx - w * .3},${base - h * .2}" stroke="#fff" stroke-width="4" fill="none" opacity=".35" stroke-linecap="round"/><rect x="${cx - w * .26}" y="${base - h - 8}" width="${w * .52}" height="10" rx="3" fill="${col}" stroke="${INK}" stroke-width="3"/>`;
-    s += books(470) + board(470) + jar(705, 690, 70, 110, '#3f6f8a', '#e8d7a0') + jar(785, 690, 58, 80, '#b9a27a', '#6e3a22');
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 4 - r; c++) { const cx = 860 + c * 30 + r * 15, cy = 678 - r * 26; s += `<circle cx="${cx}" cy="${cy}" r="14" fill="#e6d3a8" stroke="${INK}" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="6" fill="none" stroke="#a7834f" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="2" fill="#7a5a30"/>`; }
-    s += `<path d="M985,690 l0,-60 l18,-10 l0,60 Z" fill="#8a2f2a" stroke="${INK}" stroke-width="3"/>` + board(690) + books(910) + board(910);
-    s += jar(720, 1110, 80, 130, '#2f5c4a', '#d7b25a') + jar(960, 1110, 70, 120, '#7b3a2c', '#e8c27a');
-    s += `<rect x="790" y="1060" width="120" height="50" fill="#5a3a22" stroke="${INK}" stroke-width="3"/><rect x="790" y="1060" width="120" height="10" fill="#7b5233"/><circle cx="850" cy="1088" r="6" fill="#d6ad55" stroke="${INK}" stroke-width="2"/>` + board(1100);
+    const books = y0 => { let o = '', x = 668, i = 0; while (x < 1000) { const w = rr(24, 38), h = rr(110, 170); if (x + w > 1012) break; const lean = (R() < .15 && x > 900) ? rr(-9, -5) : 0; o += P.book({ x, y: y0, w, h, color: pick(bookCols), seed: Math.floor(rr(1, 999)), lean }); x += w + rr(1, 4); i++; } return o; };
+    const board = y => `<rect x="652" y="${y}" width="380" height="24" fill="url(#st-wood)" stroke="${INK}" stroke-width="4"/>` + P.woodGrain({ x: 654, y: y + 2, w: 376, h: 20, seed: y, knots: 1, color: '#3a1e0e', op: .35 }) + `<rect x="652" y="${y + 24}" width="380" height="10" fill="#000" opacity=".35"/>`;
+    s += books(470) + board(470);
+    s += P.vase({ x: 712, y: 690, w: 74, h: 116, color: '#3f6f8a', motif: 'cloud', seed: 2 }) + P.vase({ x: 790, y: 690, w: 58, h: 84, color: '#b9a27a', band: '#6e3a22', motif: 'dots' });
+    s += P.scrolls({ x: 850, y: 690, rows: 3 }) + `<path d="M985,690 l0,-60 l18,-10 l0,60 Z" fill="#8a2f2a" stroke="${INK}" stroke-width="3"/>` + board(690);
+    s += books(910) + board(910);
+    s += P.vase({ x: 724, y: 1110, w: 84, h: 136, color: '#2f5c4a', band: '#d7b25a', motif: 'wave' }) + P.vase({ x: 960, y: 1110, w: 72, h: 122, color: '#7b3a2c', band: '#e8c27a', motif: 'cloud' });
+    s += P.teaset({ x: 850, y: 1108, color: '#6a3e7a' }) + board(1100);
 
     // lantern
-    s += `<g id="st-lantern-g"><line x1="560" y1="220" x2="560" y2="252" stroke="${INK}" stroke-width="4"/><rect x="526" y="250" width="68" height="16" rx="3" fill="#3a2214" stroke="${INK}" stroke-width="3"/><ellipse cx="560" cy="330" rx="74" ry="72" fill="url(#st-lantern)" stroke="${INK}" stroke-width="5"/>`;
-    for (const k of [-.75, -.4, 0, .4, .75]) s += `<path d="M${560 + k * 20},262 Q${560 + k * 96},330 ${560 + k * 20},398" stroke="#7a2416" stroke-width="2.5" fill="none" opacity=".75"/>`;
-    s += `<path d="M545,300 l30,0 M545,315 l30,0 M560,300 l0,40 M548,330 q12,10 24,0" stroke="#5a1a10" stroke-width="4" fill="none" stroke-linecap="round"/><rect x="526" y="394" width="68" height="16" rx="3" fill="#3a2214" stroke="${INK}" stroke-width="3"/><circle cx="560" cy="418" r="7" fill="#d6ad55" stroke="${INK}" stroke-width="2"/>`;
-    for (let i = -3; i <= 3; i++) s += `<line x1="560" y1="424" x2="${560 + i * 3}" y2="${478 - Math.abs(i) * 3}" stroke="#b8322a" stroke-width="3"/>`;
-    s += `</g>`;
+    s += `<g id="st-lantern-g">${P.lantern({ x: 560, y: 220, r: 74, glowId: 'st-lantern' })}</g>`;
 
     // floor + rug
     s += `<rect y="1310" width="1080" height="610" fill="url(#st-floor)"/>`;
@@ -90,11 +86,11 @@
     s += `<path d="M420,1700 l40,-28 l40,28 l-40,28 Z M580,1700 l40,-28 l40,28 l-40,28 Z" fill="none" stroke="#c9974e" stroke-width="4" opacity=".7"/><circle cx="540" cy="1760" r="46" fill="none" stroke="#c9974e" stroke-width="4" opacity=".6"/>`;
 
     // side table with candle and books (left)
-    s += `<ellipse cx="170" cy="1745" rx="150" ry="18" fill="#000" opacity=".45" filter="url(#st-soft)"/>`;
-    for (const x of [62, 262]) s += `<path d="M${x},1500 L${x + 26},1500 L${x + 24},1720 Q${x + 34},1734 ${x + 36},1744 L${x - 10},1744 Q${x - 6},1732 ${x + 2},1720 Z" fill="url(#st-woodV)" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`;
-    s += `<path d="M40,1462 L310,1462 L330,1490 L20,1490 Z" fill="#8a552e" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/><rect x="20" y="1490" width="310" height="34" fill="#5d341c" stroke="${INK}" stroke-width="5"/><path d="M70,1507 q20,-10 40,0 q20,10 40,0" stroke="#c7953f" stroke-width="3" fill="none"/>`;
-    s += `<ellipse cx="180" cy="1460" rx="56" ry="13" fill="#c8963f" stroke="${INK}" stroke-width="4"/><path d="M150,1340 L150,1456 Q180,1466 210,1456 L210,1340 Z" fill="url(#st-candle)" stroke="${INK}" stroke-width="4"/><ellipse cx="180" cy="1340" rx="30" ry="8" fill="#fff6e0" stroke="${INK}" stroke-width="3"/><path d="M155,1342 q-2,22 4,30 q6,-6 4,-28 M196,1344 q2,32 8,40 q5,-10 1,-40" fill="#fff4dc" stroke="${INK}" stroke-width="2.5"/><line x1="180" y1="1336" x2="181" y2="1322" stroke="#1a1010" stroke-width="3"/><path id="st-flameO" fill="#ff9d3a"/><path id="st-flameI" fill="#fff2b0"/>`;
-    s += `<g transform="rotate(-3 270 1440)"><rect x="232" y="1426" width="88" height="30" rx="4" fill="#7a2e2a" stroke="${INK}" stroke-width="4"/><rect x="238" y="1431" width="76" height="9" fill="#efe2c4"/></g><g transform="rotate(4 270 1410)"><rect x="240" y="1398" width="72" height="28" rx="4" fill="#2f4f6f" stroke="${INK}" stroke-width="4"/><path d="M248,1412 h56" stroke="#d8b25a" stroke-width="3"/></g>`;
+    s += P.table({ x: 20, y: 1462, w: 310, h: 282, seed: 5 });
+    const cd = P.candle({ x: 170, y: 1462 });
+    s += cd.svg + `<path id="st-flameO" fill="#ff9d3a"/><path id="st-flameI" fill="#fff2b0"/>`;
+    s += P.bookFlat({ x: 232, y: 1460, w: 92, h: 26, color: '#7a2e2a', rot: -2 }) + P.bookFlat({ x: 240, y: 1436, w: 76, h: 22, color: '#2f4f6f', rot: 3 });
+    s += P.chest({ x: 790, y: 1560, w: 230, h: 150, seed: 9 });
 
     // sleeping cat (right, on the floor)
     s += `<ellipse cx="900" cy="1752" rx="120" ry="16" fill="#000" opacity=".4" filter="url(#st-soft3)"/><g id="st-cat"><g transform="translate(500 -114)">` +
@@ -118,8 +114,8 @@
     function update(t) {
       const $ = id => document.getElementById(id);
       const sx = Math.sin(t * 9.3) * 4 + Math.sin(t * 14.1) * 2, h = 62 + Math.sin(t * 11) * 5 + Math.sin(t * 23) * 3;
-      $('st-flameO').setAttribute('d', `M180,1334 C154,1326 156,1296 ${180 + sx},${1328 - h} C204,1296 206,1326 180,1334 Z`);
-      $('st-flameI').setAttribute('d', `M180,1330 C168,1324 170,1306 ${180 + sx * .6},${1328 - h * .6} C190,1306 192,1324 180,1330 Z`);
+      $('st-flameO').setAttribute('d', `M171,1336 C145,1328 147,1298 ${171 + sx},${1330 - h} C195,1298 197,1328 171,1336 Z`);
+      $('st-flameI').setAttribute('d', `M171,1332 C159,1326 161,1308 ${171 + sx * .6},${1330 - h * .6} C181,1308 183,1326 171,1332 Z`);
       $('st-glowC').setAttribute('opacity', .62 + .07 * Math.sin(t * 11) + .05 * Math.sin(t * 17.3));
       $('st-glowC').setAttribute('cx', 180 + sx * .5);
       $('st-glowL').setAttribute('opacity', .8 + .08 * Math.sin(t * 3));

@@ -19,6 +19,13 @@ part hangs off a bone, so moving a bone moves everything attached to it.
 - **Timeline:** keyframes with easing (`inOut out in back elastic linear step`). Anything in a
   pose can be animated. Use `step` for snappy expression swaps.
 - **Alive layer:** automatic breathing, random blinks and slight head sway.
+- **Side view + walk cycle:** `bipedSide` skeleton (near/far limbs layered and shaded) and
+  `Rig2D.walk(t)`, a classic contact → down → passing → up walk: 30-frame cycle at 30 fps,
+  feet planted from heel strike to toe-off, heel roll, hip bob, arms swinging opposite the legs
+  with a 2-frame lag. `Rig2D.Actor` switches between front and side views, and `facing: -1`
+  mirrors the side view to walk left. The face rig drops into profile as `turn` approaches ±1.
+- **Props library** (`src/props.js`): detailed books, vases, candle, lantern, table, chest,
+  tea set, scrolls, plants and wood grain, all in the same ink style and lighting.
 
 ## Files
 
@@ -27,7 +34,9 @@ part hangs off a bone, so moving a bone moves everything attached to it.
 | `src/rig.js` | The engine (no dependencies) |
 | `characters/scholar.js` | Example character built on the `biped` skeleton |
 | `scenes/study.js` | Night study room background + lighting overlays |
+| `src/props.js` | Detailed reusable props |
 | `demo.html` | Animated demo (timeline of poses) |
+| `walk_demo.html` | Story demo: walk in, turn to camera, talk, walk off |
 | `tools/poses.html` | Pose test sheet |
 | `tools/render.js` | Renders any page to PNG frames + MP4 |
 
@@ -64,6 +73,17 @@ Conventions:
   For the upright head, `sx > 1` is taller and `sy > 1` is wider.
 - Bone names use **screen** sides: `armL` is on the left of the screen.
 - IK targets are relative to the `root` bone (between the feet) unless `space: 'world'`.
+
+## Walking
+
+```js
+const hero = new Rig2D.Actor(Scholar.spec, { id: 'hero' });
+const w = Rig2D.walk(t, { stride: 200, cycle: 1.0 });   // + bob, lift, armSwing, lean, mood
+hero.pose(Object.assign(Rig2D.alive(w, t), { view: 'side', facing: 1 }));
+// w.speed = stride / cycle (root units per second); move the character by speed * scale
+```
+
+Use `Rig2D.blend(stand, walkPose, k)` to ease into and out of a walk.
 
 ## Timeline
 

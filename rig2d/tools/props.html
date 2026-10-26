@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#b48660}</style></head><body>
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><radialGradient id="lg" cx=".45" cy=".45" r=".6"><stop offset="0" stop-color="#ffd27a"/><stop offset=".55" stop-color="#e2582f"/><stop offset="1" stop-color="#9c2a1c"/></radialGradient></defs><g id="g"></g></svg>
+<script src="../src/rig.js"></script><script src="../src/props.js"></script>
+<script>
+const P = Props; let s = '';
+let x = 60; ['#7a2e2a','#2f4f6f','#5c6b2f','#4a3260','#a0442c'].forEach((c,i)=>{ const w=[36,30,42,28,34][i]; s += P.book({x, y:330, w, h:[200,170,220,160,190][i], color:c, seed:i+1}); x += w+4; });
+s += P.vase({x:380, y:330, w:120, h:200, motif:'cloud'}) + P.vase({x:540, y:330, w:100, h:150, color:'#2f5c4a', band:'#d7b25a', motif:'wave'}) + P.vase({x:680, y:330, w:90, h:130, color:'#b9a27a', band:'#6e3a22', motif:'dots'});
+s += P.lantern({x:900, y:60, glowId:'lg'});
+s += P.table({x:60, y:620, w:440, h:260});
+const c = P.candle({x:170, y:610}); s += c.svg + `<path d="M${c.flame[0]},${c.flame[1]+4} c-20,-8 -18,-40 0,-62 c18,22 20,54 0,62Z" fill="#ff9d3a"/>`;
+s += P.teaset({x:380, y:616});
+s += P.chest({x:600, y:880, w:300, h:180});
+s += P.scrolls({x:620, y:620}) + P.plant({x:900, y:620, s:1.1});
+s += P.bookFlat({x:120, y:1100, w:200}) + P.bookFlat({x:140, y:1074, w:170, color:'#7a2e2a', rot:3});
+document.getElementById('g').innerHTML = s;
+window.DURATION=1; window.render=()=>{};
+</script></body></html>

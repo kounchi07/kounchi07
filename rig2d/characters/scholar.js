@@ -77,6 +77,23 @@
     return s;
   }
 
+  function robeOverSide(geo) {
+    let s = collarBand(geo, [[0.95, -0.4], [0.8, 0.3], [0.6, 0.95]]);
+    s += `<path d="${geo.band(0.395, 0.455, -1.03, 1.03)}" fill="${C.gold}" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>`;
+    for (let sv = -0.8; sv <= 0.82; sv += 0.16) {
+      const p = geo.at(0.425, sv);
+      s += `<path d="M${n2(p[0])},${n2(p[1] - 8)} l8,8 l-8,8 l-8,-8Z" fill="none" stroke="${C.goldDark}" stroke-width="2.4"/>`;
+    }
+    for (const tie of [[[0.425, 0.8], [0.33, 0.86], [0.22, 0.92]], [[0.425, 0.86], [0.34, 0.98], [0.26, 1.02]]]) {
+      const d = geo.line(tie);
+      s += `<path d="${d}" stroke="${INK}" stroke-width="16" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${C.gold}" stroke-width="9" fill="none" stroke-linecap="round"/>`;
+    }
+    const k = geo.at(0.425, 0.84), j = geo.at(0.215, 0.92);
+    s += `<ellipse cx="${n2(k[0])}" cy="${n2(k[1])}" rx="18" ry="19" fill="${C.gold}" stroke="${INK}" stroke-width="5"/>`;
+    s += `<circle cx="${n2(j[0])}" cy="${n2(j[1] + 10)}" r="13" fill="${C.jade}" stroke="${INK}" stroke-width="4"/><circle cx="${n2(j[0] - 4)}" cy="${n2(j[1] + 6)}" r="3.5" fill="${C.jadeLight}"/>`;
+    return s;
+  }
+
   function sleeveDetail(geo, ctx) {
     let s = shade(geo, ctx, 0.15, 0.5);
     s += `<path d="${geo.line([[0.15, -0.3], [0.45, -0.1], [0.7, -0.35]])}" stroke="${C.robeDark}" stroke-width="4" fill="none" opacity=".6" stroke-linecap="round"/>`;
@@ -106,7 +123,7 @@
 
   function hairBack(ctx, blob, fs) {
     const top = blob.point(-Math.PI / 2, 1);
-    const x = top[0] + fs.turn * blob.rx * 0.12, y = top[1] - 12;
+    const x = top[0] - fs.turn * blob.rx * 0.22, y = top[1] - 12 + Math.abs(fs.turn) * 6;
     const bun = R2.Blob({ cx: x, cy: y, rx: 52, ry: 48, seed: 9, wobble: 0.06 });
     let s = `<path d="${bun.path}" fill="${C.hair}" stroke="${INK}" stroke-width="6"/>`;
     for (let i = 0; i < 5; i++) s += `<path d="M${n2(x - 34 + i * 16)},${n2(y - 40)} Q${n2(x - 38 + i * 18)},${n2(y)} ${n2(x - 30 + i * 14)},${n2(y + 40)}" stroke="${C.hairLine}" stroke-width="2.5" fill="none"/>`;
@@ -115,22 +132,35 @@
   }
 
   function hair(ctx, blob, fs) {
-    const cy = blob.cy, ry = blob.ry, outer = [], inner = [];
-    for (let i = 0; i <= 14; i++) outer.push(blob.point(Math.PI * (1.06 + 0.88 * i / 14), 1.035));
+    const cx = blob.cx, cy = blob.cy, rx = blob.rx, ry = blob.ry, outer = [];
+    const tw = Math.abs(fs.turn), dir = Math.sign(fs.turn) || 1;
+    const prof = R2.EASE.inOut(R2.clamp((tw - 0.4) / 0.6, 0, 1));
+    // outer edge runs from the back/nape (a0) over the crown to the front (a1)
+    const a0 = Math.PI * (1.06 - (dir > 0 ? 0.3 * prof : 0)), a1 = Math.PI * (1.94 + (dir < 0 ? 0.3 * prof : 0));
+    for (let i = 0; i <= 14; i++) outer.push(blob.point(a0 + (a1 - a0) * i / 14, 1.035));
+    // front-view hairline (front end -> back end)
+    const front = [];
     for (let i = 14; i >= 0; i--) {
-      const a = Math.PI * (1.06 + 0.88 * i / 14), q = blob.point(a, 0.98);
-      const line = cy - ry * 0.64 + Math.abs(Math.cos(a)) * ry * 0.46;
-      inner.push([q[0], Math.max(q[1], line)]);
+      const a = a0 + (a1 - a0) * i / 14, q = blob.point(a, 0.98);
+      front.push([q[0], Math.max(q[1], cy - ry * 0.64 + Math.abs(Math.cos(a)) * ry * 0.46)]);
     }
+    // profile hairline: forehead -> over the top -> behind the ear -> down to the nape
+    const F = dir > 0 ? blob.point(a1, 0.98) : blob.point(a0, 0.98), B = dir > 0 ? blob.point(a0, 0.98) : blob.point(a1, 0.98);
+    const X = k => cx + dir * k * rx;
+    const ctrl = [F, [X(0.42), cy - ry * 0.6], [X(0.05), cy - ry * 0.56], [X(-0.28), cy - ry * 0.3], [X(-0.34), cy + ry * 0.12], [X(-0.5), cy + ry * 0.42], B];
+    const dense = R2.catmull(ctrl, 6);
+    const side = Array.from({ length: 15 }, (_, i) => dense[Math.round(i * (dense.length - 1) / 14)]);
+    const prof15 = dir > 0 ? side : side.slice().reverse();
+    const inner = front.map((p, i) => [R2.lerp(p[0], prof15[i][0], prof), R2.lerp(p[1], prof15[i][1], prof)]);
     let s = `<path d="${R2.openPath(outer)} L${inner.map(pt).join(' L')}Z" fill="${C.hair}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
     for (let i = 1; i < 10; i++) {
-      const a = Math.PI * (1.1 + 0.8 * i / 10), o = blob.point(a, 1.0), q = inner[14 - Math.round(i * 1.4)];
+      const a = a0 + (a1 - a0) * (0.05 + 0.9 * i / 10), o = blob.point(a, 1.0), q = inner[14 - Math.round(i * 1.4)];
       s += `<path d="M${pt(o)} Q${n2((o[0] + q[0]) / 2 + (i - 5) * 2)},${n2((o[1] + q[1]) / 2)} ${pt(q)}" stroke="${C.hairLine}" stroke-width="2.5" fill="none"/>`;
     }
     const h1 = blob.point(Math.PI * 1.3, 0.94), h2 = blob.point(Math.PI * 1.55, 0.97);
     s += `<path d="M${pt(h1)} Q${n2((h1[0] + h2[0]) / 2)},${n2(Math.min(h1[1], h2[1]) - 12)} ${pt(h2)}" stroke="${C.hairSheen}" stroke-width="5" fill="none" opacity=".65" stroke-linecap="round"/>`;
     // band + hairpin through the bun
-    const top = blob.point(-Math.PI / 2, 1), bx = top[0] + fs.turn * blob.rx * 0.12, by = top[1] - 12;
+    const top = blob.point(-Math.PI / 2, 1), bx = top[0] - fs.turn * blob.rx * 0.22, by = top[1] - 12 + Math.abs(fs.turn) * 6;
     s += `<rect x="${n2(bx - 46)}" y="${n2(by + 26)}" width="92" height="14" rx="6" fill="${C.gold}" stroke="${INK}" stroke-width="3"/>`;
     s += `<line x1="${n2(bx - 112)}" y1="${n2(by - 14)}" x2="${n2(bx + 118)}" y2="${n2(by + 14)}" stroke="${INK}" stroke-width="14" stroke-linecap="round"/>` +
       `<line x1="${n2(bx - 112)}" y1="${n2(by - 14)}" x2="${n2(bx + 118)}" y2="${n2(by + 14)}" stroke="${C.wood}" stroke-width="7" stroke-linecap="round"/>` +
@@ -139,10 +169,12 @@
     return s;
   }
 
-  function spec() {
+  function spec(opts = {}) {
+    const view = opts.view || 'front';
+    if (view === 'side') return sideSpec();
     const sk = R2.biped({});
     return {
-      name: 'scholar', ink: INK, light: -1, bones: sk.bones, ik: sk.ik, dims: sk.dims,
+      name: 'scholar', view, ink: INK, light: -1, bones: sk.bones, ik: sk.ik, dims: sk.dims,
       parts: [
         { name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: [36, 28, 24], fill: C.pants, z: 0, line: 5, capEnd: 'flat' },
         { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: [36, 28, 24], fill: C.pants, z: 0, line: 5, capEnd: 'flat' },
@@ -159,6 +191,28 @@
           head: { rx: 152, ry: 138, wobble: 0.1, seed: 7, jaw: 0.7, crown: 0.3, skin: C.skin, shade: C.skinShade, rim: C.rim, line: 8 },
           back: hairBack, hair,
         },
+      ],
+    };
+  }
+
+  function sideSpec() {
+    const sk = R2.bipedSide({});
+    const head = spec().parts.find(p => p.type === 'head');
+    return {
+      name: 'scholar', view: 'side', ink: INK, light: -1, bones: sk.bones, ik: sk.ik, dims: sk.dims,
+      face: { turn: 1 },
+      parts: [
+        { name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: [34, 27, 23], fill: '#1d1a26', z: -2, line: 5, capEnd: 'flat' },
+        { name: 'shoeL', type: 'shape', bone: 'footL', z: -1, draw: shoe(1) },
+        { name: 'handL', type: 'shape', bone: 'handL', z: 3, draw: hand },
+        { name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: [46, 50, 64], fill: '#1f5256', z: 4, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail },
+        { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: [36, 28, 24], fill: C.pants, z: 0, line: 5, capEnd: 'flat' },
+        { name: 'shoeR', type: 'shape', bone: 'footR', z: 1, draw: shoe(1) },
+        { name: 'robe', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: 150, widths: [196, 156, 128, 108, 76], fill: C.robe, z: 10, line: 7, capStart: 'flat', clipId: 'robe', detail: robeDetail, over: robeOverSide },
+        { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand },
+        { name: 'brush', type: 'shape', bone: 'handR', z: 19, visible: c => c.props.brush, draw: brush },
+        { name: 'sleeveR', type: 'tube', bones: ['upperArmR', 'lowerArmR'], widths: [50, 52, 68], fill: C.robe, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveR', detail: sleeveDetail },
+        Object.assign({}, head, { _blob: null }),
       ],
     };
   }

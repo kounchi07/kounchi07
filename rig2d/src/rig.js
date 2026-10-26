@@ -194,13 +194,17 @@
 
   function drawFace(fs, blob, L, ink, idp) {
     const R = blob.rx, RY = blob.ry, cx = blob.cx, cy = blob.cy;
-    const turn = clamp(fs.turn, -1, 1), shift = turn * R * 0.3;
+    const turn = clamp(fs.turn, -1, 1);
+    // Profile: past ~65% turn the far eye disappears and features crowd the front edge.
+    const profile = EASE.inOut(clamp((Math.abs(turn) - 0.65) / 0.35, 0, 1));
+    const shift = turn * R * (0.3 + 0.25 * profile);
     let s = '', defs = '';
     const eyes = [];
     for (const side of [-1, 1]) {
       const nm = side < 0 ? 'L' : 'R';
       const far = side * turn > 0;
-      const spread = far ? 1 - 0.3 * Math.abs(turn) : 1 - 0.08 * Math.abs(turn);
+      if (far && profile > 0.5) continue;
+      const spread = far ? 1 - 0.3 * Math.abs(turn) : lerp(1 - 0.08 * Math.abs(turn), 0.12, profile);
       eyes.push({
         side, nm, far,
         x: cx + shift + side * R * L.eyeGap * spread, y: cy + RY * L.eyeY,
@@ -259,7 +263,7 @@
 
     // mouth
     const mx = cx + shift * 1.1 + fs.mouthX * R * 0.18, my = cy + RY * L.mouthY;
-    const w = R * L.mouthW * fs.mouthWidth, h = w * 0.55, sm = fs.mouthSmile, op = fs.mouthOpen;
+    const w = R * L.mouthW * fs.mouthWidth * (1 - 0.35 * profile), h = w * 0.55 / (1 - 0.35 * profile), sm = fs.mouthSmile, op = fs.mouthOpen;
     const lw = n2(Math.max(3, w * 0.17));
     if (fs.mouthShape === 'o') {
       const ry = h * (0.9 + op * 1.6), rx = w * 0.55;
@@ -429,8 +433,8 @@
     render(opts = {}) {
       const ctx = {
         ch: this, ink: this.ink, face: this.faceState, state: this.state,
-        props: this.state.props || {}, light: opts.light == null ? (this.spec.light == null ? -1 : this.spec.light) : opts.light,
-        t: opts.t || 0,
+        props: this.state.props || {}, view: this.spec.view || 'front', t: opts.t || 0,
+        light: (opts.flip ? -1 : 1) * (opts.light == null ? (this.spec.light == null ? -1 : this.spec.light) : opts.light),
       };
       const zo = this.state.z || {};
       const list = this.parts.map((p, i) => ({ p, i, z: zo[p.name] == null ? (p.z || 0) : zo[p.name] }))
@@ -483,6 +487,108 @@
     };
   }
 
+  // Side view (facing screen right). Limbs overlap with a little depth offset;
+  // ...L is the FAR side, ...R the NEAR side. Feet point forward.
+  function bipedSide(o = {}) {
+    const P = Object.assign({
+      thigh: 110, shin: 105, ankle: 14, hipDepth: 8, spine: 105, chest: 120, neck: 18, head: 200,
+      shoulderDepth: 10, shoulderY: 0.84, upperArm: 88, lowerArm: 82, hand: 24, foot: 38,
+    }, o);
+    return {
+      bones: [
+        { name: 'root' },
+        { name: 'hips', parent: 'root', y: -(P.thigh + P.shin + P.ankle), rot: -90, length: P.spine },
+        { name: 'chest', parent: 'hips', x: P.spine, length: P.chest },
+        { name: 'neck', parent: 'chest', x: P.chest, length: P.neck },
+        { name: 'head', parent: 'neck', x: P.neck, length: P.head },
+        { name: 'upperArmL', parent: 'chest', x: P.chest * P.shoulderY, y: -P.shoulderDepth, rot: 180, length: P.upperArm },
+        { name: 'lowerArmL', parent: 'upperArmL', x: P.upperArm, rot: -10, length: P.lowerArm },
+        { name: 'handL', parent: 'lowerArmL', x: P.lowerArm, length: P.hand },
+        { name: 'upperArmR', parent: 'chest', x: P.chest * P.shoulderY, y: P.shoulderDepth, rot: 180, length: P.upperArm },
+        { name: 'lowerArmR', parent: 'upperArmR', x: P.upperArm, rot: -10, length: P.lowerArm },
+        { name: 'handR', parent: 'lowerArmR', x: P.lowerArm, length: P.hand },
+        { name: 'thighL', parent: 'hips', y: -P.hipDepth, rot: 180, length: P.thigh },
+        { name: 'shinL', parent: 'thighL', x: P.thigh, length: P.shin },
+        { name: 'footL', parent: 'shinL', x: P.shin, rot: -90, length: P.foot },
+        { name: 'thighR', parent: 'hips', y: P.hipDepth, rot: 180, length: P.thigh },
+        { name: 'shinR', parent: 'thighR', x: P.thigh, length: P.shin },
+        { name: 'footR', parent: 'shinR', x: P.shin, rot: -90, length: P.foot },
+      ],
+      ik: {
+        armL: { upper: 'upperArmL', lower: 'lowerArmL', end: 'handL', bend: 1 },
+        armR: { upper: 'upperArmR', lower: 'lowerArmR', end: 'handR', bend: 1 },
+        // knees bend forward (toward +x)
+        legL: { upper: 'thighL', lower: 'shinL', end: 'footL', bend: -1, lockEnd: true },
+        legR: { upper: 'thighR', lower: 'shinR', end: 'footR', bend: -1, lockEnd: true },
+      },
+      dims: P,
+    };
+  }
+
+  // ---------- walk cycle (side view, facing +x) ----------
+  // Classic four-pose walk: contact -> down -> passing -> up, one step every
+  // half cycle. Default cycle = 1.0 s = 30 frames at 30 fps (15 frames a step).
+  // Feet stay planted from heel strike to toe-off (linear slide in root space),
+  // heels roll, hips dip on "down" and rise on "up", arms swing opposite the
+  // legs and lag a couple of frames behind.
+  function walk(t, o = {}) {
+    const P = Object.assign({ cycle: 1.0, stride: 200, stance: 0.6, bob: 12, lift: 40, armSwing: 32, lag: 0.07, lean: 5, ankle: 14, foot: 38, x0: 0, phase: 0, mood: 1 }, o);
+    const speed = P.stride / P.cycle;                 // px per second, root space
+    const p = ((t / P.cycle + P.phase) % 1 + 1) % 1;
+    const a = speed * P.stance * P.cycle / 2;         // planted foot slides from +a to -a
+    const legState = pp => {
+      if (pp < P.stance) {                              // stance: heel strike -> flat -> toe off
+        const u = pp / P.stance;
+        let ang = 0, y = -P.ankle;
+        if (u < 0.12) ang = -18 * (1 - u / 0.12);        // toe up at contact
+        if (u > 0.72) { ang = 32 * (u - 0.72) / 0.28; y -= P.foot * Math.sin(ang * DEG) * 0.9; } // heel peels off
+        return { x: a - 2 * a * u, y, endRot: ang };
+      }
+      const u = (pp - P.stance) / (1 - P.stance);       // swing: passing pose at u = .5
+      const e = EASE.inOut(u);
+      return { x: -a + 2 * a * e, y: -P.ankle - P.lift * P.mood * Math.sin(Math.PI * u) - (u < 0.3 ? P.foot * 0.3 * (1 - u / 0.3) : 0), endRot: lerp(32, -18, u) };
+    };
+    const legR = legState(p), legL = legState((p + 0.5) % 1);
+    const q = (p * 2) % 1;                              // step phase
+    const hipsY = P.bob * P.mood * Math.cos(2 * Math.PI * (q - 0.18)); // + = lower (down pose at q~.18)
+    const sw = P.armSwing * P.mood, pa = 2 * Math.PI * (p - P.lag);
+    return {
+      bones: {
+        root: { x: P.x0 + speed * t },
+        hips: { y: hipsY, rot: P.lean },
+        chest: { rot: -1.5 * Math.sin(2 * pa) },
+        head: { rot: -P.lean * 0.6 + 1.2 * Math.cos(2 * Math.PI * (q - 0.25)) },
+        upperArmR: { rot: sw * Math.cos(pa) },          // near arm back while near leg is forward
+        upperArmL: { rot: -sw * Math.cos(pa) },
+        lowerArmR: { rot: -10 - 10 * (1 - Math.cos(pa)) / 2 },
+        lowerArmL: { rot: -10 - 10 * (1 + Math.cos(pa)) / 2 },
+      },
+      ik: {
+        legL: { x: legL.x, y: legL.y, endRot: legL.endRot, weight: 1 },
+        legR: { x: legR.x, y: legR.y, endRot: legR.endRot, weight: 1 },
+      },
+      speed,
+    };
+  }
+
+  // An actor owns one Character per view and picks one from state.view.
+  // state.facing = -1 mirrors the side view to face left.
+  class Actor {
+    constructor(specFn, opts = {}) {
+      this.id = opts.id || 'actor';
+      this.views = {};
+      for (const v of opts.views || ['front', 'side']) this.views[v] = new Character(specFn({ view: v }), { id: `${this.id}-${v}` });
+      this.current = this.views.front || Object.values(this.views)[0];
+    }
+    pose(state) {
+      this.state = state;
+      this.current = this.views[state.view || 'front'] || this.current;
+      this.current.pose(state);
+      return this;
+    }
+    render(opts = {}) { return this.current.render(Object.assign({}, opts, { flip: (this.state && this.state.facing) < 0 })); }
+  }
+
   // ---------- state helpers ----------
   function flatten(o, pre = '', out = {}) {
     for (const k in o) {
@@ -504,6 +610,17 @@
     const flat = {};
     for (const s of states) if (s) Object.assign(flat, flatten(s));
     return unflatten(flat);
+  }
+
+  // Mix two states: numbers lerp, values present in only one state are kept as-is.
+  function blend(a, b, k) {
+    const A = flatten(a || {}), B = flatten(b || {}), out = {};
+    for (const p in A) out[p] = A[p];
+    for (const p in B) {
+      const va = A[p], vb = B[p];
+      out[p] = typeof va === 'number' && typeof vb === 'number' ? lerp(va, vb, k) : (va === undefined || k >= 0.5 ? vb : va);
+    }
+    return unflatten(out);
   }
 
   // Keyframes: [{ t, pose, ease }]. Each key's ease shapes the segment that ARRIVES at it.
@@ -561,7 +678,7 @@
 
   const Rig2D = {
     M, EASE, Blob, tubeGeo, closedPath, openPath, catmull, rng, lerp, clamp,
-    Character, Timeline, biped, merge, flatten, unflatten, alive,
+    Character, Actor, Timeline, biped, bipedSide, walk, blend, merge, flatten, unflatten, alive,
     FACE_DEFAULTS, FACE_LAYOUT, EXPRESSIONS, drawFace,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Rig2D;

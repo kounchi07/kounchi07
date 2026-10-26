@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#e9dcc6}</style></head><body>
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"><g id="g"></g><line x1="0" y1="1760" x2="1080" y2="1760" stroke="#2b1d16" stroke-width="3"/></svg>
+<script src="../src/rig.js"></script><script src="../characters/scholar.js"></script>
+<script>
+const hero = new Rig2D.Actor(Scholar.spec, { id: 'h' });
+window.DURATION = 2;
+// in-place walk cycle (root x cancelled) so the cycle can be studied frame by frame
+window.render = t => {
+  const w = Rig2D.walk(t); w.bones.root.x = 0;
+  const st = Rig2D.alive(Object.assign({ view: 'side', facing: 1 }, w), t);
+  hero.pose(Object.assign(st, { view: 'side', facing: 1 }));
+  document.getElementById('g').innerHTML = hero.render({ x: 540, y: 1760, scale: 1.25 });
+};
+</script></body></html>
