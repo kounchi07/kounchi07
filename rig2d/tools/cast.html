@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#e9dcc6}</style></head><body>
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+<script src="../src/rig.js"></script><script src="../src/kit.js"></script><script src="../characters/scholar.js"></script><script src="../characters/cast.js"></script>
+<script>
+window.DURATION = 1;
+window.render = t => {
+  const feet = { legL: { x: -32, y: -14 }, legR: { x: 32, y: -14 } };
+  const list = [['scholar', Scholar.spec], ['thief', Cast.thief], ['monk', Cast.monk], ['girl', Cast.girl]];
+  let s = '';
+  list.forEach(([n, spec], i) => {
+    const a = new Rig2D.Actor(spec, { id: n });
+    const E = Rig2D.EXPRESSIONS;
+    a.pose({ view: 'front', ik: feet, face: [{}, E.smug, E.happy, E.shock][i], props: { sack: true } });
+    s += a.render({ x: 135 + i * 270, y: 900, scale: 0.62 });
+    const w = Rig2D.walk(0.15 + i * 0.2); w.bones.root.x = 0;
+    a.pose(Object.assign(w, { view: 'side', facing: i % 2 ? -1 : 1, props: { sack: true } }));
+    s += a.render({ x: 135 + i * 270, y: 1800, scale: 0.62 });
+  });
+  document.getElementById('s').innerHTML = s;
+};
+</script></body></html>

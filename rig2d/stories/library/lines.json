@@ -1,0 +1,11 @@
+[
+ {"id": "l1", "voice": "am_michael", "text": "This ancient library was never robbed. Not once. In forty years."},
+ {"id": "l2", "voice": "am_michael", "text": "Thieves tried everything."},
+ {"id": "l3", "voice": "am_michael", "text": "Ropes. Tunnels. Fake mustaches."},
+ {"id": "l4", "voice": "am_michael", "text": "One guy even disguised himself as a vase."},
+ {"id": "l5", "voice": "am_michael", "text": "But every single time... they ran away screaming."},
+ {"id": "l6", "voice": "am_michael", "text": "Because every book in that library had the same title."},
+ {"id": "l7", "voice": "am_puck", "speed": 1.1, "text": "AAAAAAAAAAH!"},
+ {"id": "l8", "voice": "am_michael", "text": "He never came back."},
+ {"id": "l9", "voice": "bm_george", "speed": 0.95, "text": "Works every time."}
+]

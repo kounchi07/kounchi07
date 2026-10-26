@@ -261,11 +261,14 @@
       s += `<path d="M${pt(outer)} Q${pt(ctrl)} ${pt(inner)}" stroke="${ink}" stroke-width="${n2(R * L.browThick)}" fill="none" stroke-linecap="round"/>`;
     }
 
-    // mouth
+    // mouth (a layout can hide it, e.g. under a mask)
+    if (L.hideMouth) fs = Object.assign({}, fs, { mouthShape: 'none' });
     const mx = cx + shift * 1.1 + fs.mouthX * R * 0.18, my = cy + RY * L.mouthY;
     const w = R * L.mouthW * fs.mouthWidth * (1 - 0.35 * profile), h = w * 0.55 / (1 - 0.35 * profile), sm = fs.mouthSmile, op = fs.mouthOpen;
     const lw = n2(Math.max(3, w * 0.17));
-    if (fs.mouthShape === 'o') {
+    if (fs.mouthShape === 'none') {
+      // nothing
+    } else if (fs.mouthShape === 'o') {
       const ry = h * (0.9 + op * 1.6), rx = w * 0.55;
       s += `<ellipse cx="${n2(mx)}" cy="${n2(my + ry * 0.3)}" rx="${n2(rx)}" ry="${n2(ry)}" fill="${L.mouthColor}" stroke="${ink}" stroke-width="${lw}"/>` +
         `<path d="M${n2(mx - rx * 0.6)},${n2(my + ry * 1.0)} Q${n2(mx)},${n2(my + ry * 0.45)} ${n2(mx + rx * 0.6)},${n2(my + ry * 1.0)}" fill="${L.tongueColor}"/>`;

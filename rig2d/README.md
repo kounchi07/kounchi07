@@ -27,6 +27,54 @@ part hangs off a bone, so moving a bone moves everything attached to it.
 - **Props library** (`src/props.js`): detailed books, vases, candle, lantern, table, chest,
   tea set, scrolls, plants and wood grain, all in the same ink style and lighting.
 
+## Making any character (Kit)
+
+`src/kit.js` builds a full character (front + side view, all parts) from a description:
+
+```js
+const Thief = Kit.character({
+  name: 'thief',
+  body:   { thigh: 118, shin: 112, chest: 112 },               // proportions (biped dims)
+  skin:   '#efd7b8',
+  head:   { rx: 140, ry: 132, wobble: 0.13, seed: 21 },          // blob head; change seed for a new shape
+  hair:   { style: 'hood', color: '#26232e' },                   // bun | short | bald | hood | long
+  outfit: { type: 'tunic', color: '#34313f', pattern: 'none', sash: '#8a2f2a' },  // robe | tunic; diamond | dots | none
+  pants:  '#24212c', shoes: { color: '#121016' },
+  face:   { mustache: true, mustacheColor: '#8a5a2a', mustacheScale: 1 },
+  props:  [{ name: 'sack', bone: 'handR', visible: c => c.props.sack, draw: ctx => '<svg...>' }],
+});
+const actor = new Rig2D.Actor(Thief, { id: 'thief' });
+```
+
+`characters/cast.js` has a thief, a monk and a girl, all built this way. The scholar is the
+kit defaults plus a brush prop.
+
+## Voice, sound effects, mixing
+
+| Tool | What it does |
+|---|---|
+| `tools/tts.py lines.json out/` | Kokoro-82M voiceover: one WAV per line + `timing.json` (word times for captions, 30 fps mouth envelope for lip sync) |
+| `tools/sfx.py out/` | Synthesized SFX: boom, whoosh, zip, pop, ding, boing, scratch, sting, sneaky pizzicato, crickets, drone, thud |
+| `tools/mix.py cues.js out.wav` | Mixes voice + SFX from the same cue sheet the animation reads |
+
+Kokoro setup (offline-friendly): `pip install kokoro-onnx soundfile`, weights from the npm package
+`kokoro-q8-shards` (joined into `model_quantized.onnx`, sha256 `fbae9257…a1478`), voices from the npm
+package `kokoro-js`. Voices used: `am_michael` (narrator), `am_puck`, `bm_george`.
+
+## Story workflow
+
+See `stories/library/`:
+1. `lines.json`: the script (who says what, which voice)
+2. `python3 tools/tts.py stories/library/lines.json stories/library/audio`
+3. `build.py`: line start times + sound cues → `cues.js` (one timeline for picture and sound)
+4. `index.html`: the shots (camera, characters, poses, props, captions)
+5. Render + mix + mux:
+   ```bash
+   node tools/render.js stories/library/index.html out/frames --mp4 out/video.mp4
+   python3 tools/mix.py stories/library/cues.js out/audio.wav
+   ffmpeg -i out/video.mp4 -i out/audio.wav -c:v copy -c:a aac -b:a 192k -af loudnorm=I=-14:TP=-1 -shortest out/final.mp4
+   ```
+
 ## Files
 
 | Path | What |
@@ -35,6 +83,9 @@ part hangs off a bone, so moving a bone moves everything attached to it.
 | `characters/scholar.js` | Example character built on the `biped` skeleton |
 | `scenes/study.js` | Night study room background + lighting overlays |
 | `src/props.js` | Detailed reusable props |
+| `src/kit.js` | Character kit: any character from a description |
+| `characters/cast.js` | Thief, monk, girl (kit characters) |
+| `stories/library/` | Brainrot short: script, voice, cues, shots |
 | `demo.html` | Animated demo (timeline of poses) |
 | `walk_demo.html` | Story demo: walk in, turn to camera, talk, walk off |
 | `tools/poses.html` | Pose test sheet |
