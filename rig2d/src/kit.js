@@ -52,6 +52,7 @@
       pants: cfgIn.pants || DEFAULTS.pants,
       shoes: Object.assign({}, DEFAULTS.shoes, cfgIn.shoes),
       face: Object.assign({}, DEFAULTS.face, cfgIn.face),
+      hat: Object.assign({ style: 'none', color: '#1d1a24', trim: '#c38a2c', plume: '#c0282a' }, cfgIn.hat),
       props: cfgIn.props || [],
       faceDefaults: cfgIn.faceDefaults || {},
     };
@@ -99,7 +100,7 @@
     }
     // u positions (0 = hem, 1 = neck tip) depend on how far the garment hangs below the hips
     const sk0 = R2.biped(cfg.body).dims;
-    const hang = O.type === 'robe' ? O.length : 46;
+    const hang = O.type === 'robe' ? O.length : O.type === 'armor' ? 90 : 46;
     const torsoLen = hang + sk0.spine + sk0.chest + sk0.neck;
     const U = { waist: (hang + sk0.spine * 0.12) / torsoLen, waistTop: (hang + sk0.spine * 0.4) / torsoLen };
     const sashBand = (geo, sd) => {
@@ -116,16 +117,39 @@
       return s;
     };
 
+    const metal = O.metal || '#8d929c', metalDark = dk(metal, 0.45), metalLight = lt(metal, 0.5);
+    function scales(geo, u0, u1, rows) {
+      let s = '';
+      for (let r = 0; r < rows; r++) {
+        const u = u0 + (u1 - u0) * r / rows, du = (u1 - u0) / rows;
+        for (let sv = -1.1 + (r % 2) * 0.09; sv < 1.1; sv += 0.18) {
+          const a = geo.at(u, sv - 0.08), b = geo.at(u, sv + 0.08), c = geo.at(u + du * 1.05, sv);
+          s += `<path d="M${pt(a)} L${pt(b)} Q${n2(b[0] + (c[0] - b[0]) * 0.2)},${n2(c[1])} ${pt(c)} Q${n2(a[0] + (c[0] - a[0]) * 0.2)},${n2(c[1])} ${pt(a)}Z" fill="${metal}" stroke="${INK}" stroke-width="2"/>` +
+            `<path d="M${pt(geo.at(u + du * 0.25, sv - 0.04))} L${pt(geo.at(u + du * 0.75, sv - 0.04))}" stroke="${metalLight}" stroke-width="2" opacity=".7"/>`;
+        }
+      }
+      return s;
+    }
     const torsoDetail = (geo, ctx) => {
+      if (O.type === 'armor') {
+        let a = scales(geo, 0.05, U.waist - 0.01, 6) + scales(geo, U.waistTop + 0.01, 0.9, 9);
+        return a + shade(geo, ctx, 0.25, 0.45) + `<path d="${geo.band(0, 0.04, -1.2, 1.2)}" fill="${C.trim}"/>`;
+      }
       let s = shade(geo, ctx, 0.25, 0.5) + pattern(geo, 0.06, 0.93);
       s += folds(geo, [[[0, -0.6], [U.waist * 0.45, -0.52], [U.waist * 0.9, -0.44]], [[0, 0.08], [U.waist * 0.5, 0.04], [U.waist * 0.92, 0.1]], [[0, 0.62], [U.waist * 0.4, 0.55], [U.waist * 0.88, 0.48]], [[0.62, -0.5], [0.72, -0.62]]]);
       s += `<path d="${geo.band(0, 0.04, -1.2, 1.2)}" fill="${C.trim}"/><path d="${geo.line([[0.043, -1.2], [0.043, 0], [0.043, 1.2]])}" stroke="${C.sash || C.dots}" stroke-width="4" fill="none"/>`;
       return s;
     };
-    const torsoOverFront = geo => collarBand(geo, [[0.94, 0.62], [0.8, 0.2], [0.64, -0.12]]) + collarBand(geo, [[0.94, -0.62], [0.74, -0.05], [U.waistTop + 0.01, 0.52]]) + sashBand(geo, 0.42);
-    const torsoOverSide = geo => collarBand(geo, [[0.95, -0.4], [0.8, 0.3], [U.waistTop + 0.15, 0.95]]) + sashBand(geo, 0.8);
+    const mirror = (p, r) => `<circle cx="${n2(p[0])}" cy="${n2(p[1])}" r="${r}" fill="${O.mirror || '#c8963f'}" stroke="${INK}" stroke-width="5"/><circle cx="${n2(p[0])}" cy="${n2(p[1])}" r="${r * 0.68}" fill="none" stroke="${dk(O.mirror || '#c8963f', 0.4)}" stroke-width="3"/>` +
+      `<path d="M${n2(p[0] - r * 0.5)},${n2(p[1] - r * 0.2)} q${n2(r * 0.25)},${n2(-r * 0.4)} ${n2(r * 0.6)},${n2(-r * 0.45)}" stroke="#fff6c0" stroke-width="4" fill="none" opacity=".8" stroke-linecap="round"/>`;
+    const torsoOverFront = geo => O.type === 'armor'
+      ? sashBand(geo, 0.42) + mirror(geo.at(0.76, 0), 34) + `<path d="${geo.line([[0.93, -0.7], [0.97, 0], [0.93, 0.7]])}" stroke="${INK}" stroke-width="22" fill="none"/><path d="${geo.line([[0.93, -0.7], [0.97, 0], [0.93, 0.7]])}" stroke="${C.trim}" stroke-width="15" fill="none"/>`
+      : collarBand(geo, [[0.94, 0.62], [0.8, 0.2], [0.64, -0.12]]) + collarBand(geo, [[0.94, -0.62], [0.74, -0.05], [U.waistTop + 0.01, 0.52]]) + sashBand(geo, 0.42);
+    const torsoOverSide = geo => O.type === 'armor'
+      ? sashBand(geo, 0.8) + mirror(geo.at(0.76, 0.55), 30)
+      : collarBand(geo, [[0.95, -0.4], [0.8, 0.3], [U.waistTop + 0.15, 0.95]]) + sashBand(geo, 0.8);
 
-    const sleeveDetail = (geo, ctx) => shade(geo, ctx, 0.15, 0.5) +
+    const sleeveDetail = (geo, ctx) => (O.type === 'armor' ? scales(geo, 0.02, 0.4, 3) : '') + shade(geo, ctx, 0.15, 0.5) +
       folds(geo, [[[0.15, -0.3], [0.45, -0.1], [0.7, -0.35]], [[0.5, 0.45], [0.75, 0.3]]], 4) +
       `<path d="${geo.band(0.84, 1, -1.3, 1.3)}" fill="${C.trim}"/><path d="${geo.line([[0.855, -1.2], [0.855, 0], [0.855, 1.2]])}" stroke="${C.sash || C.dots}" stroke-width="3.5" fill="none"/>` +
       [-0.7, -0.35, 0, 0.35, 0.7].map(sv => { const p = geo.at(0.93, sv); return `<circle cx="${n2(p[0])}" cy="${n2(p[1])}" r="2.4" fill="${C.dots}"/>`; }).join('');
@@ -146,8 +170,16 @@
     function bunPos(blob, fs) { const top = blob.point(-Math.PI / 2, 1); return [top[0] - fs.turn * blob.rx * 0.22, top[1] - 12 + Math.abs(fs.turn) * 6]; }
     function hairBack(ctx, blob, fs) {
       let s = '';
-      if (H.style === 'bun') {
-        const [x, y] = bunPos(blob, fs), bun = R2.Blob({ cx: x, cy: y, rx: 52, ry: 48, seed: 9, wobble: 0.06 });
+      if (H.style === 'kidbuns') for (const k of [-1, 1]) {
+        const p = blob.point(Math.PI * (1.5 + k * 0.27), 1.0), x = p[0] - fs.turn * blob.rx * 0.15, y = p[1] - 8;
+        const b = R2.Blob({ cx: x, cy: y, rx: 40, ry: 38, seed: 12 + k, wobble: 0.06 });
+        s += `<path d="${b.path}" fill="${C.hair}" stroke="${INK}" stroke-width="6"/><path d="M${n2(x - 22)},${n2(y - 18)} q20,-14 38,0" stroke="${C.hairSheen}" stroke-width="4" fill="none" opacity=".7"/>` +
+          `<path d="M${n2(x - 30)},${n2(y + 22)} q30,12 60,0" stroke="${H.band}" stroke-width="9" fill="none"/><path d="M${n2(x + k * 20)},${n2(y + 26)} q${k * 12},30 ${k * 4},60" stroke="${H.band}" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+      }
+      s += hatBack(blob, fs);
+      if (H.style === 'bun' || H.style === 'topknot') {
+        const k = H.style === 'topknot' ? 0.6 : 1;
+        const [x, y0] = bunPos(blob, fs), y = y0 + (1 - k) * 30, bun = R2.Blob({ cx: x, cy: y, rx: 52 * k, ry: 48 * k, seed: 9, wobble: 0.06 });
         s += `<path d="${bun.path}" fill="${C.hair}" stroke="${INK}" stroke-width="6"/>`;
         for (let i = 0; i < 5; i++) s += `<path d="M${n2(x - 34 + i * 16)},${n2(y - 40)} Q${n2(x - 38 + i * 18)},${n2(y)} ${n2(x - 30 + i * 14)},${n2(y + 40)}" stroke="${C.hairLine}" stroke-width="2.5" fill="none"/>`;
         s += `<path d="M${n2(x - 28)},${n2(y - 28)} Q${n2(x - 4)},${n2(y - 44)} ${n2(x + 20)},${n2(y - 36)}" stroke="${C.hairSheen}" stroke-width="5" fill="none" stroke-linecap="round" opacity=".7"/>`;
@@ -210,7 +242,7 @@
     }
     function hairFront(ctx, blob, fs) {
       let s = '';
-      if (H.style === 'bun' || H.style === 'long' || H.style === 'short') {
+      if (['bun', 'long', 'short', 'kidbuns', 'topknot'].includes(H.style)) {
         const cap = hairCap(blob, fs, H.style === 'short' ? 0.95 : 1);
         s += cap.svg;
         if (H.style === 'short') for (let i = 3; i < 12; i += 2) { const q = cap.inner[i]; s += `<path d="M${n2(q[0] - 14)},${n2(q[1] - 6)} l14,${n2(18 + (i % 3) * 4)} l12,-20" fill="${C.hair}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`; }
@@ -223,7 +255,65 @@
       }
       if (H.style === 'bald') { const p = blob.point(Math.PI * 1.35, 0.8); s += `<ellipse cx="${n2(p[0])}" cy="${n2(p[1])}" rx="26" ry="12" fill="#fff" opacity=".45" transform="rotate(-25 ${n2(p[0])} ${n2(p[1])})"/>`; }
       if (H.style === 'hood') s += hood(blob, fs);
-      return s;
+      return s + hatFront(blob, fs);
+    }
+
+    // ---------- hats ----------
+    const T = cfg.hat;
+    function hatBack(blob, fs) {
+      const dir = Math.sign(fs.turn) || 0, tw = Math.abs(fs.turn);
+      if (T.style === 'lunjin') {        // silk scholar cap: two long ribbons hang behind the head
+        let s = '';
+        for (const k of [-1, 1]) {
+          const p = blob.point(Math.PI * (1.5 + k * 0.32 - dir * 0.2 * tw), 1.0), sway = Math.sin((fs._t || 0) * 2 + k) * 8;
+          const ex = p[0] + k * 24 - dir * 70 * tw + sway, ey = p[1] + blob.ry * 1.3;
+          s += `<path d="M${pt(p)} q${n2(k * 30 - dir * 40 * tw)},${n2(blob.ry * 0.6)} ${n2(ex - p[0])},${n2(ey - p[1])} l${k * 14},4 q${n2(-k * 10)},${n2(-blob.ry * 0.7)} ${n2(-(ex - p[0]) - k * 4)},${n2(-(ey - p[1]) - 4)}Z" fill="${T.color}" stroke="${INK}" stroke-width="4"/>`;
+        }
+        return s;
+      }
+      if (T.style === 'helmet') {        // red horsehair plume flows back
+        const top = blob.point(-Math.PI / 2, 1.18), x = top[0] - fs.turn * blob.rx * 0.1, y = top[1] - 40;
+        let s = '';
+        for (let i = -4; i <= 4; i++) s += `<path d="M${n2(x)},${n2(y)} q${n2(i * 10 - dir * 60 * tw)},${n2(-40)} ${n2(i * 18 - dir * 110 * tw)},${n2(20 + Math.abs(i) * 6)}" stroke="${T.plume}" stroke-width="9" fill="none" stroke-linecap="round"/>`;
+        return s;
+      }
+      return '';
+    }
+    function hatFront(blob, fs) {
+      const dir = Math.sign(fs.turn) || 0, tw = Math.abs(fs.turn), shift = -fs.turn * blob.rx * 0.12;
+      if (T.style === 'lunjin') {
+        const l = blob.point(Math.PI * 1.08, 1.03), r = blob.point(Math.PI * 1.92, 1.03), top = blob.cy - blob.ry * 1.32;
+        const w = (r[0] - l[0]) * (0.86 - 0.12 * tw), cx = (l[0] + r[0]) / 2 + shift;
+        let s = `<path d="M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.62)} ${pt(r)} L${n2(cx + w / 2)},${n2(top + 20)} Q${n2(cx + w / 2)},${n2(top)} ${n2(cx + w / 2 - 20)},${n2(top)} L${n2(cx - w / 2 + 20)},${n2(top)} Q${n2(cx - w / 2)},${n2(top)} ${n2(cx - w / 2)},${n2(top + 20)}Z" fill="${T.color}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        for (let i = 1; i < 5; i++) { const x = cx - w / 2 + w * i / 5; s += `<path d="M${n2(x)},${n2(top + 10)} Q${n2(x + 6)},${n2((top + l[1]) / 2)} ${n2(x - 4 + (i - 2.5) * 6)},${n2(l[1] - 10)}" stroke="${lt(T.color, 0.25)}" stroke-width="3" fill="none"/>`; }
+        s += `<path d="M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.62)} ${pt(r)}" stroke="${lt(T.color, 0.35)}" stroke-width="8" fill="none"/>`;
+        s += `<path d="M${n2(cx - w * 0.3)},${n2(top + 14)} q${n2(w * 0.2)},-10 ${n2(w * 0.45)},-4" stroke="${lt(T.color, 0.5)}" stroke-width="5" fill="none" opacity=".7" stroke-linecap="round"/>`;
+        return s;
+      }
+      if (T.style === 'helmet') {
+        const pts = [];
+        for (let i = 0; i <= 16; i++) pts.push(blob.point(Math.PI * (1.0 + i / 16), 1.1));
+        const rimL = blob.point(Math.PI * 1.0, 1.1), rimR = blob.point(Math.PI * 2.0, 1.1);
+        let s = `<path d="${R2.openPath(pts)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.38)} ${pt(rimL)}Z" fill="${metal}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        const ridgeX = blob.cx + fs.turn * blob.rx * 0.45;
+        s += `<path d="M${n2(ridgeX)},${n2(blob.cy - blob.ry * 1.12)} Q${n2(ridgeX + fs.turn * 20)},${n2(blob.cy - blob.ry * 0.8)} ${n2(ridgeX + fs.turn * 30)},${n2(blob.cy - blob.ry * 0.42)}" stroke="${metalDark}" stroke-width="10" fill="none"/>`;
+        for (let i = 1; i < 6; i++) { const p = blob.point(Math.PI * (1.0 + i / 6), 1.02); s += `<circle cx="${n2(p[0])}" cy="${n2(p[1] + 14)}" r="4" fill="${metalLight}" stroke="${INK}" stroke-width="1.5"/>`; }
+        s += `<path d="M${pt(rimL)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.38)} ${pt(rimR)}" stroke="${T.trim}" stroke-width="16" fill="none"/><path d="M${pt(rimL)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.38)} ${pt(rimR)}" stroke="${INK}" stroke-width="4" fill="none" transform="translate(0 9)"/>`;
+        // ear flaps of small plates
+        for (const k of [-1, 1]) {
+          if (k * fs.turn > 0.6) continue;
+          const p = blob.point(Math.PI * (k < 0 ? 1.0 : 0.0), 1.08);
+          for (let r = 0; r < 3; r++) s += `<rect x="${n2(p[0] - 20)}" y="${n2(p[1] + r * 26)}" width="40" height="30" rx="6" fill="${metal}" stroke="${INK}" stroke-width="3"/>`;
+        }
+        const top = blob.point(-Math.PI / 2, 1.18), x = top[0] - fs.turn * blob.rx * 0.1;
+        s += `<path d="M${n2(x - 10)},${n2(top[1] + 10)} L${n2(x)},${n2(top[1] - 44)} L${n2(x + 10)},${n2(top[1] + 10)}Z" fill="${T.trim}" stroke="${INK}" stroke-width="4"/><circle cx="${n2(x)}" cy="${n2(top[1] - 44)}" r="9" fill="${T.trim}" stroke="${INK}" stroke-width="3"/>`;
+        return s;
+      }
+      if (T.style === 'band') {
+        const l = blob.point(Math.PI * 1.12, 1.02), r = blob.point(Math.PI * 1.88, 1.02);
+        return `<path d="M${pt(l)} Q${n2(blob.cx + fs.turn * 30)},${n2(blob.cy - blob.ry * 0.82)} ${pt(r)}" stroke="${INK}" stroke-width="26" fill="none"/><path d="M${pt(l)} Q${n2(blob.cx + fs.turn * 30)},${n2(blob.cy - blob.ry * 0.82)} ${pt(r)}" stroke="${T.color}" stroke-width="18" fill="none"/>`;
+      }
+      return '';
     }
     function faceFront(ctx, blob, fs) {
       let s = '';
@@ -231,6 +321,13 @@
         const prof = R2.clamp((Math.abs(fs.turn) - 0.65) / 0.35, 0, 1), shift = fs.turn * blob.rx * (0.3 + 0.25 * prof);
         const x = blob.cx + shift * 1.1, y = blob.cy + blob.ry * 0.3, w = blob.rx * 0.2 * (cfg.face.mustacheScale || 1) * (1 - 0.4 * prof);
         s += `<path d="M${n2(x)},${n2(y)} q${n2(-w * 0.6)},${n2(-w * 0.35)} ${n2(-w * 1.2)},${n2(w * 0.25)} q${n2(-w * 0.2)},${n2(w * 0.25)} ${n2(-w * 0.45)},${n2(w * 0.1)} q${n2(w * 0.9)},${n2(w * 0.1)} ${n2(w * 1.65)},${n2(-w * 0.25)} q${n2(w * 0.75)},${n2(w * 0.35)} ${n2(w * 1.65)},${n2(w * 0.25)} q${n2(-w * 0.25)},${n2(w * 0.15)} ${n2(-w * 0.45)},${n2(-w * 0.1)} q${n2(-w * 0.6)},${n2(-w * 0.6)} ${n2(-w * 1.2)},${n2(-w * 0.25)}Z" fill="${cfg.face.mustacheColor || C.hair}" stroke="${INK}" stroke-width="3"/>`;
+      }
+      if (cfg.face.beard) {
+        const prof = R2.clamp((Math.abs(fs.turn) - 0.65) / 0.35, 0, 1), shift = fs.turn * blob.rx * (0.3 + 0.25 * prof);
+        const x = blob.cx + shift * 1.1, y = blob.cy + blob.ry * 0.62, long = cfg.face.beard === 'long' ? 1.8 : 1, w = blob.rx * 0.16 * (1 - 0.3 * prof);
+        const col = cfg.face.beardColor || C.hair;
+        s += `<path d="M${n2(x - w)},${n2(y - 6)} Q${n2(x - w * 0.6)},${n2(y + 60 * long)} ${n2(x + fs.turn * 10)},${n2(y + 90 * long)} Q${n2(x + w * 0.6)},${n2(y + 60 * long)} ${n2(x + w)},${n2(y - 6)} Q${n2(x)},${n2(y + 10)} ${n2(x - w)},${n2(y - 6)}Z" fill="${col}" stroke="${INK}" stroke-width="3.5"/>` +
+          `<path d="M${n2(x)},${n2(y + 8)} L${n2(x + fs.turn * 6)},${n2(y + 70 * long)} M${n2(x - w * 0.45)},${n2(y + 6)} L${n2(x - w * 0.25)},${n2(y + 50 * long)} M${n2(x + w * 0.45)},${n2(y + 6)} L${n2(x + w * 0.25)},${n2(y + 50 * long)}" stroke="${lt(col, 0.3)}" stroke-width="2" fill="none"/>`;
       }
       if (cfg.face.front) s += cfg.face.front(ctx, blob, fs);
       return s;
@@ -254,16 +351,16 @@
     // ---------- views ----------
     function front() {
       const sk = R2.biped(cfg.body), robe = O.type === 'robe';
-      const torsoW = robe ? [232, 186, 152, 126, 84] : [176, 168, 160, 132, 86];
+      const torsoW = robe ? [232, 186, 152, 126, 84] : O.type === 'armor' ? [206, 184, 168, 140, 88] : [176, 168, 160, 132, 86];
       const legW = robe ? [36, 28, 24] : [48, 40, 30];
       return {
         name: cfg.name, view: 'front', ink: INK, light: cfg.light, bones: sk.bones, ik: sk.ik, dims: sk.dims, face: faceDefaults(),
         parts: [
-          { name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', clipId: 'legL', detail: legDetail },
-          { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', clipId: 'legR', detail: legDetail },
+          { name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail },
+          { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
           { name: 'shoeL', type: 'shape', bone: 'footL', z: 1, draw: shoe(-1) },
           { name: 'shoeR', type: 'shape', bone: 'footR', z: 1, draw: shoe(1) },
-          { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: hang, widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverFront },
+          { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverFront },
           { name: 'handL', type: 'shape', bone: 'handL', z: 18, draw: hand },
           { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand },
           { name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail },
@@ -276,20 +373,20 @@
     }
     function side() {
       const sk = R2.bipedSide(cfg.body), robe = O.type === 'robe';
-      const torsoW = robe ? [196, 156, 128, 108, 76] : [150, 146, 136, 112, 76];
+      const torsoW = robe ? [196, 156, 128, 108, 76] : O.type === 'armor' ? [170, 160, 146, 118, 78] : [150, 146, 136, 112, 76];
       const legW = robe ? [36, 28, 24] : [48, 40, 30];
       const far = (part, fill) => Object.assign({}, part, { fill });
       return {
         name: cfg.name, view: 'side', ink: INK, light: cfg.light, bones: sk.bones, ik: sk.ik, dims: sk.dims,
         face: Object.assign({ turn: 1 }, faceDefaults()),
         parts: [
-          far({ name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: legW, z: -2, line: 5, capEnd: 'flat', clipId: 'legL', detail: legDetail }, C.pantsFar),
+          far({ name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: legW, z: -2, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail }, C.pantsFar),
           { name: 'shoeL', type: 'shape', bone: 'footL', z: -1, draw: shoe(1) },
           { name: 'handL', type: 'shape', bone: 'handL', z: 3, draw: hand },
           far({ name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: robe ? [46, 50, 64] : [42, 40, 44], z: 4, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail }, C.clothFar),
-          { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', clipId: 'legR', detail: legDetail },
+          { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
           { name: 'shoeR', type: 'shape', bone: 'footR', z: 1, draw: shoe(1) },
-          { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: hang, widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverSide },
+          { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverSide },
           { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand },
           { name: 'sleeveR', type: 'tube', bones: ['upperArmR', 'lowerArmR'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveR', detail: sleeveDetail },
           headPart(),

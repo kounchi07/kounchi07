@@ -1,0 +1,266 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+html,body{margin:0;background:#000;overflow:hidden}
+svg{display:block}
+.cap{font-family:Inter,'DejaVu Sans',sans-serif;font-weight:900;font-size:86px;fill:#fff;stroke:#120a08;stroke-width:18px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle}
+</style></head>
+<body>
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dofB" stdDeviation="0"/></filter>
+    <filter id="whip" x="-20%" y="-5%" width="140%" height="110%"><feGaussianBlur id="whipB" stdDeviation="0 0"/></filter>
+    <radialGradient id="vign" cx=".5" cy=".46" r=".75"><stop offset=".55" stop-color="#0d0610" stop-opacity="0"/><stop offset="1" stop-color="#0d0610" stop-opacity=".75"/></radialGradient>
+    <linearGradient id="bars" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".12" stop-color="#000" stop-opacity="0"/><stop offset=".88" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+  </defs>
+  <g id="stage"></g>
+  <rect id="tint" width="1080" height="1920" fill="#c0281a" opacity="0" style="mix-blend-mode:multiply"/>
+  <rect width="1080" height="1920" fill="url(#vign)"/>
+  <rect width="1080" height="1920" fill="url(#bars)"/>
+  <rect width="1080" height="1920" fill="#ff9a50" opacity=".07" style="mix-blend-mode:soft-light"/>
+  <text id="cap" class="cap" x="540" y="1540"></text>
+  <rect id="flash" width="1080" height="1920" fill="#fff" opacity="0"/>
+  <rect id="fade" width="1080" height="1920" fill="#000" opacity="0"/>
+</svg>
+<script src="../../src/rig.js"></script>
+<script src="../../src/kit.js"></script>
+<script src="../../src/props.js"></script>
+<script src="../../src/camera.js"></script>
+<script src="../../characters/threekingdoms.js"></script>
+<script src="../../scenes/city.js"></script>
+<script src="cues.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const { walk, alive, blend, clamp, lerp, EASE, EXPRESSIONS: EX, FACE_DEFAULTS, rng } = Rig2D;
+const CUE = window.CUES, EV = CUE.events, LN = CUE.lines, TM = CUE.timing;
+const INK = '#2b1d16';
+const sm = (t, a, b) => EASE.inOut(clamp((t - a) / (b - a), 0, 1));
+const between = (t, a, b) => t >= a && t < b;
+
+// ---------- scenes: static layers built once, only actors/army/overlays change per frame ----------
+const SC = { ex: City.exterior(), st: City.street(), wt: City.walltop() };
+let html = '';
+for (const k in SC) html += `<g id="sc-${k}" style="display:none">${SC[k].layers.map(l => `<g id="L-${k}-${l.id}">${l.svg}</g>`).join('')}</g>`;
+$('stage').innerHTML = html;
+
+const A = {
+  zhuge: new Rig2D.Actor(TK.zhuge, { id: 'zg' }), sima: new Rig2D.Actor(TK.simaYi, { id: 'sy' }),
+  boyA: new Rig2D.Actor(TK.boyA, { id: 'ba' }), boyB: new Rig2D.Actor(TK.boyB, { id: 'bb' }),
+  swA: new Rig2D.Actor(TK.sweeperA, { id: 'sa' }), swB: new Rig2D.Actor(TK.sweeperB, { id: 'sb' }),
+  solA: new Rig2D.Actor(TK.soldierA, { id: 'oa' }), solB: new Rig2D.Actor(TK.soldierB, { id: 'ob' }),
+};
+const FEET = { legL: { x: -32, y: -14 }, legR: { x: 32, y: -14 } };
+const SFEET = { legL: { x: -12, y: -14, endRot: 0 }, legR: { x: 14, y: -14, endRot: 0 } };
+function draw(actor, st, x, y, s, t, shadow = true) {
+  st.face = Object.assign({ _t: t }, st.face || {});
+  actor.pose(st);
+  const sh = shadow ? `<ellipse cx="${x}" cy="${y + 4}" rx="${(st.view === 'side' ? 110 : 150) * s}" ry="${20 * s}" fill="#000" opacity=".3"/>` : '';
+  return sh + actor.render({ x, y, scale: s, t });
+}
+const mouthAt = (line, t) => { const m = TM[line].mouth, i = Math.floor((t - LN[line]) * 30); return i >= 0 && i < m.length ? m[i] : 0; };
+const lineEnd = id => LN[id] + TM[id].duration;
+
+// seated (side view): hips drop onto the cushion, knees forward
+const SEAT = { hips: { y: 168, rot: 4 } };
+const SEAT_IK = { legL: { x: 92, y: -18, endRot: 0 }, legR: { x: 108, y: -20, endRot: 0 } };
+function zhugeSeated(t, o = {}) {
+  const pluck = o.pluck || 0, k = o.collapse || 0;
+  const pa = Math.sin(t * 9) * 14 * pluck, pb = Math.sin(t * 9 + 1.7) * 14 * pluck;
+  return blend({
+    view: 'side', facing: 1, sit: 1, bones: Object.assign({}, SEAT, { chest: { rot: 3 }, head: { rot: -2 } }),
+    ik: Object.assign({}, SEAT_IK, { armR: { x: 250 + pa, y: -150 - Math.abs(pa) * 0.5, weight: 1, endRot: 20 }, armL: { x: 330 + pb, y: -156 - Math.abs(pb) * 0.5, weight: 1, endRot: 20 } }),
+    face: Object.assign({ mouthSmile: 0.35, lidTop: 0.3 }, o.face || {}), props: { fan: false },
+  }, {
+    bones: { hips: { y: 168, rot: 12 }, chest: { rot: 58 }, head: { rot: 0 } },
+    ik: { armR: { x: 330, y: -118, weight: 1 }, armL: { x: 420, y: -122, weight: 1 } },
+    face: { blink: 1, eyeSmile: 0, mouthShape: 'o', mouthOpen: 0.5, lidTop: 0 },
+  }, k);
+}
+
+// imagined archers popping up behind the battlements (Sima Yi's fear)
+function archers(t, t0) {
+  let s = '';
+  for (let i = 0; i < 12; i++) {
+    const x = 220 + i * 168, up = EASE.back(clamp((t - t0 - i * 0.03) / 0.25, 0, 1)) * 70;
+    s += `<g transform="translate(${x} ${940 - up})"><path d="M-20,40 L-20,-10 A20,20 0 0 1 20,-10 L20,40Z" fill="#1a0a0a"/><circle cy="-20" r="16" fill="#1a0a0a"/><path d="M-14,-30 L0,-50 L14,-30" fill="#1a0a0a"/>` +
+      `<path d="M26,-40 Q60,-10 26,30" stroke="#1a0a0a" stroke-width="6" fill="none"/><line x1="26" y1="-40" x2="26" y2="30" stroke="#1a0a0a" stroke-width="2"/><line x1="-6" y1="-6" x2="60" y2="-6" stroke="#1a0a0a" stroke-width="4"/></g>`;
+  }
+  return s;
+}
+
+// ---------- shot list ----------
+// Each shot: { sc, cam(t), actors(t), opts(t), dof, tint, hide }
+const cut = [EV.street, EV.zhuge, EV.run, EV.fight, EV.crazy, EV.gate, EV.sweep, EV.wall, EV.sima, EV.trap, EV.retreat, EV.legend, EV.gone, EV.boy, EV.plant];
+const WHIPS = { [EV.street]: 1, [EV.gate]: -1, [EV.sweep]: 1, [EV.sima]: -1, [EV.retreat]: 1 };
+
+function shot(t) {
+  const c = { x: 540, y: 960, z: 1, r: 0 };
+  let sc = 'ex', actors = '', army = '', o = {}, dof = 0, tint = 0, hideCity = false, flash = 0;
+
+  if (t < EV.street) {                                   // 1. crane down from the sky onto the city + army
+    const cam = Camera.track([{ t: 0, x: 1150, y: 560, z: 1.05 }, { t: 3.2, x: 1260, y: 1230, z: 1.0, ease: 'inOut' }, { t: EV.street, x: 1230, y: 1250, z: 1.12, ease: 'in' }])(t);
+    Object.assign(c, cam);
+    army = SC.ex.army({ x0: 1650 - t * 40, x1: 2900, y0: 1460, y1: 1800, rows: 7, t, march: 1, facing: -1 });
+    o.tower = draw(A.zhuge, { view: 'front', ik: FEET, props: { fan: true }, face: { lookX: 0.6 } }, 1200, 862, 0.22, t, false);
+  } else if (t < EV.zhuge) {                             // 2. empty street, slow dolly in
+    sc = 'st';
+    Object.assign(c, Camera.track([{ t: EV.street, x: 540, y: 1150, z: 1.0 }, { t: EV.zhuge, x: 560, y: 1080, z: 1.22, ease: 'linear' }])(t));
+  } else if (t < EV.run) {                               // 3. meet Zhuge Liang: slow push + arc
+    sc = 'wt'; dof = 6;
+    const k = (t - EV.zhuge) / (EV.run - EV.zhuge);
+    Object.assign(c, { x: 540 + 30 * k, y: 1150 - 40 * k, z: 1.45 + 0.25 * k, r: -1.5 + 2 * k });
+    const fanA = Math.sin(t * 2.4) * 40;
+    actors = draw(A.zhuge, alive({ view: 'front', ik: Object.assign({ armR: { x: 150 + fanA * 0.3, y: -480 + fanA, weight: 1 } }, FEET), props: { fan: true }, face: { lookX: 0.4, lidTop: 0.25, mouthSmile: 0.35 } }, t, { seed: 5 }), 540, 1960, 1.45, t, false);
+  } else if (t < EV.fight) {                             // 4a. couldn't run: the army blocks the road
+    hideCity = true; dof = 3;
+    Object.assign(c, { x: 1700, y: 1450, z: 1.6 });
+    Camera.shake(c, t, 10);
+    army = SC.ex.army({ x0: 1100, x1: 2600, y0: 1420, y1: 1900, rows: 8, t, march: 1, facing: -1, seed: 7 });
+  } else if (t < EV.crazy) {                             // 4b. couldn't fight: his "army"
+    sc = 'wt'; dof = 5;
+    Object.assign(c, { x: 540, y: 1300, z: 1.35 });
+    const shiver = Math.sin(t * 60) * 3;
+    actors = draw(A.boyA, { view: 'front', ik: Object.assign({ armR: { x: 60, y: -300 }, armL: { x: -10, y: -290 } }, FEET), props: { broom: true }, face: Object.assign({}, EX.scared) }, 380 + shiver, 1880, 1.25, t) +
+      draw(A.boyB, { view: 'front', ik: Object.assign({ armR: { x: 60, y: -300 }, armL: { x: -10, y: -290 } }, FEET), props: { broom: true }, face: Object.assign({}, EX.scared, { lookX: -0.8 }) }, 720 - shiver, 1880, 1.25, t);
+  } else if (t < EV.gate) {                              // 5. the plan: dramatic push-in
+    sc = 'wt'; dof = 8;
+    const k = EASE.in(clamp((t - EV.crazy) / (EV.gate - EV.crazy), 0, 1));
+    Object.assign(c, { x: 540, y: 1000 - 60 * k, z: 1.9 + 0.9 * k, r: 0 });
+    Camera.shake(c, t, 6, LN.n5 + 0.6, 0.5);
+    actors = draw(A.zhuge, alive({ view: 'front', ik: Object.assign({ armR: { x: 150, y: -520, weight: 1 } }, FEET), props: { fan: true }, face: { lidTop: 0.45, browAngle: 0.5, mouthSmile: 0.5, mouthX: 0.4, lookX: 0.2 } }, t, { seed: 5, sway: 0.3 }), 540, 1960, 1.45, t, false);
+  } else if (t < EV.sweep) {                             // 6. the gates swing open
+    const open = EASE.inOut(clamp((t - EV.gateOpen) / 1.15, 0, 1));
+    Object.assign(c, Camera.track([{ t: EV.gate, x: 1200, y: 1280, z: 1.55 }, { t: EV.sweep, x: 1200, y: 1250, z: 1.85, ease: 'linear' }])(t));
+    Camera.shake(c, t, 8, EV.gateOpen + 1.15, 0.5);
+    o.gateOpen = open;
+  } else if (t < EV.wall) {                              // 7. sweepers sweeping, calm as anything
+    sc = 'st';
+    Object.assign(c, Camera.track([{ t: EV.sweep, x: 380, y: 1360, z: 1.3 }, { t: EV.wall, x: 700, y: 1330, z: 1.4, ease: 'linear' }])(t));
+    const sw = (ph, s) => { const a = Math.sin(t * 4.2 + ph); return { view: 'side', facing: s, bones: { hips: { y: 10, rot: 12 }, chest: { rot: 10 } }, ik: Object.assign({ armR: { x: 110 + a * 60, y: -300, weight: 1, endRot: 70 }, armL: { x: 70 + a * 60, y: -360, weight: 1 } }, SFEET), props: { broom: true }, face: { lidTop: 0.55, mouthSmile: 0.2 } }; };
+    actors = draw(A.swA, alive(sw(0, 1), t, { seed: 8 }), 230, 1500, 0.85, t) + draw(A.swB, alive(sw(2, -1), t, { seed: 9 }), 900, 1830, 1.2, t);
+  } else if (t < EV.sima) {                              // 8. crane down to Zhuge at the guqin
+    sc = 'wt';
+    Object.assign(c, Camera.track([{ t: EV.wall, x: 520, y: 760, z: 1.0 }, { t: EV.wall + 2.0, x: 520, y: 1330, z: 1.12, ease: 'inOut' }, { t: EV.sima, x: 540, y: 1360, z: 1.2, ease: 'linear' }])(t));
+    o.pluck = t > EV.wall + 0.4 ? 1 : 0;
+    actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: { lookX: 0.4 } }, t, { seed: 2 }), 150, 1700, 0.95, t) +
+      draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: { lookX: 0.4 } }, t, { seed: 3 }), 40, 1720, 0.95, t) +
+      draw(A.zhuge, alive(zhugeSeated(t, { pluck: o.pluck }), t, { seed: 5, sway: 0.4 }), 380, 1640, 1.0, t, false);
+  } else if (t < EV.trap) {                              // 9. Sima Yi arrives... and freezes
+    hideCity = true; dof = 7;
+    const froze = t >= EV.froze;
+    const z = froze ? 2.25 : 1.45 + 0.2 * sm(t, EV.sima, EV.froze);
+    Object.assign(c, { x: 1900, y: froze ? 1020 : 1250, z });
+    Camera.handheld(c, t, 0.8);
+    Camera.shake(c, t, 16, EV.froze, 0.4);
+    flash = froze ? Math.max(0, 1 - (t - EV.froze) / 0.12) * 0.7 : 0;
+    army = SC.ex.army({ x0: 1300, x1: 2600, y0: 1380, y1: 1600, rows: 5, t, march: froze ? 0 : 1, facing: -1, seed: 4 });
+    const face = froze ? Object.assign({}, EX.shock, { mouthShape: 'grit', lookX: 0 }) : { lidTop: 0.3, browAngle: 0.6, mouthSmile: -0.2 };
+    actors = draw(A.solA, alive({ view: 'front', ik: FEET, face: { lookX: 0.3 } }, t, { seed: 11 }), 1640, 1720, 1.0, t) +
+      draw(A.solB, alive({ view: 'front', ik: FEET, face: { lookX: -0.3 } }, t, { seed: 12 }), 2180, 1730, 1.0, t) +
+      draw(A.sima, alive({ view: 'front', ik: FEET, face, bones: { head: { sx: froze ? 1.05 : 1, sy: froze ? 0.96 : 1 } } }, t, { seed: 13 }), 1900, 1890, 1.25, t);
+  } else if (t < EV.retreat) {                           // 10. "this had to be a trap": eyes dart + imagined ambush
+    const ambush = between(t, LN.n10 + 1.55, LN.n10 + 2.6);
+    if (ambush) {
+      tint = 0.55;
+      Object.assign(c, { x: 1200, y: 1050, z: 1.15 + 0.15 * sm(t, LN.n10 + 1.55, LN.n10 + 2.6) });
+      Camera.shake(c, t, 6);
+      o.tower = archers(t, LN.n10 + 1.6);
+      o.gateOpen = 1;
+    } else {
+      hideCity = true; dof = 8;
+      Object.assign(c, { x: 1900, y: 1000, z: 2.3 + 0.25 * sm(t, EV.trap, EV.retreat) });
+      Camera.handheld(c, t, 0.6);
+      const dart = Math.sin(t * 7) > 0 ? 1 : -1;
+      army = SC.ex.army({ x0: 1300, x1: 2600, y0: 1380, y1: 1600, rows: 5, t, march: 0, facing: -1, seed: 4 });
+      actors = draw(A.sima, alive({ view: 'front', ik: FEET, face: { eyeWide: 1, lookX: dart, browAngle: -0.6, browRaise: 0.6, sweat: 1, mouthShape: 'grit' } }, t, { seed: 13 }), 1900, 1890, 1.25, t);
+    }
+  } else if (t < EV.legend) {                            // 11. the retreat: 150,000 men turn around
+    const k = t - EV.retreat;
+    Object.assign(c, Camera.track([{ t: EV.retreat, x: 1500, y: 1420, z: 1.35 }, { t: EV.legend, x: 1300, y: 1200, z: 1.0, ease: 'inOut' }])(t));
+    o.gateOpen = 1;
+    army = `<g transform="translate(${k * 160} 0)">${SC.ex.army({ x0: 1100, x1: 2900, y0: 1460, y1: 1800, rows: 7, t, march: 1, facing: 1, seed: 7 })}</g>`;
+    const w = walk(k, { cycle: 0.55, stride: 260, stance: 0.4, bob: 14, lift: 56, armSwing: 48, lean: 14 }); w.bones.root.x = 0;
+    w.face = { eyeWide: 1, sweat: 1, browRaise: 1, mouthShape: 'grit' };
+    actors = draw(A.sima, Object.assign(alive(w, t, { seed: 13 }), { view: 'side', facing: 1 }), 980 + k * 360, 1860, 1.1, t);
+  } else if (t < EV.stop) {                              // 12. the legend: slow push on the calm musician
+    sc = 'wt'; dof = 2;
+    Object.assign(c, Camera.track([{ t: EV.legend, x: 560, y: 1400, z: 1.15 }, { t: EV.stop, x: 520, y: 1330, z: 1.5, ease: 'linear' }])(t));
+    o.pluck = 1;
+    actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true } }, t, { seed: 2 }), 150, 1700, 0.95, t) +
+      draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true } }, t, { seed: 3 }), 40, 1720, 0.95, t) +
+      draw(A.zhuge, alive(zhugeSeated(t, { pluck: 1 }), t, { seed: 5, sway: 0.4 }), 380, 1640, 1.0, t, false);
+  } else if (t < EV.boy) {                               // 13. silence... "Is he gone?"
+    sc = 'wt'; dof = 8;
+    Object.assign(c, { x: 540, y: 1000, z: 2.4 });
+    const talk = between(t, LN.z1, lineEnd('z1')) ? mouthAt('z1', t) : 0;
+    actors = draw(A.zhuge, alive({ view: 'front', ik: FEET, props: { fan: false }, face: { lookX: 0.9, lidTop: 0.15, mouthSmile: 0.05, mouthOpen: 0.6 * talk, browRaise: 0.1 } }, t, { seed: 5, sway: 0 }), 540, 1960, 1.45, t, false);
+  } else if (t < EV.plant) {                             // 14. "He's gone."
+    sc = 'wt'; dof = 8;
+    Object.assign(c, { x: 540, y: 1220, z: 2.2 });
+    const talk = between(t, LN.b1, lineEnd('b1')) ? mouthAt('b1', t) : 0;
+    actors = draw(A.boyA, alive({ view: 'front', ik: FEET, props: { broom: true }, face: { lookX: -0.5, mouthOpen: 0.7 * talk, mouthSmile: 0.3, browRaise: 0.4 } }, t, { seed: 2 }), 540, 1900, 1.5, t, false);
+  } else {                                               // 15. full collapse onto the guqin
+    sc = 'wt';
+    const k = EASE.back(clamp((t - EV.plant) / 0.22, 0, 1));
+    Object.assign(c, { x: 560, y: 1400, z: 1.35 - 0.1 * sm(t, EV.plant, EV.plant + 0.3) });
+    Camera.shake(c, t, 22, EV.plant, 0.5);
+    o.pluck = t < EV.plant + 0.8 ? 1 : 0;
+    const flinch = clamp((t - EV.plant) / 0.1, 0, 1);
+    actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: flinch ? EX.shock : {} }, t, { seed: 2 }), 150, 1700, 0.95, t) +
+      draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: flinch ? EX.shock : {} }, t, { seed: 3 }), 40, 1720, 0.95, t) +
+      draw(A.zhuge, Object.assign(zhugeSeated(t, { collapse: k }), { sit: 1 }), 380, 1640, 1.0, t, false);
+  }
+
+  // whip-pan transitions on selected cuts
+  let whipBlur = 0;
+  for (const tc of cut) {
+    if (!WHIPS[tc]) continue;
+    const w = Camera.whip(t, tc, 0.14, WHIPS[tc]);
+    if (w.blur) { c.x += w.dx / c.z; whipBlur = Math.max(whipBlur, w.blur); }
+  }
+  return { sc, c, actors, army, o, dof, tint, hideCity, whipBlur, flash };
+}
+
+// ---------- captions ----------
+const WORDS = [];
+for (const id in LN) for (const w of TM[id].words) WORDS.push([LN[id] + w.start, w.word, id]);
+WORDS.sort((a, b) => a[0] - b[0]);
+function caption(t) {
+  let cur = '', st = 0, id = '';
+  for (const [wt, w, l] of WORDS) if (t >= wt) { cur = w; st = wt; id = l; }
+  return id && t <= lineEnd(id) + 0.3 ? [cur, st] : ['', 0];
+}
+const HOT = /hundred|fifty|thousand|nobody|Zhuge|Liang|craziest|gates|music|Sima|froze|trap|bluff|gone/i;
+
+window.DURATION = CUE.duration;
+window.render = function (t) {
+  const s = shot(t), scene = SC[s.sc];
+  for (const k in SC) $('sc-' + k).style.display = k === s.sc ? '' : 'none';
+  for (const l of scene.layers) {
+    const g = $(`L-${s.sc}-${l.id}`);
+    g.setAttribute('transform', Camera.transform(s.c, l.depth, scene.origin));
+    const far = l.depth < 0.9 && l.id !== 'army';
+    g.setAttribute('filter', far && s.dof ? 'url(#dof)' : '');
+  }
+  $('dofB').setAttribute('stdDeviation', s.dof);
+  if (s.sc === 'ex') {
+    $('L-ex-actors').innerHTML = s.actors;
+    $('L-ex-army').innerHTML = s.army;
+    $('L-ex-city').style.display = s.hideCity ? 'none' : '';
+  } else $(`L-${s.sc}-actors`).innerHTML = s.actors;
+  scene.update(t, s.o);
+  if (s.sc === 'ex') $('ex-tower-actors').innerHTML = s.o.tower || '';
+  $('stage').setAttribute('filter', s.whipBlur > 1 ? 'url(#whip)' : '');
+  $('whipB').setAttribute('stdDeviation', `${s.whipBlur} 0`);
+  $('tint').setAttribute('opacity', s.tint);
+  $('flash').setAttribute('opacity', s.flash);
+  $('fade').setAttribute('opacity', Math.max(t < 0.3 ? 1 - t / 0.3 : 0, sm(t, CUE.duration - 0.6, CUE.duration)));
+  const [cur, st0] = caption(t);
+  const pop = 1 + 0.2 * Math.max(0, 1 - (t - st0) / 0.09);
+  $('cap').textContent = cur;
+  $('cap').setAttribute('transform', `translate(540 1540) scale(${pop}) translate(-540 -1540)`);
+  $('cap').style.fill = HOT.test(cur) ? '#ffd84a' : '#fff';
+};
+window.render(0);
+</script>
+</body></html>

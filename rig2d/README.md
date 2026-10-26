@@ -37,10 +37,11 @@ const Thief = Kit.character({
   body:   { thigh: 118, shin: 112, chest: 112 },               // proportions (biped dims)
   skin:   '#efd7b8',
   head:   { rx: 140, ry: 132, wobble: 0.13, seed: 21 },          // blob head; change seed for a new shape
-  hair:   { style: 'hood', color: '#26232e' },                   // bun | short | bald | hood | long
-  outfit: { type: 'tunic', color: '#34313f', pattern: 'none', sash: '#8a2f2a' },  // robe | tunic; diamond | dots | none
+  hair:   { style: 'hood', color: '#26232e' },                   // bun | short | bald | hood | long | kidbuns | topknot
+  outfit: { type: 'tunic', color: '#34313f', pattern: 'none', sash: '#8a2f2a' },  // robe | tunic | armor; diamond | dots | none
   pants:  '#24212c', shoes: { color: '#121016' },
-  face:   { mustache: true, mustacheColor: '#8a5a2a', mustacheScale: 1 },
+  hat:    { style: 'none' },                                      // lunjin | helmet | band
+  face:   { mustache: true, mustacheColor: '#8a5a2a', mustacheScale: 1, beard: 'goatee' },   // beard: goatee | long
   props:  [{ name: 'sack', bone: 'handR', visible: c => c.props.sack, draw: ctx => '<svg...>' }],
 });
 const actor = new Rig2D.Actor(Thief, { id: 'thief' });
@@ -49,11 +50,19 @@ const actor = new Rig2D.Actor(Thief, { id: 'thief' });
 `characters/cast.js` has a thief, a monk and a girl, all built this way. The scholar is the
 kit defaults plus a brush prop.
 
+## Camera
+
+`src/camera.js`: keyframed moves (`Camera.track`), parallax by layer depth (`Camera.transform(c, depth, origin)`),
+handheld drift, decaying impact shake, and whip-pan transitions. Scenes are split into layers
+(sky 0.15 → far 0.4 → set 0.8 → action 1.0 → foreground 1.35), so pans and push-ins have real depth;
+far layers can be blurred for depth of field.
+
 ## Voice, sound effects, mixing
 
 | Tool | What it does |
 |---|---|
 | `tools/tts.py lines.json out/` | Kokoro-82M voiceover: one WAV per line + `timing.json` (word times for captions, 30 fps mouth envelope for lip sync) |
+| `tools/sfx.py out/ cinematic` | Instruments and textures for drama: taiko drums, guqin melody (plucked-string synthesis), wind, gate creak, impact, string drone |
 | `tools/sfx.py out/` | Synthesized SFX: boom, whoosh, zip, pop, ding, boing, scratch, sting, sneaky pizzicato, crickets, drone, thud |
 | `tools/mix.py cues.js out.wav` | Mixes voice + SFX from the same cue sheet the animation reads |
 
@@ -86,6 +95,10 @@ See `stories/library/`:
 | `src/kit.js` | Character kit: any character from a description |
 | `characters/cast.js` | Thief, monk, girl (kit characters) |
 | `stories/library/` | Brainrot short: script, voice, cues, shots |
+| `src/camera.js` | Camera moves, parallax, shake, whip pans |
+| `scenes/city.js` | Xicheng: city wall + gate tower, street, wall top (layered) |
+| `characters/threekingdoms.js` | Zhuge Liang, Sima Yi, page boys, soldiers, sweepers |
+| `stories/emptycity/` | "The Empty City" legend short (45 s) |
 | `demo.html` | Animated demo (timeline of poses) |
 | `walk_demo.html` | Story demo: walk in, turn to camera, talk, walk off |
 | `tools/poses.html` | Pose test sheet |

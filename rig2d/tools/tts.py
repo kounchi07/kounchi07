@@ -4,6 +4,8 @@ Kokoro voiceover for Rig2D stories.
   python3 tools/tts.py lines.json out_dir
 
 lines.json: [{"id": "l1", "text": "Hello there.", "voice": "am_michael", "speed": 1.0}, ...]
+  Optional "say": phonetic spelling used for the audio only (same word count as "text"),
+  e.g. {"text": "Zhuge Liang", "say": "Joo-guh Lyahng"}; captions keep "text".
 
 Writes per line: <id>.wav (24 kHz mono) and timing.json with
   duration, word timings (start/end seconds, for captions) and a 30 fps
@@ -54,11 +56,14 @@ def trim(wav, thresh=0.01):
     return wav[a:b], a
 
 
-def word_times(tok, text, lang, dur):
+def word_times(tok, text, lang, dur, say=None):
     # Spread the spoken time over words by phoneme count, with extra weight for pauses.
     words = re.findall(r"\S+", text)
+    spoken = re.findall(r"\S+", say) if say else words
+    if len(spoken) != len(words):
+        spoken = words
     weights = []
-    for w in words:
+    for w in spoken:
         n = len(tok.phonemize(re.sub(r"[^\w'’-]", '', w) or w, lang).replace(' ', '')) or 1
         pause = 4 if re.search(r'[.!?…]$', w) else 2 if re.search(r'[,;:—-]$', w) else 0
         weights.append((n, pause))
@@ -92,16 +97,17 @@ def speech_segments(wav, thresh_db=-35, min_gap=0.15):
     return segs
 
 
-def align(tok, text, lang, wav):
+def align(tok, text, lang, wav, say=None):
     """Word timings: phrases split at punctuation are matched to the real pauses when the counts agree."""
     dur = len(wav) / SR
-    phrases = [p for p in re.split(r'(?<=[.!?,;…])\s+', text.strip()) if p]
+    split = lambda t: [p for p in re.split(r'(?<=[.!?,;…])\s+', t.strip()) if p]
+    phrases, sphr = split(text), split(say or text)
     segs = speech_segments(wav)
-    if len(segs) != len(phrases):
-        return word_times(tok, text, lang, dur)
+    if len(segs) != len(phrases) or len(sphr) != len(phrases):
+        return word_times(tok, text, lang, dur, say)
     out = []
-    for ph, (a, b) in zip(phrases, segs):
-        for w in word_times(tok, ph, lang, b - a):
+    for ph, sp, (a, b) in zip(phrases, sphr, segs):
+        for w in word_times(tok, ph, lang, b - a, sp):
             out.append({'word': w['word'], 'start': round(a + w['start'], 3), 'end': round(a + w['end'], 3)})
     return out
 
@@ -124,12 +130,12 @@ def main():
     timing = {}
     for ln in lines:
         lang = ln.get('lang', 'en-us')
-        wav, _ = trim(synth(sess, tok, ln['text'], ln.get('voice', 'am_michael'), ln.get('speed', 1.0), lang))
+        wav, _ = trim(synth(sess, tok, ln.get('say', ln['text']), ln.get('voice', 'am_michael'), ln.get('speed', 1.0), lang))
         wav = (wav / max(1e-6, np.abs(wav).max()) * 0.9).astype(np.float32)
         sf.write(os.path.join(out, f"{ln['id']}.wav"), wav, SR)
         dur = len(wav) / SR
         timing[ln['id']] = {'text': ln['text'], 'duration': round(dur, 3),
-                            'words': align(tok, ln['text'], lang, wav), 'mouth': envelope(wav)}
+                            'words': align(tok, ln['text'], lang, wav, ln.get('say')), 'mouth': envelope(wav)}
         print(f"{ln['id']}: {dur:.2f}s  {ln['text']}")
     json.dump(timing, open(os.path.join(out, 'timing.json'), 'w'), indent=1)
 

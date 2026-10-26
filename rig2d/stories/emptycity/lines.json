@@ -1,0 +1,77 @@
+[
+ {
+  "id": "n1",
+  "voice": "am_michael",
+  "text": "A hundred and fifty thousand soldiers were marching toward this city."
+ },
+ {
+  "id": "n2",
+  "voice": "am_michael",
+  "text": "Inside? Almost nobody."
+ },
+ {
+  "id": "n3",
+  "voice": "am_michael",
+  "text": "Its general, Zhuge Liang, had already sent his army away.",
+  "say": "Its general, Jooguh Lyang, had already sent his army away."
+ },
+ {
+  "id": "n4",
+  "voice": "am_michael",
+  "text": "He couldn't run. He couldn't fight."
+ },
+ {
+  "id": "n5",
+  "voice": "am_michael",
+  "text": "So he did the craziest thing in history."
+ },
+ {
+  "id": "n6",
+  "voice": "am_michael",
+  "text": "He opened the gates."
+ },
+ {
+  "id": "n7",
+  "voice": "am_michael",
+  "text": "Told a few old men to sweep the streets."
+ },
+ {
+  "id": "n8",
+  "voice": "am_michael",
+  "text": "Then he sat on the wall... and played music."
+ },
+ {
+  "id": "n9",
+  "voice": "am_michael",
+  "text": "When the enemy general, Sima Yi, arrived... he froze.",
+  "say": "When the enemy general, Suh-mah Yee, arrived... he froze."
+ },
+ {
+  "id": "n10",
+  "voice": "am_michael",
+  "text": "Zhuge Liang never takes risks. This had to be a trap.",
+  "say": "Jooguh Lyang never takes risks. This had to be a trap."
+ },
+ {
+  "id": "n11",
+  "voice": "am_michael",
+  "text": "So he turned around. All one hundred and fifty thousand men."
+ },
+ {
+  "id": "n12",
+  "voice": "am_michael",
+  "text": "The legend calls it the greatest bluff in history."
+ },
+ {
+  "id": "z1",
+  "voice": "bm_george",
+  "speed": 0.9,
+  "text": "Is he gone?"
+ },
+ {
+  "id": "b1",
+  "voice": "af_sky",
+  "speed": 1.12,
+  "text": "He's gone."
+ }
+]

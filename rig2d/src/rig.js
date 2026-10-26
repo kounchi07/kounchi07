@@ -118,8 +118,16 @@
   }
 
   // ---------- tube: a width-varying ribbon along a smooth spine ----------
-  function tubeGeo(ctrl, widths, seg = 10) {
-    const S = catmull(ctrl, seg), n = S.length;
+  // smooth = false keeps straight segments between joints (rigid limbs with a clean knee/elbow).
+  function linear(pts, seg) {
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++)
+      for (let s = 0; s < seg; s++) out.push([lerp(pts[i][0], pts[i + 1][0], s / seg), lerp(pts[i][1], pts[i + 1][1], s / seg)]);
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+  function tubeGeo(ctrl, widths, seg = 10, smooth = true) {
+    const S = smooth ? catmull(ctrl, seg) : linear(ctrl, seg), n = S.length;
     const L = [0];
     for (let i = 1; i < n; i++) L[i] = L[i - 1] + Math.hypot(S[i][0] - S[i - 1][0], S[i][1] - S[i - 1][1]);
     const total = L[n - 1] || 1, U = L.map(l => l / total);
@@ -325,9 +333,10 @@
       const last = ch.bones[p.bones[p.bones.length - 1]];
       pts.push(M.apply(last.world, last.length, 0));
       const ext = (a, b, d) => { const l = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; return [a[0] + (a[0] - b[0]) / l * d, a[1] + (a[1] - b[1]) / l * d]; };
-      if (p.extendStart) pts.unshift(ext(pts[0], pts[1], p.extendStart));
+      const es = typeof p.extendStart === 'function' ? p.extendStart(ctx) : p.extendStart;
+      if (es) pts.unshift(ext(pts[0], pts[1], es));
       if (p.extendEnd) pts.push(ext(pts[pts.length - 1], pts[pts.length - 2], p.extendEnd));
-      const geo = tubeGeo(pts, p.widths, p.segments || 10);
+      const geo = tubeGeo(pts, p.widths, p.segments || 10, p.smooth !== false);
       const d = geo.outline(p.capStart || 'round', p.capEnd || 'round');
       let defs = '';
       if (p.clipId) defs += `<clipPath id="${ch.id}-${p.clipId}"><path d="${d}"/></clipPath>`;
@@ -535,7 +544,7 @@
   // heels roll, hips dip on "down" and rise on "up", arms swing opposite the
   // legs and lag a couple of frames behind.
   function walk(t, o = {}) {
-    const P = Object.assign({ cycle: 1.0, stride: 200, stance: 0.6, bob: 12, lift: 40, armSwing: 32, lag: 0.07, lean: 5, ankle: 14, foot: 38, x0: 0, phase: 0, mood: 1 }, o);
+    const P = Object.assign({ cycle: 1.0, stride: 200, stance: 0.6, bob: 8, lift: 40, armSwing: 32, lag: 0.07, lean: 5, ankle: 14, foot: 38, x0: 0, phase: 0, mood: 1 }, o);
     const speed = P.stride / P.cycle;                 // px per second, root space
     const p = ((t / P.cycle + P.phase) % 1 + 1) % 1;
     const a = speed * P.stance * P.cycle / 2;         // planted foot slides from +a to -a

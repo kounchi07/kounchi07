@@ -198,5 +198,139 @@ def main():
         print(f'{name}: {len(x) / SR:.2f}s')
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and len(sys.argv) == 2:
     main()
+
+
+# ---------------------------------------------------------------------------
+# Cinematic set (used by stories/emptycity): instruments and textures that
+# synthesis does convincingly. `python3 tools/sfx.py out_dir cinematic`
+# ---------------------------------------------------------------------------
+def taiko(pitch=62, d=1.4, hard=1.0):
+    t = t_(d)
+    f = pitch * (1 + 0.6 * np.exp(-t * 18))
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 3.2)
+    skin = lowpass(rng.standard_normal(len(t)), 1800) * np.exp(-t * 40) * 0.6 * hard
+    over = np.sin(2 * np.pi * np.cumsum(f * 2.3) / SR) * np.exp(-t * 9) * 0.25
+    x = np.tanh((body + skin + over) * 2.2)
+    return norm(reverb(x, 1.8, 0.35))
+
+
+def drum_pattern(bars=4, bpm=92):
+    beat = 60 / bpm
+    hit = taiko(60, 1.6)
+    small = taiko(95, 0.8, 0.6) * 0.55
+    pattern = [(0, hit), (1, small), (1.5, small), (2, hit), (3, small), (3.5, hit * 0.8)]
+    out = np.zeros(int((bars * 4 * beat + 2) * SR))
+    for b in range(bars):
+        for pos, snd in pattern:
+            s = int((b * 4 + pos) * beat * SR)
+            out[s:s + len(snd)] += snd[:len(out) - s]
+    return norm(out, 0.85)
+
+
+def wind(d=8.0):
+    n = np.cumsum(rng.standard_normal(int(d * SR)))
+    n -= lowpass(n, 2)
+    x = bandpass(n, 150, 1400)
+    lfo = 0.55 + 0.45 * np.sin(2 * np.pi * 0.17 * t_(d)) * np.sin(2 * np.pi * 0.07 * t_(d) + 1)
+    return norm(x * lfo * np.minimum(1, t_(d) / 0.8) * np.minimum(1, (d - t_(d)) / 0.8), 0.6)
+
+
+def creak(d=1.4):
+    t = t_(d)
+    f = 55 + 25 * np.sin(2 * np.pi * 1.3 * t) + 8 * rng.standard_normal(len(t)).cumsum() / np.sqrt(SR) * 40
+    saw = (np.cumsum(f) / SR) % 1 * 2 - 1
+    grit = (rng.random(len(t)) < 0.002 * (1 + np.sin(2 * np.pi * 7 * t))).astype(float)
+    x = bandpass(saw + grit * 4, 120, 2200) * np.sin(np.pi * np.clip(t / d, 0, 1)) ** 0.7
+    return norm(reverb(x, 1.2, 0.3), 0.8)
+
+
+def guqin_note(freq, d=2.2, slide=0.0, vel=1.0):
+    n = int(SR / freq)
+    buf = rng.uniform(-1, 1, n) * vel
+    buf = lowpass(np.concatenate([buf, buf]), freq * 6)[:n]
+    out = np.zeros(int(d * SR))
+    fl = float(n)
+    for i in range(len(out)):
+        idx = i % n
+        out[i] = buf[idx]
+        buf[idx] = 0.998 * 0.5 * (buf[idx] + buf[(idx + 1) % n])
+    if slide:
+        tt = t_(d)
+        warp = np.cumsum(1 + slide * np.clip(tt - 0.25, 0, 0.5)) / SR * SR
+        out = np.interp(np.arange(len(out)), np.clip(warp, 0, len(out) - 1), out)
+    body = lowpass(out, 2600) + 0.3 * bandpass(out, 180, 420)
+    return body * np.minimum(1, t_(d) / 0.002)
+
+
+PENTA = [146.8, 164.8, 185.0, 220.0, 246.9, 293.7, 329.6, 370.0, 440.0]  # D major pentatonic
+
+
+def guqin_melody(d=22.0, seed=4):
+    r = np.random.default_rng(seed)
+    out = np.zeros(int((d + 3) * SR))
+    t, i = 0.0, 4
+    phrase = [4, 5, 4, 3, 2, 3, 4, 6, 5, 4, 2, 1, 2, 4, 3, 2, 0, 2, 3, 4]
+    k = 0
+    while t < d:
+        i = phrase[k % len(phrase)]
+        note = guqin_note(PENTA[i], 2.4, slide=0.05 if r.random() < 0.3 else 0, vel=0.8 + 0.2 * r.random())
+        s = int(t * SR)
+        out[s:s + len(note)] += note[:len(out) - s]
+        if r.random() < 0.25:  # harmonic an octave up, softly
+            h = guqin_note(PENTA[i] * 2, 1.4) * 0.35
+            out[s:s + len(h)] += h[:len(out) - s]
+        t += [0.45, 0.45, 0.9, 0.3, 0.6][k % 5]
+        k += 1
+    return norm(reverb(out, 2.2, 0.35), 0.7)
+
+
+def guqin_crash():
+    out = np.zeros(int(3 * SR))
+    for j, f in enumerate([146.8, 155.6, 185.0, 207.7, 246.9, 277.2, 311.1]):
+        n = guqin_note(f, 2.5, vel=1.0)
+        s = int(j * 0.012 * SR)
+        out[s:s + len(n)] += n[:len(out) - s]
+    out[:int(0.3 * SR)] += thud()[:int(0.3 * SR)] * 2.5 if len(thud()) >= int(0.3 * SR) else 0
+    return norm(reverb(out, 1.6, 0.3))
+
+
+def impact():
+    d = 2.2
+    t = t_(d)
+    f = 48 * np.exp(-t * 2) + 32
+    x = np.tanh(np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 2.2) * 3)
+    x += lowpass(rng.standard_normal(len(t)), 900) * np.exp(-t * 12) * 0.8
+    return norm(reverb(x, 2.0, 0.4))
+
+
+def swish(d=0.35):
+    t = t_(d)
+    x = bandpass(rng.standard_normal(len(t)), 600, 5000) * np.sin(np.pi * t / d) ** 2
+    return norm(lowpass(x, 4000), 0.5)
+
+
+def strings_drone(d=6.0, root=73.4):
+    t = t_(d)
+    x = np.zeros(len(t))
+    for m, a in [(1, 1), (1.5, 0.6), (2, 0.5), (2.997, 0.25)]:
+        for det in (-0.6, 0.0, 0.7):
+            ph = 2 * np.pi * root * m * t + det * t
+            x += a * ((ph / (2 * np.pi)) % 1 * 2 - 1)
+    x = lowpass(x, 900) * (1 + 0.15 * np.sin(2 * np.pi * 5.5 * t))
+    return norm(x * np.minimum(1, t / 1.5) * np.minimum(1, (d - t) / 0.6), 0.55)
+
+
+def cinematic(out):
+    os.makedirs(out, exist_ok=True)
+    for name, fn in [('taiko', lambda: taiko(62)), ('drums', drum_pattern), ('wind', wind), ('creak', creak), ('guqin', guqin_melody),
+                     ('guqin_crash', guqin_crash), ('impact', impact), ('swish', swish), ('drone', strings_drone),
+                     ('pluck_hi', lambda: norm(reverb(guqin_note(440, 2.0), 1.5, 0.3), 0.7))]:
+        x = fn()
+        sf.write(os.path.join(out, f'{name}.wav'), x.astype(np.float32), SR)
+        print(f'{name}: {len(x) / SR:.2f}s')
+
+
+if __name__ == '__main__' and len(sys.argv) > 2 and sys.argv[2] == 'cinematic':
+    cinematic(sys.argv[1])
