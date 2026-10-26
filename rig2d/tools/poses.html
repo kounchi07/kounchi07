@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#e9dcc6}</style></head><body>
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+<script src="../src/rig.js"></script><script src="../characters/scholar.js"></script>
+<script>
+const E = Rig2D.EXPRESSIONS, feet = { legL: { x: -34, y: -14 }, legR: { x: 34, y: -14 } };
+const poses = [
+  { ik: feet, face: {} },
+  { ik: Object.assign({ armR: { x: 170, y: -560 } }, feet), face: Object.assign({}, E.happy, { turn: 0.4 }) },
+  { bones: { hips: { y: 60 } }, ik: Object.assign({ armL: { x: -110, y: -250 }, armR: { x: 110, y: -250 } }, feet), face: E.angry },
+  { bones: { chest: { rot: -8 }, head: { sx: 1.08, sy: 0.94 } }, ik: Object.assign({ armL: { x: -330, y: -480 } }, feet), face: Object.assign({}, E.shock, { turn: -0.5, lookX: -1 }), props: { brush: true } },
+];
+window.DURATION = 1;
+window.render = () => {
+  let s = '';
+  poses.forEach((st, i) => {
+    const c = new Rig2D.Character(Scholar.spec(), { id: 'c' + i }).pose(st);
+    s += c.render({ x: 270 + (i % 2) * 540, y: 900 + Math.floor(i / 2) * 960, scale: 0.95 });
+  });
+  document.getElementById('s').innerHTML = s;
+};
+</script></body></html>
