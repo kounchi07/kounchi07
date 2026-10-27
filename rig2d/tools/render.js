@@ -6,6 +6,9 @@
 // so it skips its full-frame grade/bloom/vignette/grain/captions/fades; frames are captured as JPEG and
 // ffmpeg applies those effects in one multi-threaded pass (tools/post.js). --exact keeps everything in
 // the browser and writes PNG frames (slower; what stills show).
+// Dissolves: if the page defines window.CUTS = [{ t, dur, zoom }] and render(t, { side: 'before'|'after', cut })
+// (draw the outgoing / incoming shot at time t), frames inside a cut's window blend the two: the outgoing shot
+// fades out while pushing in (zoom), the incoming one settles from a slight zoom. Pages without CUTS are unchanged.
 // Frames already on disk are skipped, so an interrupted render can resume.
 const { chromium } = require('playwright');
 const path = require('path');
@@ -31,12 +34,36 @@ async function worker(b, pageUrl, times, ids, ext) {
   p.on('pageerror', e => errs.push(e.message));
   await p.goto(pageUrl);
   if (errs.length) throw new Error(errs.join('\n'));
+  const grab = () => cdp.send('Page.captureScreenshot', ext === 'jpg' ? { format: 'jpeg', quality: 94, optimizeForSpeed: true } : { format: 'png' });
+  const cuts = await p.evaluate(() => window.CUTS || []);
   for (const i of ids) {
     const file = `${out}/${String(i).padStart(4, '0')}.${ext}`;
     if (!stills && fs.existsSync(file)) continue;
-    await p.evaluate(t => window.render(t), times[i]);
-    if (errs.length) throw new Error(`t=${times[i]}: ${errs.join('\n')}`);
-    const shot = await cdp.send('Page.captureScreenshot', ext === 'jpg' ? { format: 'jpeg', quality: 94, optimizeForSpeed: true } : { format: 'png' });
+    const t = times[i];
+    // dissolve window: blend the outgoing shot over the incoming one (see header)
+    const cut = cuts.find(c => t >= c.t - c.dur / 2 && t < c.t + c.dur / 2);
+    let shot;
+    if (cut) {
+      const k = (t - (cut.t - cut.dur / 2)) / cut.dur, e = k * k * (3 - 2 * k);
+      await p.evaluate(([t, c]) => window.render(t, { side: 'before', cut: c }), [t, cut.t]);
+      const before = (await grab()).data;
+      await p.evaluate(([t, c]) => window.render(t, { side: 'after', cut: c }), [t, cut.t]);
+      await p.evaluate(async ([src, e, z]) => {
+        const img = document.createElement('img');
+        img.id = '__xf'; img.src = src;
+        img.style.cssText = `position:fixed;left:0;top:0;width:1080px;height:1920px;z-index:99;opacity:${1 - e};transform:scale(${1 + z * e});transform-origin:50% 50%`;
+        document.body.appendChild(img);
+        await img.decode();
+        const svg = document.querySelector('svg');
+        svg.style.transformOrigin = '50% 50%'; svg.style.transform = `scale(${1 + z * 0.5 * (1 - e)})`;
+      }, [`data:image/${ext === 'jpg' ? 'jpeg' : 'png'};base64,${before}`, e, cut.zoom == null ? 0.08 : cut.zoom]);
+      shot = await grab();
+      await p.evaluate(() => { document.getElementById('__xf').remove(); document.querySelector('svg').style.transform = ''; });
+    } else {
+      await p.evaluate(t => window.render(t), t);
+      shot = await grab();
+    }
+    if (errs.length) throw new Error(`t=${t}: ${errs.join('\n')}`);
     fs.writeFileSync(file, Buffer.from(shot.data, 'base64'));
   }
   await p.close();

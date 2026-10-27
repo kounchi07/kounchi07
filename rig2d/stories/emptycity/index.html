@@ -120,60 +120,64 @@ function archers(t, t0) {
 const cut = [EV.street, EV.zhuge, EV.run, EV.fight, EV.crazy, EV.gate, EV.sweep, EV.wall, EV.sima, EV.trap, EV.retreat, EV.legend, EV.gone, EV.boy, EV.plant];
 const WHIPS = { [EV.street]: 1, [EV.gate]: -1, [EV.sweep]: 1, [EV.sima]: -1, [EV.retreat]: 1 };
 
+// SEL (from render(t, opt)) picks which side of a cut to show during a dissolve: the renderer draws the
+// outgoing shot (side 'before') and the incoming shot (side 'after') at the same moment and blends them.
+let SEL = null;
 function shot(t) {
+  const ts = SEL && SEL.side === 'before' ? Math.min(t, SEL.cut - 1e-3) : SEL && SEL.side === 'after' ? Math.max(t, SEL.cut + 1e-3) : t;
   const c = { x: 540, y: 960, z: 1, r: 0 };
   LIT = LIGHTS.ex;
   let sc = 'ex', actors = '', army = '', o = {}, dof = 0, tint = 0, hideCity = false, flash = 0;
 
-  if (t < EV.street) {                                   // 1. crane down from the sky onto the city + army
+  if (ts < EV.street) {                                   // 1. crane down from the sky onto the city + army
     const cam = Camera.track([{ t: 0, x: 1150, y: 560, z: 1.05 }, { t: 3.2, x: 1260, y: 1230, z: 1.0, ease: 'inOut' }, { t: EV.street, x: 1230, y: 1250, z: 1.12, ease: 'in' }])(t);
     Object.assign(c, cam);
     army = SC.ex.army({ x0: 1650 - t * 40, x1: 2900, y0: 1460, y1: 1800, rows: 7, t, march: 1, facing: -1 });
     o.tower = draw(A.zhuge, { view: 'front', ik: FEET, props: { fan: true }, face: { lookX: 0.6 } }, 1200, 862, 0.22, t, false);
-  } else if (t < EV.zhuge) {                             // 2. empty street, slow dolly in
+  } else if (ts < EV.zhuge) {                             // 2. empty street, slow dolly in
     sc = 'st'; LIT = LIGHTS.st;
     Object.assign(c, Camera.track([{ t: EV.street, x: 540, y: 1150, z: 1.0 }, { t: EV.zhuge, x: 560, y: 1080, z: 1.22, ease: 'linear' }])(t));
-  } else if (t < EV.run) {                               // 3. meet Zhuge Liang: slow push + arc
+  } else if (ts < EV.run) {                               // 3. meet Zhuge Liang: slow push + arc
     sc = 'wt'; LIT = LIGHTS.wt; dof = 6;
     const k = (t - EV.zhuge) / (EV.run - EV.zhuge);
     Object.assign(c, { x: 540 + 30 * k, y: 1150 - 40 * k, z: 1.45 + 0.25 * k, r: -1.5 + 2 * k });
     const fanA = Math.sin(t * 2.4) * 40;
     actors = draw(A.zhuge, alive({ view: 'front', ik: Object.assign({ armR: { x: 150 + fanA * 0.3, y: -480 + fanA, weight: 1 } }, FEET), props: { fan: true }, face: { lookX: 0.4, lidTop: 0.25, mouthSmile: 0.35 } }, t, { seed: 5 }), 540, 1960, 1.45, t, false);
-  } else if (t < EV.fight) {                             // 4a. couldn't run: the army blocks the road
+  } else if (ts < EV.fight) {                             // 4a. couldn't run: the army blocks the road
     hideCity = true; dof = 3;
     Object.assign(c, { x: 1700, y: 1450, z: 1.6 });
     Camera.shake(c, t, 10);
     army = SC.ex.army({ x0: 1100, x1: 2600, y0: 1420, y1: 1900, rows: 8, t, march: 1, facing: -1, seed: 7 });
-  } else if (t < EV.crazy) {                             // 4b. couldn't fight: his "army"
+  } else if (ts < EV.crazy) {                             // 4b. couldn't fight: his "army"
     sc = 'wt'; LIT = LIGHTS.wt; dof = 5;
     Object.assign(c, { x: 540, y: 1300, z: 1.35 });
     const shiver = Math.sin(t * 60) * 3;
     actors = draw(A.boyA, { view: 'front', ik: Object.assign({ armR: { x: 60, y: -300 }, armL: { x: -10, y: -290 } }, FEET), props: { broom: true }, face: Object.assign({}, EX.scared) }, 380 + shiver, 1880, 1.25, t) +
       draw(A.boyB, { view: 'front', ik: Object.assign({ armR: { x: 60, y: -300 }, armL: { x: -10, y: -290 } }, FEET), props: { broom: true }, face: Object.assign({}, EX.scared, { lookX: -0.8 }) }, 720 - shiver, 1880, 1.25, t);
-  } else if (t < EV.gate) {                              // 5. the plan: dramatic push-in
+  } else if (ts < EV.gate) {                              // 5. the plan: dramatic push-in
     sc = 'wt'; LIT = LIGHTS.wt; dof = 8;
     const k = EASE.in(clamp((t - EV.crazy) / (EV.gate - EV.crazy), 0, 1));
     Object.assign(c, { x: 540, y: 1000 - 60 * k, z: 1.9 + 0.9 * k, r: 0 });
     Camera.shake(c, t, 6, LN.n5 + 0.6, 0.5);
     actors = draw(A.zhuge, alive({ view: 'front', ik: Object.assign({ armR: { x: 150, y: -520, weight: 1 } }, FEET), props: { fan: true }, face: { lidTop: 0.45, browAngle: 0.5, mouthSmile: 0.5, mouthX: 0.4, lookX: 0.2 } }, t, { seed: 5, sway: 0.3 }), 540, 1960, 1.45, t, false);
-  } else if (t < EV.sweep) {                             // 6. the gates swing open
+  } else if (ts < EV.sweep) {                             // 6. the gates swing open
     const open = EASE.inOut(clamp((t - EV.gateOpen) / 1.15, 0, 1));
     Object.assign(c, Camera.track([{ t: EV.gate, x: 1200, y: 1280, z: 1.55 }, { t: EV.sweep, x: 1200, y: 1250, z: 1.85, ease: 'linear' }])(t));
     Camera.shake(c, t, 8, EV.gateOpen + 1.15, 0.5);
     o.gateOpen = open;
-  } else if (t < EV.wall) {                              // 7. sweepers sweeping, calm as anything
+  } else if (ts < EV.wall) {                              // 7. sweepers sweeping, calm as anything
     sc = 'st'; LIT = LIGHTS.st;
     Object.assign(c, Camera.track([{ t: EV.sweep, x: 380, y: 1360, z: 1.3 }, { t: EV.wall, x: 700, y: 1330, z: 1.4, ease: 'linear' }])(t));
     const sw = (ph, s) => { const a = Math.sin(t * 4.2 + ph); return { view: 'side', facing: s, bones: { hips: { y: 10, rot: 12 }, chest: { rot: 10 } }, ik: Object.assign({ armR: { x: 110 + a * 60, y: -300, weight: 1, endRot: 70 }, armL: { x: 70 + a * 60, y: -360, weight: 1 } }, SFEET), props: { broom: true }, face: { lidTop: 0.55, mouthSmile: 0.2 } }; };
     actors = draw(A.swA, alive(sw(0, 1), t, { seed: 8 }), 230, 1500, 0.85, t) + draw(A.swB, alive(sw(2, -1), t, { seed: 9 }), 900, 1830, 1.2, t);
-  } else if (t < EV.sima) {                              // 8. crane down to Zhuge at the guqin
+  } else if (ts < EV.sima) {                              // 8. crane down to Zhuge at the guqin
     sc = 'wt'; LIT = LIGHTS.wt;
     Object.assign(c, Camera.track([{ t: EV.wall, x: 520, y: 760, z: 1.0 }, { t: EV.wall + 2.0, x: 520, y: 1330, z: 1.12, ease: 'inOut' }, { t: EV.sima, x: 540, y: 1360, z: 1.2, ease: 'linear' }])(t));
     o.pluck = t > EV.wall + 0.4 ? 1 : 0;
     actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: { lookX: 0.4 } }, t, { seed: 2 }), 150, 1700, 0.95, t) +
       draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: { lookX: 0.4 } }, t, { seed: 3 }), 40, 1720, 0.95, t) +
       draw(A.zhuge, alive(zhugeSeated(t, { pluck: o.pluck }), t, { seed: 5, sway: 0.4 }), 470, 1640, 1.0, t, false);
-  } else if (t < EV.trap) {                              // 9. Sima Yi arrives... and freezes
+  } else if (ts < EV.trap) {                              // 9. Sima Yi arrives... and freezes
     hideCity = true; dof = 7;
     const froze = t >= EV.froze;
     const z = froze ? 2.25 : 1.45 + 0.2 * sm(t, EV.sima, EV.froze);
@@ -186,7 +190,7 @@ function shot(t) {
     actors = draw(A.solA, alive({ view: 'front', ik: FEET, face: { lookX: 0.3 } }, t, { seed: 11 }), 1640, 1720, 1.0, t) +
       draw(A.solB, alive({ view: 'front', ik: FEET, face: { lookX: -0.3 } }, t, { seed: 12 }), 2180, 1730, 1.0, t) +
       draw(A.sima, alive({ view: 'front', ik: FEET, face, bones: { head: { sx: froze ? 1.05 : 1, sy: froze ? 0.96 : 1 } } }, t, { seed: 13 }), 1900, 1890, 1.25, t);
-  } else if (t < EV.retreat) {                           // 10. "this had to be a trap": eyes dart + imagined ambush
+  } else if (ts < EV.retreat) {                           // 10. "this had to be a trap": eyes dart + imagined ambush
     const ambush = between(t, LN.n10 + 1.55, LN.n10 + 2.6);
     if (ambush) {
       tint = 0.55;
@@ -202,7 +206,7 @@ function shot(t) {
       army = SC.ex.army({ x0: 1300, x1: 2600, y0: 1380, y1: 1600, rows: 5, t, march: 0, facing: -1, seed: 4 });
       actors = draw(A.sima, alive({ view: 'front', ik: FEET, face: { eyeWide: 1, lookX: dart, browAngle: -0.6, browRaise: 0.6, sweat: 1, mouthShape: 'grit' } }, t, { seed: 13 }), 1900, 1890, 1.25, t);
     }
-  } else if (t < EV.legend) {                            // 11. the retreat: the whole army turns and runs
+  } else if (ts < EV.legend) {                            // 11. the retreat: the whole army turns and runs
     const k = t - EV.retreat;
     Object.assign(c, Camera.track([{ t: EV.retreat, x: 1450, y: 1380, z: 1.3 }, { t: EV.legend, x: 1350, y: 1240, z: 1.05, ease: 'inOut' }])(t));
     o.gateOpen = 1;
@@ -216,19 +220,19 @@ function shot(t) {
     const panic = { eyeWide: 1, sweat: 1, browRaise: 1, mouthShape: 'grit' };
     actors = runner(A.solB, 700, 1700, 0.82, 0.2, panic, 21) + runner(A.solA, 1180, 1730, 0.86, 0.35, panic, 22) +
       runner(A.sima, 920, 1820, 0.95, 0, panic, 13) + runner(A.solA, 560, 1880, 1.0, 0.1, panic, 23);
-  } else if (t < EV.stop) {                              // 12. the legend: slow push on the calm musician
+  } else if (ts < EV.stop) {                              // 12. the legend: slow push on the calm musician
     sc = 'wt'; LIT = LIGHTS.wt; dof = 2;
     Object.assign(c, Camera.track([{ t: EV.legend, x: 560, y: 1400, z: 1.15 }, { t: EV.stop, x: 520, y: 1330, z: 1.5, ease: 'linear' }])(t));
     o.pluck = 1;
     actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true } }, t, { seed: 2 }), 150, 1700, 0.95, t) +
       draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true } }, t, { seed: 3 }), 40, 1720, 0.95, t) +
       draw(A.zhuge, alive(zhugeSeated(t, { pluck: 1 }), t, { seed: 5, sway: 0.4 }), 470, 1640, 1.0, t, false);
-  } else if (t < EV.boy) {                               // 13. silence... "Is he gone?"
+  } else if (ts < EV.boy) {                               // 13. silence... "Is he gone?"
     sc = 'wt'; LIT = LIGHTS.wt; dof = 8;
     Object.assign(c, { x: 540, y: 1000, z: 2.4 });
     const talk = between(t, LN.z1, lineEnd('z1')) ? mouthAt('z1', t) : 0;
     actors = draw(A.zhuge, alive({ view: 'front', ik: FEET, props: { fan: false }, face: { lookX: 0.9, lidTop: 0.15, mouthSmile: 0.05, mouthOpen: 0.6 * talk, browRaise: 0.1 } }, t, { seed: 5, sway: 0 }), 540, 1960, 1.45, t, false);
-  } else if (t < EV.plant) {                             // 14. "He's gone."
+  } else if (ts < EV.plant) {                             // 14. "He's gone."
     sc = 'wt'; LIT = LIGHTS.wt; dof = 8;
     Object.assign(c, { x: 540, y: 1220, z: 2.2 });
     const talk = between(t, LN.b1, lineEnd('b1')) ? mouthAt('b1', t) : 0;
@@ -267,6 +271,7 @@ function caption(t) {
 const HOT = /hundred|fifty|thousand|nobody|Zhuge|Liang|craziest|gates|music|Sima|froze|trap|bluff|gone/i;
 
 window.DURATION = CUE.duration;
+window.CUTS = (CUE.cuts || []).filter(c => c.kind === 'dissolve');
 window.POST = {
   grade: GRADE, vignette: { opacity: 0.28, color: '#1a0c10' }, grain: 0.05,
   captions: {
@@ -275,7 +280,8 @@ window.POST = {
   },
   fades: [{ type: 'in', start: 0, duration: 0.3 }, { type: 'out', start: +(CUE.duration - 0.6).toFixed(3), duration: 0.6 }],
 };
-window.render = function (t) {
+window.render = function (t, opt) {
+  SEL = opt || null;
   const s = shot(t), scene = SC[s.sc];
   for (const k in SC) $('sc-' + k).style.display = k === s.sc ? '' : 'none';
   for (const l of scene.layers) {

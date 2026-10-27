@@ -4,6 +4,11 @@
 """
 import json
 import os
+import re
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'tools'))
+from accents import plan  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 T = json.load(open(os.path.join(HERE, 'audio', 'timing.json')))
@@ -51,6 +56,26 @@ cues += [
     {'file': 'sfx/guqin_crash.wav', 't': EV['plant'], 'gain': 1.0},
     {'file': 'sfx/impact.wav', 't': EV['plant'], 'gain': 0.5},
 ]
+# music bed (always on under the narration; steps aside while Zhuge plays the guqin on screen and for the
+# silent beat at the end). Leveled against the voice and ducked under speech by tools/mix.py.
+cues += [
+    {'file': 'sfx/bed_ancient.wav', 't': 0.0, 'gain': 1.0, 'loop': EV['wall'] + 0.3, 'fadeOut': 0.6, 'bus': 'bed'},
+    {'file': 'sfx/bed_ancient.wav', 't': EV['sima'], 'gain': 1.0, 'loop': EV['legend'] - EV['sima'] + 0.2, 'fadeOut': 0.5, 'bus': 'bed'},
+]
+
+# shot changes: dissolves (+ push-in) everywhere except the whip pans; the page reads CUTS for the picture
+CUT_TIMES = [EV[k] for k in ['street', 'zhuge', 'run', 'fight', 'crazy', 'gate', 'sweep', 'wall', 'sima', 'trap', 'retreat', 'legend', 'stop', 'boy', 'plant']]
+WHIP = {EV['street'], EV['gate'], EV['sweep'], EV['sima'], EV['retreat']}
+# the collapse (plant) is the punchline: a hard cut on the hit, no dissolve
+CUTS = [{'t': t, 'kind': 'whip' if t in WHIP else 'cut' if t == EV['plant'] else 'dissolve', 'dur': 0.17} for t in CUT_TIMES]
+
+# accents: whoosh on cuts, soft pop on key words, ticks to keep a sound every ~1.5-2 s
+WORDS = [(round(LINES[k] + w['start'], 3), w['word']) for k in LINES for w in T[k]['words']]
+HOT = re.compile(r'hundred|fifty|thousand|nobody|craziest|gates|music|froze|trap|bluff|gone', re.I)
+cues += plan(cues, cuts=[c['t'] for c in CUTS if c['t'] < EV['plant']], words=WORDS, hot=HOT, duration=DURATION,
+             sounds={'cut': 'sfx/swish.wav', 'hot': 'sfx/pop_soft.wav', 'fill': 'sfx/tick.wav'},
+             quiet=[(EV['stop'], EV['plant'] - 0.05)])
+
 # Prefer real recordings (tools/fetch_sfx.py -> sfx/real/) over synthesized ones when present.
 REAL = {'sfx/swish.wav': 'whoosh'}  # only CC0-verified sounds (see assets/PROVENANCE.md)
 for c in cues:
@@ -58,6 +83,7 @@ for c in cues:
     if real and os.path.exists(os.path.join(HERE, 'sfx', 'real', f'{real}.wav')):
         c['file'] = f'sfx/real/{real}.wav'
 
-data = {'duration': DURATION, 'lines': LINES, 'events': EV, 'cues': cues, 'timing': T}
+data = {'duration': DURATION, 'lines': LINES, 'events': EV, 'cuts': CUTS, 'cues': cues, 'timing': T,
+        'mix': {'bedDb': 15, 'duckDb': 6}}
 open(os.path.join(HERE, 'cues.js'), 'w').write('window.CUES = ' + json.dumps(data) + ';\n')
 print(DURATION, json.dumps(EV))

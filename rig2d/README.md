@@ -114,7 +114,9 @@ character works out its own direction from it. Test sheets: `tools/light_test.ht
 | `tools/tts.py lines.json out/` | Kokoro-82M voiceover: one WAV per line + `timing.json` (word times for captions, 30 fps mouth envelope for lip sync) |
 | `tools/sfx.py out/ cinematic` | Instruments and textures for drama: taiko drums, guqin melody (plucked-string synthesis), wind, gate creak, impact, string drone |
 | `tools/sfx.py out/` | Synthesized SFX: boom, whoosh, zip, pop, ding, boing, scratch, sting, sneaky pizzicato, crickets, drone, thud |
-| `tools/mix.py cues.js out.wav` | Mixes voice + SFX from the same cue sheet the animation reads |
+| `tools/mix.py cues.js out.wav` | Mixes voice / bed / sfx buses from the cue sheet: bed leveled under the voice and ducked while speaking, master compression |
+| `tools/sfx.py out/ bed` | Music bed (`bed_ancient`, seamless loop) + accents: tick, ping, pop_soft, riser |
+| `tools/accents.py` | Plans accents: whoosh on cuts, pop on key words, ticks so a sound lands every ~1.5–2 s |
 
 Kokoro setup (offline-friendly): `pip install kokoro-onnx soundfile`, weights from the npm package
 `kokoro-q8-shards` (joined into `model_quantized.onnx`, sha256 `fbae9257…a1478`), voices from the npm
@@ -162,6 +164,9 @@ See `stories/library/`:
 | `tools/post.js` | ffmpeg post pass: grade, bloom, vignette, grain, ASS captions, fades |
 
 ## Render
+
+Dissolves: pages that define `window.CUTS` and draw either side of a cut with `render(t, { side, cut })`
+get 5-frame dissolves with a push-in, composited by the renderer.
 
 Fast mode (default for `--mp4` when the page defines `window.POST`, see `tools/post.js`): the page skips
 its full-frame grade, bloom, vignette, grain, captions and fades, and ffmpeg applies them in one pass.

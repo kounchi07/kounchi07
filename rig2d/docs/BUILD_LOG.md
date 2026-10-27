@@ -169,7 +169,46 @@ const Guy = Kit.character({ style: 'simple', outfit: { color: '#e8a83a', tie: '#
 **Not yet lit:** hair, hats and shoes don't take the body light yet (they draw arbitrary shapes; they need a
 `lightShape` outline). Dark hair barely changes under multiplied light, so this is minor.
 
+## Step 5 — Edit and sound (2026-10-27)
+
+From the study (`docs/RICKS_STUDY.md` §4, §6): Rick's shorts dissolve between shots while the camera pushes in,
+keep a music bed under the voice at all times, land a sound accent about every 1.5 s, and are mixed loud and
+steady.
+
+### Transitions (generic, in `tools/render.js`)
+- A page that defines `window.CUTS = [{ t, dur, zoom }]` and supports `render(t, { side: 'before'|'after', cut })`
+  gets **dissolves**: inside a cut's window (default 0.17 s = 5 frames) the renderer draws the outgoing and the
+  incoming shot at the same moment and blends them. The outgoing shot fades while pushing in (`zoom`, 8%) and
+  the incoming one settles from a slight zoom. Works in both fast and exact modes.
+- Empty City: dissolves on 9 shot changes, whip pans kept on 5, and a **hard cut on the punchline** (the
+  collapse). Shot selection now reads which side of a cut to draw (`SEL`), so any story can opt in the same way.
+
+### Music bed and accents
+- `tools/sfx.py out bed` synthesizes (no downloads): `bed_ancient` (pentatonic plucked ostinato + low pad +
+  light woodblock pulse, 40 s, loops without a seam), and accents `tick`, `ping`, `pop_soft`, `riser`.
+- `tools/accents.py` plans accents for any story: a whoosh on every cut without a sound, a soft pop on key words
+  (at least 0.8 s apart), and a tick on a word start whenever the gap between sounds runs past 2 s. `quiet`
+  ranges keep deliberate silences silent. Empty City: 24 accents, about one sound per second.
+- `tools/mix.py` mixes in three buses: **voice** (`audio/`), **bed** (looped cues: music, wind, drums, drones)
+  and **sfx** (one-shots). The bed is leveled against the voice (`bedDb`) and **ducked** under speech
+  (`duckDb`, smoothed so it doesn't pump), and the master is compressed for steady loudness. Encoding
+  normalizes to −14 LUFS.
+
+**Measured** (median 20 ms frame levels, the same method as the Rick analysis):
+
+| | Before | After | Ricks Clips |
+|---|---|---|---|
+| Voice vs background | 4.8 dB | 9.7 dB | 11.7–13.5 dB |
+| Sound accents | ~1 every 1.6 s | ~1 every 1.1 s | ~1 every 1.5 s |
+
+The remaining gap to Rick is the story's deliberate one-shots in the pauses (gate impacts, drums), not the bed.
+
+**Gotcha:** the old ambience loops (wind, drums, drone) were on the effects bus at full level, so the
+background sat only ~2 dB under the voice. Treating every looped cue as bed (leveled + ducked) fixed it.
+
 ## Next steps
 
-- **Step 5 — Edit and sound:** dissolve + push-in transitions, an accent about every 1.5 s, always-on bed
-  12–15 dB under the voice (study §4, §6).
+- Hair, hats and shoes catch the scene light (`lightShape` outlines).
+- A new story built on the whole system (simple bodies, face kit, light, edit, sound), following the
+  playbook: ~165 words in 45 s at ~215 wpm.
+- Package the system for sale.

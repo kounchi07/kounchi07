@@ -334,3 +334,86 @@ def cinematic(out):
 
 if __name__ == '__main__' and len(sys.argv) > 2 and sys.argv[2] == 'cinematic':
     cinematic(sys.argv[1])
+
+
+# ---------------------------------------------------------------------------
+# Music bed + accent set (Step 5): an always-on bed that sits under the voice, and short
+# accent sounds for the "something every ~1.5 s" rhythm of short-form edits.
+# `python3 tools/sfx.py out_dir bed`
+# ---------------------------------------------------------------------------
+def _wrap(out, L):
+    """Fold everything past L back onto the start so the file loops without a seam."""
+    loop = out[:L].copy()
+    tail = out[L:]
+    loop[:len(tail)] += tail[:L]
+    return loop
+
+
+def woodblock(freq=1250, vel=1.0):
+    t = t_(0.18)
+    x = np.sin(2 * np.pi * freq * t) * np.exp(-t * 55) + 0.5 * np.sin(2 * np.pi * freq * 1.47 * t) * np.exp(-t * 80)
+    return x * vel
+
+
+def bed_ancient(bars=16, bpm=96, seed=11):
+    """Soft pentatonic pluck ostinato + low pad + light woodblock pulse; loops seamlessly."""
+    r = np.random.default_rng(seed)
+    beat = 60 / bpm
+    L = int(bars * 4 * beat * SR)
+    out = np.zeros(L + int(3 * SR))
+    # pad: root/fifth drone that swells every 4 bars
+    pad = strings_drone(bars * 4 * beat + 3, root=73.4) * 0.5
+    out[:len(pad)] += pad[:len(out)]
+    # ostinato on eighths (pattern changes every 4 bars, like a simple progression)
+    figs = [[4, 6, 5, 6, 4, 6, 5, 3], [3, 5, 4, 5, 3, 5, 4, 2], [2, 4, 3, 4, 2, 4, 5, 4], [4, 6, 5, 6, 7, 6, 5, 4]]
+    for b in range(bars):
+        fig = figs[(b // 4) % 4]
+        for e in range(8):
+            if r.random() < 0.12:
+                continue                                     # breathe: leave a few notes out
+            n = guqin_note(PENTA[fig[e]], 1.1, vel=0.55 + 0.25 * (e % 2 == 0)) * 0.55
+            s = int((b * 4 + e * 0.5) * beat * SR)
+            out[s:s + len(n)] += n[:len(out) - s]
+    # woodblock pulse on beats 2 and 4, softer ghost on the "and" of 4
+    for b in range(bars):
+        for pos, v, f in [(1, 0.35, 1250), (3, 0.35, 1250), (3.5, 0.15, 1600)]:
+            w = woodblock(f, v)
+            s = int((b * 4 + pos) * beat * SR)
+            out[s:s + len(w)] += w
+    x = _wrap(reverb(out, 1.8, 0.28), L)
+    return norm(lowpass(x, 6000), 0.7)
+
+
+def tick():
+    return norm(reverb(woodblock(1500), 0.4, 0.15), 0.6)
+
+
+def ping():   # soft bell for reveals / key words
+    t = t_(1.2)
+    x = sum(a * np.sin(2 * np.pi * f * t) * np.exp(-t * k) for f, a, k in [(1318.5, 1, 4), (2637, 0.3, 7), (1976, 0.2, 6)])
+    return norm(reverb(x * np.minimum(1, t / 0.003), 1.2, 0.3), 0.55)
+
+
+def soft_pop():
+    t = t_(0.12)
+    f = 900 * np.exp(-t * 30) + 250
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 35)
+    return norm(x, 0.6)
+
+
+def riser(d=0.8):  # short noise swell into a reveal
+    t = t_(d)
+    x = bandpass(rng.standard_normal(len(t)), 800, 7000) * (t / d) ** 2.5
+    return norm(lowpass(x, 6500) * np.minimum(1, (d - t) / 0.02), 0.5)
+
+
+def bed_set(out):
+    os.makedirs(out, exist_ok=True)
+    for name, fn in [('bed_ancient', bed_ancient), ('tick', tick), ('ping', ping), ('pop_soft', soft_pop), ('riser', riser)]:
+        x = fn()
+        sf.write(os.path.join(out, f'{name}.wav'), x.astype(np.float32), SR)
+        print(f'{name}: {len(x) / SR:.2f}s')
+
+
+if __name__ == '__main__' and len(sys.argv) > 2 and sys.argv[2] == 'bed':
+    bed_set(sys.argv[1])
