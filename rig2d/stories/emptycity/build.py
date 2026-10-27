@@ -52,7 +52,7 @@ cues += [
     {'file': 'sfx/impact.wav', 't': EV['plant'], 'gain': 0.5},
 ]
 # Prefer real recordings (tools/fetch_sfx.py -> sfx/real/) over synthesized ones when present.
-REAL = {'sfx/swish.wav': 'whoosh', 'sfx/impact.wav': 'dramatic-boomer'}
+REAL = {'sfx/swish.wav': 'whoosh'}  # only CC0-verified sounds (see assets/PROVENANCE.md)
 for c in cues:
     real = REAL.get(c['file'])
     if real and os.path.exists(os.path.join(HERE, 'sfx', 'real', f'{real}.wav')):
