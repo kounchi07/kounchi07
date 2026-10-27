@@ -24,6 +24,15 @@ Before any download (files, models, sounds, videos, packages):
 6. **Videos for study (yt-dlp):** only videos the user names, kept in the session scratchpad for
    analysis, never committed, re-uploaded, or reused in our videos, and deleted when done.
 7. **If verification is uncertain, stop and ask the user** instead of downloading.
+8. **Cookies are credentials.** Use a user-provided cookie file only for the exact task the user
+   approved, from an isolated copy limited to the needed domain, never print, log, or commit it,
+   and delete every copy (including the upload) as soon as that task ends. Do not keep or reuse it.
+
+### One-time exceptions (closed)
+
+- 2026-10-27: user approved using their YouTube cookie file once to download a few Ricks Clips
+  shorts for study. YouTube blocked the cloud IP (bot check; the cookies were signed-out visitor
+  cookies), so nothing was downloaded. Cookie file and every copy deleted the same day; not to be reused.
 
 ## Verified sources so far
 
@@ -34,3 +43,4 @@ Before any download (files, models, sounds, videos, packages):
 | npm `kokoro-q8-shards` | Kokoro-82M q8 weights | sha256 matches the publisher's stated hash; model is Apache-2.0 | Apache-2.0 |
 | PyPI `kokoro-onnx` | Runtime + phoneme vocab | PyPI package | MIT |
 | PyPI `yt-dlp` | Video download for study only | PyPI package | Unlicense |
+| PyPI `yt-dlp-ejs` 0.8.0 | yt-dlp's YouTube JS solver (run with `--js-runtimes node`) | Pinned by yt-dlp's own PyPI metadata (`default` extra); repo yt-dlp/ejs; installed with `--require-hashes` sha256 79300e5f…bdb4 | Unlicense AND MIT AND ISC |
