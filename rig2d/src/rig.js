@@ -356,11 +356,28 @@
       const L = Object.assign({}, FACE_LAYOUT, p.face);
       let defs = `<clipPath id="${idp}-clip"><path d="${blob.path}"/></clipPath>` +
         `<filter id="${idp}-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${n2(H.rx * 0.09)}"/></filter>`;
+      if (ctx.mask === 'skin') {   // skin mask: blob white; hair, face features and outline black
+        const blk = x => x ? `<g class="rig-blk">${x}</g>` : '';
+        const ms = blk(p.back ? p.back(ctx, blob, fs) : '') + `<path d="${blob.path}" fill="#fff"/>` +
+          `<path d="${blob.path}" fill="none" stroke="#000" stroke-width="${H.line || 8}"/>` +
+          blk(p.hair ? p.hair(ctx, blob, fs) : '') + blk(drawFace(fs, blob, L, '#000', idp + 'm').svg) + blk(p.front ? p.front(ctx, blob, fs) : '');
+        return { svg: `<g transform="${M.str(m)}">${ms}</g>`, defs };
+      }
       let s = p.back ? p.back(ctx, blob, fs) : '';
       s += `<path d="${blob.path}" fill="${H.skin}"/>`;
       s += `<g clip-path="url(#${idp}-clip)">` +
         `<ellipse cx="${n2(blob.cx - lx * H.rx * 0.95)}" cy="${n2(blob.cy + H.ry * 0.15)}" rx="${n2(H.rx * 0.7)}" ry="${n2(H.ry * 1.25)}" fill="${H.shade}" opacity=".6" filter="url(#${idp}-soft)"/>` +
         `<ellipse cx="${n2(blob.cx + lx * H.rx * 1.02)}" cy="${n2(blob.cy)}" rx="${n2(H.rx * 0.22)}" ry="${n2(H.ry * 0.8)}" fill="${H.rim}" opacity=".35" filter="url(#${idp}-soft)"/></g>`;
+      // scene rim light (from Light): a gradient stroke just inside the outline, strongest toward the light
+      if (ctx.rim) {
+        const R = ctx.rim, vx = R.dx, vy = R.dy, det = m[0] * m[3] - m[1] * m[2] || 1;
+        let lx2 = (m[3] * vx - m[2] * vy) / det, ly2 = (-m[1] * vx + m[0] * vy) / det;
+        const ln = Math.hypot(lx2, ly2) || 1; lx2 /= ln; ly2 /= ln;
+        const rr = Math.max(H.rx, H.ry);
+        defs += `<linearGradient id="${idp}-rg" gradientUnits="userSpaceOnUse" x1="${n2(blob.cx + lx2 * rr)}" y1="${n2(blob.cy + ly2 * rr)}" x2="${n2(blob.cx)}" y2="${n2(blob.cy)}">` +
+          `<stop offset="0" stop-color="${R.color}" stop-opacity="${n2(R.op)}"/><stop offset=".55" stop-color="${R.color}" stop-opacity="0"/></linearGradient>`;
+        s += `<path d="${blob.path}" fill="none" stroke="url(#${idp}-rg)" stroke-width="${n2((H.line || 8) + 2 * (R.width || 8))}" clip-path="url(#${idp}-clip)"/>`;
+      }
       s += `<path d="${blob.path}" fill="none" stroke="${ctx.ink}" stroke-width="${H.line || 8}" stroke-linejoin="round"/>`;
       if (p.hair) s += p.hair(ctx, blob, fs);
       const face = drawFace(fs, blob, L, ctx.ink, idp);
@@ -463,11 +480,23 @@
       const list = this.parts.map((p, i) => ({ p, i, z: zo[p.name] == null ? (p.z || 0) : zo[p.name] }))
         .sort((a, b) => a.z - b.z || a.i - b.i);
       let defs = '', body = '';
+      // mask: 'skin' draws skin white and everything else black, in the same draw order, so hats, hair and
+      // sleeves in front of skin hide it; 'silhouette' draws everything black (cast shadows). Used by Light.
+      // Colors are forced with a CSS rule (cheaper than a filter per part).
+      const mask = opts.mask;
+      if (mask) {
+        ctx.mask = mask;
+        defs += '<style>.rig-blk [fill]:not([fill="none"]){fill:#000!important}.rig-blk [stroke]:not([stroke="none"]){stroke:#000!important}' +
+          '.rig-wht [fill]:not([fill="none"]){fill:#fff!important}.rig-wht [stroke]:not([stroke="none"]){stroke:#fff!important}</style>';
+      }
+      if (opts.rim) ctx.rim = { color: opts.rim.color, op: opts.rim.op, width: opts.rim.width, dx: opts.rim.dx * (opts.flip ? -1 : 1), dy: opts.rim.dy };
       for (const { p } of list) {
         if (p.visible && !p.visible(ctx)) continue;
         const r = RENDER[p.type](p, ctx, this);
-        body += r.svg; defs += r.defs || '';
+        body += mask === 'silhouette' ? r.svg : mask && p.type !== 'head' ? `<g class="rig-${p.skin ? 'wht' : 'blk'}">${r.svg}</g>` : r.svg;
+        defs += r.defs || '';
       }
+      if (mask === 'silhouette') body = `<g class="rig-blk">${body}</g>`;
       const tr = `translate(${n2(opts.x || 0)} ${n2(opts.y || 0)}) scale(${n2((opts.flip ? -1 : 1) * (opts.scale || 1))} ${n2(opts.scale || 1)})`;
       return `<g transform="${tr}"><defs>${defs}</defs>${body}</g>`;
     }

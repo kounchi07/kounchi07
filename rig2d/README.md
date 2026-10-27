@@ -90,6 +90,9 @@ It works from the character's silhouette, so it needs nothing from the character
 | Pattern | Optional set light projected on the body (`pattern: { svg: Light.blinds(...), blend: 'screen' }`) |
 | Cast shadow | On the ground, away from the light (toward the camera when `back: true`) |
 
+By default only the **skin** is lit (face, hands; parts marked `skin: true`); clothes keep their colors.
+`affect: 'all'` lights the whole character.
+
 Presets: `day`, `golden`, `overcast`, `interior`, `night`, `candle`, `forge`. Override any field
 (`color`, `tint`, `exposure`, `ambient`, `lift`, `rim`, `rimOp`, `rimWidth`, `shade`, `shadeOp`, `key`,
 `dir`, `source`, `back`, `shadow`, `shadowLen`). `dir` is where the light comes from in screen degrees
@@ -144,11 +147,18 @@ See `stories/library/`:
 | `demo.html` | Animated demo (timeline of poses) |
 | `walk_demo.html` | Story demo: walk in, turn to camera, talk, walk off |
 | `tools/poses.html` | Pose test sheet |
-| `tools/render.js` | Renders any page to PNG frames + MP4 |
+| `tools/render.js` | Renders any page to frames + MP4 (fast mode, workers, audio mux) |
+| `tools/post.js` | ffmpeg post pass: grade, bloom, vignette, grain, ASS captions, fades |
 
 ## Render
 
+Fast mode (default for `--mp4` when the page defines `window.POST`, see `tools/post.js`): the page skips
+its full-frame grade, bloom, vignette, grain, captions and fades, and ffmpeg applies them in one pass.
+About 6x faster than drawing them in the browser. `--audio` muxes the mix, `--range a,b` renders a slice,
+`--exact` uses the old in-browser path, and frames on disk are reused (re-encodes take about a minute).
+
 ```bash
+node tools/render.js stories/emptycity/index.html out/ec --mp4 out/ec.mp4 --audio out/mix.wav   # ~4.5 min on 4 cores
 node tools/render.js demo.html out/frames --mp4 out/demo.mp4     # full video, 30 fps
 node tools/render.js demo.html out/stills --stills 0.5,2,4        # quick check frames
 node tools/render.js "stories/emptycity/index.html?nolight" out/off --stills 8   # page options via ?query

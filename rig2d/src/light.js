@@ -5,11 +5,13 @@
  *   Light.PRESETS                                     day, golden, night, candle, forge, interior, overcast
  *   Light.preset('night', { source: { x, y } })       a preset with overrides
  *
- * What it does to the character (all from its silhouette, so it works for any rig, prop or outfit):
- *   1. Tint      face, clothes AND outline are multiplied by the light color, and the blacks are lifted
+ * By default only the SKIN is lit (face, neck, hands: `affect: 'skin'`); clothes, hair and props keep
+ * their own colors. `affect: 'all'` lights the whole character. Everything works from masks rendered by
+ * the rig itself, so it applies to any character:
+ *   1. Tint      skin (or everything) is multiplied by the light color, and the blacks are lifted
  *                toward the ambient color (night = lavender faces, candle = warm cream, ...).
  *   2. Shading   a soft gradient across the body: brighter on the side facing the light, darker on the far side.
- *   3. Rim       a thin bright line just inside the outline on the lit side (body, legs, head, props).
+ *   3. Rim       a thin bright line just inside the outline on the lit side of the skin.
  *   4. Pattern   optional light/shadow shapes from the set (window blinds, leaves) projected onto the body.
  *   5. Shadow    a cast shadow on the ground, pointing away from the light.
  *
@@ -67,14 +69,19 @@
     const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
     const [ux, uy] = toward(L, cx, cy);
     // the rig's own head shading follows the scene light (+1 = light from screen right)
-    const inner = actor.render(Object.assign({}, o, { light: ux >= 0 ? 1 : -1 }));
+    const rimOp0 = Math.min(1, (L.rimOp == null ? 0.6 : L.rimOp) * (L.back ? 1.1 : 1));
+    const rimInfo = { color: L.rim || '#fff', op: rimOp0, width: (L.rimWidth || 6) * (L.back ? 1.3 : 1), dx: ux, dy: uy };
+    const inner = actor.render(Object.assign({}, o, { light: ux >= 0 ? 1 : -1, rim: rimInfo }));
     const id = `lt${o.id || ''}${uid++}`, W = bx1 - bx0, H = by1 - by0;
     const reg = `filterUnits="userSpaceOnUse" x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}"`;
 
-    // 1. tint: out = in * k + ambient * lift  (outline included, so lines pick up the scene color too)
-    const c = hex(L.color || '#ffffff'), a = hex(L.ambient || '#000000'), tint = L.tint == null ? 0.2 : L.tint, ex = L.exposure || 1, lift = L.lift || 0;
-    const k = c.map(v => n2((1 - tint + tint * v) * ex)), off = a.map(v => n2(v * lift));
-    const mat = `${k[0]} 0 0 0 ${off[0]}  0 ${k[1]} 0 0 ${off[1]}  0 0 ${k[2]} 0 ${off[2]}  0 0 0 1 0`;
+    // 1. tint: out = in * k (+ ambient lift). Done with blend layers over the mask, not a filtered copy
+    //    of the character, because every extra copy means drawing the whole character again (slow).
+    const c = hex(L.color || '#ffffff'), tint = L.tint == null ? 0.2 : L.tint, ex = L.exposure || 1, lift = L.lift || 0;
+    const k = c.map(v => Math.round(255 * Math.min(1, (1 - tint + tint * v) * Math.min(1, ex))));
+    // multiply color = tint x (white blended toward the shade color); one gradient layer = one mask pass
+    const sh = hex(L.shade || '#000000');
+    const shadeMul = f => `rgb(${k.map((v, i) => Math.round(v * (1 - f + f * sh[i]))).join(',')})`;
 
     // 3. rim: band just inside the silhouette (erode past the outline), on the side facing the light
     const line = (L.line || 7) * s, rw = (L.rimWidth || 6) * Math.min(1, s) * (L.back ? 1.2 : 1);
@@ -87,29 +94,36 @@
     const shOp = L.shadow == null ? 0.3 : L.shadow;
     const skew = n2(ux * (L.shadowLen || 0.9)), squash = n2(L.back ? -0.32 : 0.22);
 
+    // What the light touches: 'skin' (default: face, neck, hands) or 'all' (the whole character).
+    const all = L.affect === 'all';
+    const skin = all ? '' : actor.render(Object.assign({}, o, { light: ux >= 0 ? 1 : -1, mask: 'skin' }));
+    const maskBody = all ? `<use href="#${id}-c" filter="url(#${id}-white)"/>` : skin;
+    // rim source: the lit region as alpha (whole silhouette, or the skin mask's white areas)
+    const rimSrc = all ? `<feMorphology in="SourceAlpha" operator="erode" radius="${n2(line)}" result="in"/>`
+      : `<feColorMatrix in="SourceGraphic" type="luminanceToAlpha"/><feComponentTransfer result="in"><feFuncA type="linear" slope="3" intercept="-1.5"/></feComponentTransfer>`;
+
     let defs = `<g id="${id}-c">${inner}</g>` +
-      `<filter id="${id}-tint" ${reg} color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${mat}"/></filter>` +
       `<filter id="${id}-white" ${reg}><feFlood flood-color="#fff"/><feComposite in2="SourceAlpha" operator="in"/></filter>` +
-      `<mask id="${id}-m" maskUnits="userSpaceOnUse" x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}"><use href="#${id}-c" filter="url(#${id}-white)"/></mask>` +
-      `<filter id="${id}-rim" ${reg}><feMorphology in="SourceAlpha" operator="erode" radius="${n2(line)}" result="in"/>` +
+      `<mask id="${id}-m" maskUnits="userSpaceOnUse" x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}">${maskBody}</mask>` +
+      `<filter id="${id}-rim" ${reg} color-interpolation-filters="sRGB">${rimSrc}` +
       `<feOffset in="in" dx="${n2(-ux * rw)}" dy="${n2(-uy * rw)}" result="sh"/><feComposite in="in" in2="sh" operator="out" result="band"/>` +
       `<feGaussianBlur in="band" stdDeviation="${n2(0.6 * s)}" result="bb"/><feFlood flood-color="${L.rim || '#fff'}"/><feComposite in2="bb" operator="in"/></filter>` +
       `<linearGradient id="${id}-g" gradientUnits="userSpaceOnUse" x1="${n2(g1[0])}" y1="${n2(g1[1])}" x2="${n2(g0[0])}" y2="${n2(g0[1])}">` +
-      `<stop offset="0" stop-color="${L.shade || '#000'}" stop-opacity="0"/><stop offset=".45" stop-color="${L.shade || '#000'}" stop-opacity="${n2((L.shadeOp || 0.25) * 0.35)}"/><stop offset="1" stop-color="${L.shade || '#000'}" stop-opacity="${n2(L.shadeOp || 0.25)}"/></linearGradient>` +
-      `<linearGradient id="${id}-k" gradientUnits="userSpaceOnUse" x1="${n2(g1[0])}" y1="${n2(g1[1])}" x2="${n2(cx)}" y2="${n2(cy)}">` +
-      `<stop offset="0" stop-color="${L.color || '#fff'}" stop-opacity="${n2(L.key || 0.1)}"/><stop offset="1" stop-color="${L.color || '#fff'}" stop-opacity="0"/></linearGradient>` +
-      `<filter id="${id}-sh" ${reg.replace(/y="[^"]+"/, `y="${n2(by0 - H)}"`).replace(/height="[^"]+"/, `height="${n2(H * 3)}"`)} x="-50%"><feFlood flood-color="${L.shadowColor || '#1a0c14'}"/><feComposite in2="SourceAlpha" operator="in"/><feGaussianBlur stdDeviation="${n2(6 * s)}"/></filter>`;
+      [[0, 0], [0.45, 0.35], [1, 1]].map(([at, f]) => `<stop offset="${at}" stop-color="${shadeMul(f * (L.shadeOp || 0.25))}"/>`).join('') + `</linearGradient>` +
+      `<filter id="${id}-sh" ${reg.replace(/y="[^"]+"/, `y="${n2(by0 - H)}"`).replace(/height="[^"]+"/, `height="${n2(H * 3)}"`)} x="-50%"><feGaussianBlur stdDeviation="${n2(Math.min(3, 2 * s))}"/></filter>`;
 
     let out = '';
     if (shOp > 0 && o.castShadow !== false) {
       const gy = o.ground == null ? y : o.ground;
-      out += `<g opacity="${n2(shOp)}" style="mix-blend-mode:multiply"><use href="#${id}-c" filter="url(#${id}-sh)" transform="translate(${n2(x)} ${n2(gy)}) matrix(1 0 ${skew} ${squash} 0 0) translate(${n2(-x)} ${n2(-gy)})"/></g>`;
+      const sil = actor.render(Object.assign({}, o, { mask: 'silhouette' }));
+      out += `<g opacity="${n2(shOp)}" filter="url(#${id}-sh)" transform="translate(${n2(x)} ${n2(gy)}) matrix(1 0 ${skew} ${squash} 0 0) translate(${n2(-x)} ${n2(-gy)})">${sil}</g>`;
     }
-    out += `<use href="#${id}-c" filter="url(#${id}-tint)"/>` +
-      `<g mask="url(#${id}-m)"><rect x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}" fill="url(#${id}-g)" style="mix-blend-mode:multiply"/>` +
-      `<rect x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}" fill="url(#${id}-k)" style="mix-blend-mode:screen"/>` +
-      (L.pattern ? `<g style="mix-blend-mode:${L.pattern.blend || 'screen'}" opacity="${n2(L.pattern.opacity == null ? 0.5 : L.pattern.opacity)}">${L.pattern.svg}</g>` : '') + `</g>` +
-      `<use href="#${id}-c" filter="url(#${id}-rim)" opacity="${n2(Math.min(1, rimOp))}" style="mix-blend-mode:screen"/>`;
+    // the character as drawn, then light layers on top, shown only through the mask
+    // (the mask goes on each layer: a masked GROUP would blend its layers against nothing)
+    const rect = (fill, blend, op = 1) => `<rect x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}" fill="${fill}" opacity="${n2(op)}" mask="url(#${id}-m)" style="mix-blend-mode:${blend}"/>`;
+    out += `<use href="#${id}-c"/>` + rect(`url(#${id}-g)`, 'multiply') + (ex > 1 ? rect('#fff', 'screen', ex - 1) : '') +
+      (L.pattern ? `<g mask="url(#${id}-m)" style="mix-blend-mode:${L.pattern.blend || 'screen'}" opacity="${n2(L.pattern.opacity == null ? 0.5 : L.pattern.opacity)}">${L.pattern.svg}</g>` : '') +
+      (all ? `<use href="#${id}-c" filter="url(#${id}-rim)" opacity="${n2(Math.min(1, rimOp))}" style="mix-blend-mode:screen"/>` : '');
     return `<g class="lit"><defs>${defs}</defs>${out}</g>`;
   }
 

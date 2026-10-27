@@ -14,8 +14,8 @@ svg{display:block}
   </defs>
   <g id="graded" filter="url(#look)"><g id="stage"></g>
   <rect id="tint" width="1080" height="1920" fill="#c0281a" opacity="0" style="mix-blend-mode:multiply"/></g>
-  <rect width="1080" height="1920" fill="url(#look-vign)"/>
-  <rect width="1080" height="1920" filter="url(#look-grain)" opacity=".05" style="mix-blend-mode:overlay"/>
+  <rect id="vign" width="1080" height="1920" fill="url(#look-vign)"/>
+  <rect id="grain" width="1080" height="1920" filter="url(#look-grain)" opacity=".05" style="mix-blend-mode:overlay"/>
   <text id="cap" class="cap" x="540" y="1540"></text>
   <rect id="flash" width="1080" height="1920" fill="#fff" opacity="0"/>
   <rect id="fade" width="1080" height="1920" fill="#000" opacity="0"/>
@@ -38,7 +38,11 @@ const sm = (t, a, b) => EASE.inOut(clamp((t - a) / (b - a), 0, 1));
 const between = (t, a, b) => t >= a && t < b;
 
 // ---------- scenes: static layers built once, only actors/army/overlays change per frame ----------
-document.querySelector('defs').insertAdjacentHTML('beforeend', Look.defs({ saturation: 1.1, lift: 0.06, bloom: 0.35, warm: 0.012 }));
+const GRADE = { saturation: 1.1, lift: 0.06, bloom: 0.35, warm: 0.012 };
+document.querySelector('defs').insertAdjacentHTML('beforeend', Look.defs(GRADE));
+// ?post: fast render mode (tools/render.js) - grade, vignette, grain, captions and fades are done by ffmpeg
+const POSTMODE = location.search.includes('post');
+if (POSTMODE) { $('graded').removeAttribute('filter'); for (const id of ['vign', 'grain', 'cap', 'fade']) $(id).style.display = 'none'; }
 const SC = { ex: City.exterior(), st: City.street(), wt: City.walltop() };
 // polish: tinted thin lines on backgrounds + light sources, rays and haze baked into the static layers
 const soft = { ink: INK, color: '#5a3a2c', k: 0.62 };
@@ -263,6 +267,14 @@ function caption(t) {
 const HOT = /hundred|fifty|thousand|nobody|Zhuge|Liang|craziest|gates|music|Sima|froze|trap|bluff|gone/i;
 
 window.DURATION = CUE.duration;
+window.POST = {
+  grade: GRADE, vignette: { opacity: 0.28, color: '#1a0c10' }, grain: 0.05,
+  captions: {
+    style: { font: 'Inter Black', size: 98, outline: 6.5, y: 1540, pop: 1.2, popTime: 0.09 },
+    words: WORDS.map(([st, w, id], i) => [st, Math.min(i + 1 < WORDS.length ? WORDS[i + 1][0] : 1e9, lineEnd(id) + 0.3), w, HOT.test(w)]),
+  },
+  fades: [{ type: 'in', start: 0, duration: 0.3 }, { type: 'out', start: +(CUE.duration - 0.6).toFixed(3), duration: 0.6 }],
+};
 window.render = function (t) {
   const s = shot(t), scene = SC[s.sc];
   for (const k in SC) $('sc-' + k).style.display = k === s.sc ? '' : 'none';
