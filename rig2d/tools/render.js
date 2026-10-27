@@ -1,5 +1,5 @@
 // Render a page that defines window.render(t) and window.DURATION to PNG frames + MP4.
-// usage: node tools/render.js <page.html> <outDir> [--fps 30] [--stills 0.5,2,4] [--mp4 out.mp4] [--workers 4]
+// usage: node tools/render.js <page.html[?query]> <outDir> [--fps 30] [--stills 0.5,2,4] [--mp4 out.mp4] [--workers 4]
 // Frames already on disk are skipped, so an interrupted render can resume.
 const { chromium } = require('playwright');
 const path = require('path');
@@ -8,7 +8,8 @@ const { execFileSync } = require('child_process');
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const page = path.resolve(args[0]), out = path.resolve(args[1]);
+const [pageFile, query] = args[0].split('?');
+const page = path.resolve(pageFile) + (query ? '?' + query : ''), out = path.resolve(args[1]);
 const fps = +opt('--fps', 30), stills = opt('--stills'), mp4 = opt('--mp4');
 const workers = +opt('--workers', 1);
 

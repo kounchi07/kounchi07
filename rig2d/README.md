@@ -70,6 +70,32 @@ far layers can be blurred for depth of field.
 Target numbers (measured from a polished reference short): mean luma ≈ 0.45–0.5, 5th-percentile luma
 ≈ 0.15–0.18 (soft shadows), saturation ≈ 0.40–0.45, under ~8% of pixels near black.
 
+## Scene lighting (Light)
+
+`src/light.js` makes any character match the light of the set it stands in (the Ricks Clips look:
+the same white face turns lavender at night and warm cream by a fire). Swap `actor.render(o)` for:
+
+```js
+const LIT = Light.preset('golden', { source: { x: 1650, y: 1050 }, back: true });  // the set's sun
+svg += Light.render(actor, { x, y, scale, t, light: LIT });
+```
+
+It works from the character's silhouette, so it needs nothing from the character file:
+
+| Layer | What it does |
+|---|---|
+| Tint | Face, clothes and outline are multiplied by the light color; blacks lift toward the ambient color |
+| Shading | Soft gradient: brighter on the side facing the light, darker on the far side |
+| Rim | Thin bright line just inside the outline on the lit side |
+| Pattern | Optional set light projected on the body (`pattern: { svg: Light.blinds(...), blend: 'screen' }`) |
+| Cast shadow | On the ground, away from the light (toward the camera when `back: true`) |
+
+Presets: `day`, `golden`, `overcast`, `interior`, `night`, `candle`, `forge`. Override any field
+(`color`, `tint`, `exposure`, `ambient`, `lift`, `rim`, `rimOp`, `rimWidth`, `shade`, `shadeOp`, `key`,
+`dir`, `source`, `back`, `shadow`, `shadowLen`). `dir` is where the light comes from in screen degrees
+(0 = right, 180 = left, -90 = above); `source` is a point in the scene (candle, window, sun) and each
+character works out its own direction from it. Test sheet: `tools/light_test.html`.
+
 ## Voice, sound effects, mixing
 
 | Tool | What it does |
@@ -110,6 +136,8 @@ See `stories/library/`:
 | `stories/library/` | Brainrot short: script, voice, cues, shots |
 | `src/camera.js` | Camera moves, parallax, shake, whip pans |
 | `src/look.js` | Polish pass: grade, bloom, soft lines, glows, rays, haze, grain |
+| `src/light.js` | Scene lighting on characters: tint, shading, rim, projected patterns, cast shadows |
+| `tools/light_test.html` | Every light preset on the same character, unlit vs lit |
 | `scenes/city.js` | Xicheng: city wall + gate tower, street, wall top (layered) |
 | `characters/threekingdoms.js` | Zhuge Liang, Sima Yi, page boys, soldiers, sweepers |
 | `stories/emptycity/` | "The Empty City" legend short (45 s) |
@@ -123,6 +151,7 @@ See `stories/library/`:
 ```bash
 node tools/render.js demo.html out/frames --mp4 out/demo.mp4     # full video, 30 fps
 node tools/render.js demo.html out/stills --stills 0.5,2,4        # quick check frames
+node tools/render.js "stories/emptycity/index.html?nolight" out/off --stills 8   # page options via ?query
 ```
 
 Needs Node, Playwright (Chromium) and ffmpeg.
