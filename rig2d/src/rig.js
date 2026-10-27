@@ -493,6 +493,15 @@
       }
       s += `<path d="${blob.path}" fill="none" stroke="${ctx.ink}" stroke-width="${H.line || 8}" stroke-linejoin="round"/>`;
       if (p.hair) s += p.hair(ctx, blob, fs);
+      // hair and hats in front of the head catch the scene light too (outline from p.hairLight, head-local)
+      if (ctx.lit && ctx.lit.body && p.hairLight) {
+        const hd = p.hairLight(ctx, blob, fs);
+        if (hd) {
+          const [hx, hy] = localDir(m, ctx.lit.dx, ctx.lit.dy), rr = Math.max(H.rx, H.ry);
+          const pl = partLight(ctx, `${idp}-hl`, hd, [blob.cx, blob.cy - rr * 0.35], rr * 1.25, hx, hy, 6);
+          s += pl.svg; defs += pl.defs;
+        }
+      }
       const face = drawFace(fs, blob, L, ctx.ink, idp);
       s += face.svg; defs += face.defs;
       if (p.front) s += p.front(ctx, blob, fs);

@@ -206,9 +206,16 @@ The remaining gap to Rick is the story's deliberate one-shots in the pauses (gat
 **Gotcha:** the old ambience loops (wind, drums, drone) were on the effects bus at full level, so the
 background sat only ~2 dB under the voice. Treating every looped cue as bed (leveled + ducked) fixed it.
 
+## Step 6 — Light on hair, hats and shoes (2026-10-27)
+
+- Head parts can declare `hairLight(ctx, blob, fs)`, which returns the outline of the hair and hat *in front of*
+  the head. The head lights it like any other part (lit-side color, far-side shade, glow, rim). The kit provides
+  it for hair caps (bun, long, short, kidbuns, topknot) and the lunjin and helmet hats.
+- Kit shoes declare a `lightShape` (the left shoe's outline is mirrored to match its drawing).
+- Hair behind the head (buns, long hair at the back) is not lit, to keep light off the face area.
+
 ## Next steps
 
-- Hair, hats and shoes catch the scene light (`lightShape` outlines).
 - A new story built on the whole system (simple bodies, face kit, light, edit, sound), following the
   playbook: ~165 words in 45 s at ~215 wpm.
 - Package the system for sale.

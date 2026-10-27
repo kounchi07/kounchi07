@@ -165,6 +165,8 @@
     const handBlob = R2.Blob({ cx: 12, cy: 0, rx: 21, ry: 18, seed: (cfg.head.seed || 1) + 4, wobble: 0.1 });
     const hand = () => `<path d="${handBlob.path}" fill="${C.skin}" stroke="${INK}" stroke-width="5"/><path d="M14,-10 Q24,-4 22,8" stroke="${C.skinShade}" stroke-width="5" fill="none" opacity=".7" stroke-linecap="round"/>`;
     const handLight = { d: handBlob.path, c: [12, 0], r: 24, line: 5 };
+    const SHOE_D = 'M-20,10 C-22,-10 -4,-16 10,-15 C28,-13 42,-3 52,2 Q62,0 60,-8 Q66,2 58,10 Z';
+    const shoeLight = sign => ({ d: sign < 0 ? SHOE_D.replace(/(-?[\d.]+),(-?[\d.]+)/g, (m, x, y) => `${x},${-y}`) : SHOE_D, c: [20, 0], r: 42, line: 5 });
     const shoe = sign => () => `<g transform="scale(1 ${sign})"><rect x="-22" y="8" width="78" height="11" rx="5" fill="${C.sole}" stroke="${INK}" stroke-width="4"/>` +
       `<path d="M-20,10 C-22,-10 -4,-16 10,-15 C28,-13 42,-3 52,2 Q62,0 60,-8 Q66,2 58,10 Z" fill="${C.shoe}" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>` +
       `<path d="M2,-12 Q14,-2 26,-6" stroke="${lt(C.shoe, 0.25)}" stroke-width="3" fill="none"/></g>`;
@@ -219,14 +221,15 @@
       const side = Array.from({ length: 15 }, (_, i) => dense[Math.round(i * (dense.length - 1) / 14)]);
       const p15 = dir > 0 ? side : side.slice().reverse();
       const inner = front.map((p, i) => [R2.lerp(p[0], p15[i][0], prof), R2.lerp(p[1], p15[i][1], prof)]);
-      let s = `<path d="${R2.openPath(outer)} L${inner.map(pt).join(' L')}Z" fill="${C.hair}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+      const d = `${R2.openPath(outer)} L${inner.map(pt).join(' L')}Z`;
+      let s = `<path d="${d}" fill="${C.hair}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
       for (let i = 1; i < 10; i++) {
         const a = a0 + (a1 - a0) * (0.05 + 0.9 * i / 10), o = blob.point(a, 1.0), q = inner[14 - Math.round(i * 1.4)];
         s += `<path d="M${pt(o)} Q${n2((o[0] + q[0]) / 2 + (i - 5) * 2)},${n2((o[1] + q[1]) / 2)} ${pt(q)}" stroke="${C.hairLine}" stroke-width="2.5" fill="none"/>`;
       }
       const h1 = blob.point(Math.PI * 1.3, 0.94), h2 = blob.point(Math.PI * 1.55, 0.97);
       s += `<path d="M${pt(h1)} Q${n2((h1[0] + h2[0]) / 2)},${n2(Math.min(h1[1], h2[1]) - 12)} ${pt(h2)}" stroke="${C.hairSheen}" stroke-width="5" fill="none" opacity=".65" stroke-linecap="round"/>`;
-      return { svg: s, inner };
+      return { svg: s, inner, d };
     }
     function hood(blob, fs) {
       // Wraps the whole head; only a band around the eyes stays open.
@@ -282,6 +285,23 @@
         return s;
       }
       return '';
+    }
+    // outlines of the hair and hat in front of the head, for the scene light (head-local coordinates)
+    function hairLight(ctx, blob, fs) {
+      let d = '';
+      if (['bun', 'long', 'short', 'kidbuns', 'topknot'].includes(H.style)) d += hairCap(blob, fs, H.style === 'short' ? 0.95 : 1).d;
+      if (T.style === 'lunjin') {
+        const tw = Math.abs(fs.turn), shift = -fs.turn * blob.rx * 0.12;
+        const l = blob.point(Math.PI * 1.08, 1.03), r = blob.point(Math.PI * 1.92, 1.03), top = blob.cy - blob.ry * 1.32;
+        const w = (r[0] - l[0]) * (0.86 - 0.12 * tw), cx = (l[0] + r[0]) / 2 + shift;
+        d += ` M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.62)} ${pt(r)} L${n2(cx + w / 2)},${n2(top + 20)} L${n2(cx + w / 2 - 20)},${n2(top)} L${n2(cx - w / 2 + 20)},${n2(top)} L${n2(cx - w / 2)},${n2(top + 20)}Z`;
+      }
+      if (T.style === 'helmet') {
+        const pts = [];
+        for (let i = 0; i <= 16; i++) pts.push(blob.point(Math.PI * (1.0 + i / 16), 1.1));
+        d += ` ${R2.openPath(pts)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.38)} ${pt(blob.point(Math.PI, 1.1))}Z`;
+      }
+      return d.trim();
     }
     function hatFront(blob, fs) {
       const dir = Math.sign(fs.turn) || 0, tw = Math.abs(fs.turn), shift = -fs.turn * blob.rx * 0.12;
@@ -342,7 +362,7 @@
         name: 'head', type: 'head', bone: 'head', z: 30,
         head: Object.assign({ skin: C.skin, shade: C.skinShade, rim: C.rim }, cfg.head),
         face: Object.assign({ hideMouth: H.style === 'hood' && !cfg.face.showMouth }, cfg.face.layout),
-        back: hairBack, hair: hairFront, front: faceFront,
+        back: hairBack, hair: hairFront, front: faceFront, hairLight,
       };
     }
 
@@ -372,8 +392,8 @@
         parts: [
           { name: 'legL', type: 'tube', visible: notSit, bones: ['thighL', 'shinL'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail },
           { name: 'legR', type: 'tube', visible: notSit, bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
-          { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: 1, draw: shoe(-1) },
-          { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1) },
+          { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: 1, draw: shoe(-1), lightShape: shoeLight(-1) },
+          { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1), lightShape: shoeLight(1) },
           { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverFront },
           { name: 'handL', type: 'shape', bone: 'handL', z: 18, draw: hand, skin: true, lightShape: handLight },
           { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand, skin: true, lightShape: handLight },
@@ -396,11 +416,11 @@
         face: Object.assign({ turn: 1 }, faceDefaults()),
         parts: [
           far({ name: 'legL', type: 'tube', visible: notSit, bones: ['thighL', 'shinL'], widths: legW, z: -2, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail }, C.pantsFar),
-          { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: -1, draw: shoe(1) },
+          { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: -1, draw: shoe(1), lightShape: shoeLight(1) },
           { name: 'handL', type: 'shape', bone: 'handL', z: 3, draw: hand, skin: true, lightShape: handLight },
           far({ name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: robe ? [46, 50, 64] : [42, 40, 44], z: 4, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail }, C.clothFar),
           { name: 'legR', type: 'tube', visible: notSit, bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
-          { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1) },
+          { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1), lightShape: shoeLight(1) },
           { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverSide },
           { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand, skin: true, lightShape: handLight },
           { name: 'sleeveR', type: 'tube', bones: ['upperArmR', 'lowerArmR'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveR', detail: sleeveDetail },
