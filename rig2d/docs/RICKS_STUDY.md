@@ -122,3 +122,19 @@ Shared rules:
 4. **Edit:** 3–5 frame dissolves with a push-in, continuous camera moves between sets, and a visual change every 1.5–2.5 s.
 5. **Script:** 160–165 words per 45 s (~215 wpm), sentence gaps 0.3–0.45 s, a "But how?"/"You see," pivot, and a final line that calls back to the hook.
 6. **Sound:** always-on bed 12–15 dB under the voice, an accent about every 1.5 s, almost mono, heavy compression, −14 LUFS.
+
+## 9. Beat map of an opening (V1, first 10 s, re-measured 2026-10-27 at 4 fps)
+
+Measurements only; the upload and frames were deleted after measuring.
+
+| Time | Beat | Technique |
+|---|---|---|
+| 0–1 s | Extreme close-up on a prop detail, then one continuous pull-back to the character | Opens on an object, never on a face; no cut |
+| 1–3.5 s | Medium shot, slow push; a magnifier holds the detail on screen | Expression swaps about every 0.7 s on the motivating words (smug → grin → ring eyes + sweat) |
+| 3.5 s | Dissolve (4–5 frames) with a push-in to a new location | The only soft transition |
+| 3.5–5.5 s | Wide shot of a big sign whose number animates | The number carries the line |
+| 5.5–6.5 s | One continuous crane down from the sign into the character | Location change by camera move, not a cut |
+| 6.5–9.5 s | Medium shot; 3 expression swaps; a gag prop enters the frame | Prop arrives on the punch word |
+| 9.8 s | Hard cut on the question word to a new set | The one hard cut lands on "how?" |
+
+Our matching test is `3d/beat10.html` (own script, characters and set).

@@ -293,6 +293,22 @@ slow, and there was a lot of repetition.
   cut to the REWARD poster), each a short eased move with a small camera kick after the cut.
 - Sound: whoosh on every cut, a ratchet under the grinder, ledger taps, a pop on the grin, a sting on the poster.
 
+## Step 10: beat test (`3d/beat10.html`, `stories/beat10/`)
+
+**Ask:** recreate 10 s of a Ricks video from the uploaded reference. We do not copy another channel's script,
+characters or shots, so we measured the beats of their opening (RICKS_STUDY §9) and hit the same beats with our own
+story (the ".99" opening), our owner and clerk, and our 3D store.
+
+**Built:**
+- New narration (Kokoro, 4 lines, 10.45 s, voice from frame 1) with word timings driving everything.
+- Beats: insert on a "$1.00" price tag → continuous pull-back to the owner; face swaps on "losing", "money", "fix",
+  "one cent" (a penny pops up); 4–5 frame dissolve with push-in to a hanging "EVERYTHING $1" sign whose price plate
+  stamps in on "one dollar"; continuous crane down to the clerk; a dollar bill flies off the counter into his pocket
+  on "slipped… pocket"; hard cut to the owner's shocked face on "But how?".
+- One-word captions burned in by the post pass; bed 13 dB under the voice; an accent on every beat.
+- Tooling: `post.js` accepts `grade: false` (3D pages grade themselves); `render.js` now waits for `window.READY`
+  on module pages before reading DURATION/POST (async pages were read too early).
+
 ## Style rules (from the user)
 
 - Fast paced, never slow: a new shot every 1–2 s, quick moves, sound on every cut.

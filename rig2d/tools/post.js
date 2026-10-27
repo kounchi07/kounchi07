@@ -3,7 +3,7 @@
 //
 // A page opts in by defining window.POST and honouring `?post` (skip its own grade, vignette, grain,
 // captions and fades). POST = {
-//   grade:    { saturation, lift, bloom, warm }          same numbers as Look.defs()
+//   grade:    { saturation, lift, bloom, warm }          same numbers as Look.defs(); false = none
 //   vignette: { opacity: 0.28, color: '#1a0c10' }
 //   grain:    0.05                                       overlay strength
 //   captions: { style: { font, size, outline, color, hot, y, pop }, words: [[start, end, text, hot], ...] }
@@ -62,7 +62,8 @@ function encode({ frames, fps, post, dir, out, audio, duration }) {
   const args = ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', String(fps), '-i', frames];
   const graph = [];
   let last = '0:v', nIn = 1, lab = 0;
-  const G = gradeChain(post.grade);
+  // grade: false = the page already graded its frames (3D pages): no curve, no bloom
+  const G = post.grade === false ? { grade: 'null', bloom: null } : gradeChain(post.grade);
   // RGB throughout: blend modes are only correct on RGB planes (JPEG frames arrive as YUV)
   graph.push(`[${last}]format=gbrp,${G.grade},format=gbrp[g]`); last = 'g';
   if (G.bloom) {

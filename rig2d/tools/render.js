@@ -45,7 +45,7 @@ async function worker(b, pageUrl, times, ids, ext) {
   const cdp = await p.context().newCDPSession(p);
   const errs = [];
   p.on('pageerror', e => errs.push(e.message));
-  await p.goto(pageUrl);
+  await p.goto(pageUrl); await ready(p);
   if (errs.length) throw new Error(errs.join('\n'));
   const grab = () => cdp.send('Page.captureScreenshot', ext === 'jpg' ? { format: 'jpeg', quality: 94, optimizeForSpeed: true } : { format: 'png' });
   const cuts = await p.evaluate(() => window.CUTS || []);
@@ -82,20 +82,22 @@ async function worker(b, pageUrl, times, ids, ext) {
   await p.close();
 }
 
+// wait until the page is set up: module pages (3D) finish async work and set window.READY; classic pages define render
+const ready = pg => pg.waitForFunction(() => window.READY === true || (!!window.render && !document.querySelector('script[type=module]')), null, { timeout: 120000 });
 (async () => {
   fs.mkdirSync(out, { recursive: true });
   const server = args.includes('--serve') ? await serve() : null;
   const t0 = Date.now();
   const b = await chromium.launch({ args: flags });
   const probe = await b.newPage();
-  await probe.goto(url(query));
+  await probe.goto(url(query)); await ready(probe);
   const dur = await probe.evaluate(() => window.DURATION || 1);
   const fast = !!(mp4 && !stills && !args.includes('--exact') && await probe.evaluate(() => !!window.POST));
   await probe.close();
   let postCfg = null, pageUrl = url(query);
   if (fast) {
     pageUrl = url([query, 'post'].filter(Boolean).join('&'));
-    const p2 = await b.newPage(); await p2.goto(pageUrl);
+    const p2 = await b.newPage(); await p2.goto(pageUrl); await ready(p2);
     postCfg = await p2.evaluate(() => JSON.parse(JSON.stringify(window.POST)));
     await p2.close();
   }
