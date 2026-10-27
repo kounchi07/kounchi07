@@ -418,6 +418,17 @@
       const A = this.bones[chain.upper], B = this.bones[chain.lower];
       let target = [t.x, t.y];
       if ((t.space || 'root') === 'root') target = M.apply(this.bones[this.order[0].name].world, t.x, t.y);
+      // Rigid chain: the limb stays perfectly straight and just swings from the joint toward the target.
+      if (t.rigid != null ? t.rigid : chain.rigid) {
+        const base = Math.atan2(target[1] - A.world[5], target[0] - A.world[4]) / DEG;
+        A.pose.rot += w * angDiff(base, M.angle(A.world));
+        this.update();
+        B.pose.rot += w * angDiff(M.angle(A.world), M.angle(B.world));
+        this.update();
+        const endRot = t.endRot != null ? t.endRot : (chain.lockEnd && chain.end ? this.bones[chain.end].restAngle : null);
+        if (chain.end && endRot != null) { const E = this.bones[chain.end]; E.pose.rot += w * angDiff(endRot, M.angle(E.world)); this.update(); }
+        return;
+      }
       const p0 = [A.world[4], A.world[5]], p1 = [B.world[4], B.world[5]], tip = M.apply(B.world, B.length, 0);
       const l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l2 = Math.hypot(tip[0] - p1[0], tip[1] - p1[1]);
       const dx = target[0] - p0[0], dy = target[1] - p0[1];

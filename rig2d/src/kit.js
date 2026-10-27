@@ -55,6 +55,7 @@
       hat: Object.assign({ style: 'none', color: '#1d1a24', trim: '#c38a2c', plume: '#c0282a' }, cfgIn.hat),
       props: cfgIn.props || [],
       faceDefaults: cfgIn.faceDefaults || {},
+      straightLegs: cfgIn.straightLegs,
     };
     const INK = cfg.ink, O = cfg.outfit;
     const C = {
@@ -360,6 +361,7 @@
     // ---------- views ----------
     function front() {
       const sk = R2.biped(cfg.body), robe = O.type === 'robe';
+      if (cfg.straightLegs !== false) { sk.ik.legL.rigid = true; sk.ik.legR.rigid = true; }  // stick-straight legs (style)
       const torsoW = robe ? [232, 186, 152, 126, 84] : O.type === 'armor' ? [206, 184, 168, 140, 88] : [176, 168, 160, 132, 86];
       const legW = robe ? [36, 28, 24] : [48, 40, 30];
       return {
@@ -382,6 +384,7 @@
     }
     function side() {
       const sk = R2.bipedSide(cfg.body), robe = O.type === 'robe';
+      if (cfg.straightLegs !== false) { sk.ik.legL.rigid = true; sk.ik.legR.rigid = true; }  // stick-straight legs (style)
       const torsoW = robe ? [196, 156, 128, 108, 76] : O.type === 'armor' ? [170, 160, 146, 118, 78] : [150, 146, 136, 112, 76];
       const legW = robe ? [36, 28, 24] : [48, 40, 30];
       const far = (part, fill) => Object.assign({}, part, { fill });
