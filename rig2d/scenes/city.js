@@ -72,6 +72,10 @@
       }
     }
     for (let i = 0; i < w / 120; i++) s += `<ellipse cx="${n2(x + rr(0, w))}" cy="${n2(y + h - rr(0, 60))}" rx="${n2(rr(30, 80))}" ry="${n2(rr(10, 24))}" fill="#5a6a3a" opacity=".45"/>`;
+    // lighting: each brick catches light on its top edge; the wall is lit warm from above and darkens toward the ground
+    for (let yy = y + 3; yy < y + h; yy += 30) s += `<line x1="${x}" y1="${yy}" x2="${x + w}" y2="${yy}" stroke="${lt(base, 0.45)}" stroke-width="2" opacity=".55"/>`;
+    s += `<linearGradient id="${id}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe0b0" stop-opacity=".35"/><stop offset=".45" stop-color="#ffe0b0" stop-opacity="0"/><stop offset=".85" stop-color="#2a1408" stop-opacity=".15"/><stop offset="1" stop-color="#2a1408" stop-opacity=".45"/></linearGradient>`;
+    s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${id}l)"/>`;
     return s + '</g>';
   }
   function tufts(x0, x1, y0, y1, n, seed, col = '#5a6a32') {
@@ -185,7 +189,7 @@
   // ---------- 1. exterior ----------
   function exterior(seed = 3) {
     const [R, rr] = rngOf(seed);
-    const defs = `<defs>${skyDefs('ex-sky', [[0, '#6a78b8'], [0.3, '#b58ab0'], [0.62, '#f2a070'], [1, '#ffdca0']])}
+    const defs = `<defs>${skyDefs('ex-sky', [[0, '#3c5aa8'], [0.32, '#9a6aa8'], [0.62, '#ee8a5a'], [1, '#ffc878']])}
       <radialGradient id="ex-sun"><stop offset="0" stop-color="#fff6d0"/><stop offset=".25" stop-color="#ffe0a0" stop-opacity=".8"/><stop offset="1" stop-color="#ffb070" stop-opacity="0"/></radialGradient>
       ${skyDefs('ex-mist', [[0, '#ffc89a'], [1, '#ffc89a00']])}
       ${skyDefs('ex-field', [[0, '#b8925a'], [1, '#6a4a2a']])}
@@ -310,7 +314,7 @@
   // ---------- 2. street ----------
   function street(seed = 4) {
     const [R, rr] = rngOf(seed), VP = [540, 930];
-    const defs = `<defs>${skyDefs('st2-sky', [[0, '#7a80c0'], [0.45, '#d898a0'], [0.75, '#f2a874'], [1, '#ffd8a0']])}${skyDefs('st2-ground', [[0, '#b89a74'], [1, '#7a5e40']])}</defs>`;
+    const defs = `<defs>${skyDefs('st2-sky', [[0, '#4a62b0'], [0.45, '#c47a98'], [0.75, '#ee905e'], [1, '#ffc878']])}${skyDefs('st2-ground', [[0, '#b89a74'], [1, '#7a5e40']])}</defs>`;
     let sky = defs + `<rect x="-600" y="-400" width="2300" height="1500" fill="url(#st2-sky)"/>` + cloud(300, 300, 1.0, 9) + cloud(900, 420, 0.8, 10);
     // the gate at the end of the street, small and far
     let far = bricks(260, 760, 560, 200, 33) + `<rect x="260" y="760" width="560" height="200" fill="none" stroke="${INK}" stroke-width="4"/>` + roof(420, 660, 640, 700, '#3d4b5c', 7) +
@@ -349,6 +353,7 @@
     for (let i = -6; i <= 6; i++) ground += `<line x1="${VP[0] + i * 20}" y1="${VP[1] + 30}" x2="${VP[0] + i * 190}" y2="2300" stroke="#6a5038" stroke-width="3" opacity=".7"/>`;
     for (let k = 0.05; k < 1.5; k *= 1.28) { const y = VP[1] + 30 + 1300 * k; ground += `<line x1="-700" y1="${n2(y)}" x2="1800" y2="${n2(y)}" stroke="#6a5038" stroke-width="${n2(2 + k * 3)}" opacity=".6"/>`; }
     for (let i = 0; i < 30; i++) { const y = rr(1100, 1900), x = VP[0] + rr(-1, 1) * (y - VP[1]) * 0.8; ground += `<ellipse cx="${n2(x)}" cy="${n2(y)}" rx="${n2(rr(10, 30) * (y - VP[1]) / 900)}" ry="${n2(rr(4, 10) * (y - VP[1]) / 900)}" fill="#9a7e5a" opacity=".6"/>`; }
+    for (let i = 0; i < 90; i++) { const y = rr(1000, 2200), sc = (y - VP[1]) / 900, x = VP[0] + rr(-1.1, 1.1) * (y - VP[1]) * 0.9; ground += `<rect x="${n2(x)}" y="${n2(y)}" width="${n2(rr(60, 140) * sc)}" height="${n2(rr(16, 34) * sc)}" rx="${n2(4 * sc)}" fill="${R() < 0.5 ? '#d8bc94' : '#7a5e40'}" opacity="${n2(rr(0.12, 0.3))}"/>`; }
     let near = `<rect x="-200" y="-200" width="150" height="2400" fill="#5a2a1a" stroke="${INK}" stroke-width="6"/><rect x="1130" y="-200" width="150" height="2400" fill="#5a2a1a" stroke="${INK}" stroke-width="6"/>`;
     near += `<g id="st2-leaves"></g>`;
     const leaves = Array.from({ length: 16 }, () => [rr(-200, 1300), rr(1100, 1900), rr(0, 6.28), rr(0.6, 1.4)]);
@@ -370,7 +375,7 @@
   // ---------- 3. wall top (side view) ----------
   function walltop(seed = 6) {
     const [R, rr] = rngOf(seed);
-    const defs = `<defs>${skyDefs('wt-sky', [[0, '#6a78b8'], [0.35, '#b88aae'], [0.75, '#f2a070'], [1, '#ffdca0']])}
+    const defs = `<defs>${skyDefs('wt-sky', [[0, '#3c5aa8'], [0.35, '#9a6aa8'], [0.75, '#ee8a5a'], [1, '#ffc878']])}
       <radialGradient id="wt-sun"><stop offset="0" stop-color="#fff6d0"/><stop offset=".3" stop-color="#ffe0a0" stop-opacity=".7"/><stop offset="1" stop-color="#ffb070" stop-opacity="0"/></radialGradient>
       ${skyDefs('wt-plain', [[0, '#c8a06a'], [1, '#8a6a42']])}${skyDefs('wt-floor', [[0, '#a89880'], [1, '#7a6a58']])}
       <radialGradient id="wt-smoke"><stop offset="0" stop-color="#f4eee6" stop-opacity=".8"/><stop offset="1" stop-color="#f4eee6" stop-opacity="0"/></radialGradient></defs>`;
@@ -382,6 +387,15 @@
     let wall = `<rect x="-800" y="1430" width="2700" height="700" fill="url(#wt-floor)" stroke="${INK}" stroke-width="5"/>`;
     for (let x = -800; x < 1900; x += 120) wall += `<line x1="${x}" y1="1430" x2="${x - 60}" y2="2100" stroke="#6a5a48" stroke-width="3"/>`;
     for (const y of [1520, 1650, 1820]) wall += `<line x1="-800" y1="${y}" x2="1900" y2="${y}" stroke="#6a5a48" stroke-width="3"/>`;
+    // stone slabs: varied tones, worn edges, small cracks and moss so the floor isn't a flat fill
+    for (let r = 0, ys = [1430, 1520, 1650, 1820, 2100]; r < ys.length - 1; r++)
+      for (let x = -800; x < 1900; x += 120) {
+        const tone = rr(-1, 1), y0 = ys[r], y1 = ys[r + 1], sh = (r % 2) * 60;
+        wall += `<path d="M${x + sh},${y0 + 2} L${x + sh + 120},${y0 + 2} L${x + sh + 120 - (y1 - y0) * 0.09},${y1 - 2} L${x + sh - (y1 - y0) * 0.09},${y1 - 2}Z" fill="${tone > 0 ? '#c8b8a0' : '#6a5a48'}" opacity="${n2(Math.abs(tone) * 0.18)}"/>`;
+        wall += `<line x1="${x + sh + 4}" y1="${y0 + 5}" x2="${x + sh + 112}" y2="${y0 + 5}" stroke="#d8c8b0" stroke-width="2" opacity=".45"/>`;
+        if (R() < 0.12) wall += `<path d="M${n2(x + sh + rr(20, 90))},${y0 + 6} l${n2(rr(-10, 10))},${n2(rr(10, 24))} l${n2(rr(-12, 12))},${n2(rr(8, 20))}" stroke="#5a4a3a" stroke-width="2" fill="none" opacity=".6"/>`;
+        if (R() < 0.08) wall += `<ellipse cx="${n2(x + sh + rr(10, 110))}" cy="${n2(y1 - 6)}" rx="${n2(rr(14, 30))}" ry="5" fill="#5a6a3a" opacity=".4"/>`;
+      }
     wall += bricks(-800, 1300, 2700, 130, 61, '#a08e78') + `<rect x="-800" y="1300" width="2700" height="130" fill="none" stroke="${INK}" stroke-width="5"/>`;
     for (let x = -780; x < 1900; x += 150) wall += `<rect x="${x}" y="1220" width="90" height="84" fill="#a08e78" stroke="${INK}" stroke-width="5"/><rect x="${x + 6}" y="1226" width="14" height="72" fill="#d0c0a8" opacity=".5"/>`;
     // props on the wall: cushion, low table + guqin, incense burner

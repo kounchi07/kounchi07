@@ -3,21 +3,19 @@
 <style>
 html,body{margin:0;background:#000;overflow:hidden}
 svg{display:block}
-.cap{font-family:Inter,'DejaVu Sans',sans-serif;font-weight:900;font-size:86px;fill:#fff;stroke:#120a08;stroke-width:18px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle}
+.cap{font-family:Inter,'DejaVu Sans',sans-serif;font-weight:900;font-size:80px;fill:#fff;stroke:#1a0e0a;stroke-width:11px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle;filter:url(#capShadow)}
 </style></head>
 <body>
 <svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dofB" stdDeviation="0"/></filter>
     <filter id="whip" x="-20%" y="-5%" width="140%" height="110%"><feGaussianBlur id="whipB" stdDeviation="0 0"/></filter>
-    <radialGradient id="vign" cx=".5" cy=".46" r=".75"><stop offset=".55" stop-color="#0d0610" stop-opacity="0"/><stop offset="1" stop-color="#0d0610" stop-opacity=".75"/></radialGradient>
-    <linearGradient id="bars" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".12" stop-color="#000" stop-opacity="0"/><stop offset=".88" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></linearGradient>
+    <filter id="capShadow" x="-10%" y="-30%" width="120%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".45"/></filter>
   </defs>
-  <g id="stage"></g>
-  <rect id="tint" width="1080" height="1920" fill="#c0281a" opacity="0" style="mix-blend-mode:multiply"/>
-  <rect width="1080" height="1920" fill="url(#vign)"/>
-  <rect width="1080" height="1920" fill="url(#bars)"/>
-  <rect width="1080" height="1920" fill="#ff9a50" opacity=".07" style="mix-blend-mode:soft-light"/>
+  <g id="graded" filter="url(#look)"><g id="stage"></g>
+  <rect id="tint" width="1080" height="1920" fill="#c0281a" opacity="0" style="mix-blend-mode:multiply"/></g>
+  <rect width="1080" height="1920" fill="url(#look-vign)"/>
+  <rect width="1080" height="1920" filter="url(#look-grain)" opacity=".05" style="mix-blend-mode:overlay"/>
   <text id="cap" class="cap" x="540" y="1540"></text>
   <rect id="flash" width="1080" height="1920" fill="#fff" opacity="0"/>
   <rect id="fade" width="1080" height="1920" fill="#000" opacity="0"/>
@@ -26,6 +24,7 @@ svg{display:block}
 <script src="../../src/kit.js"></script>
 <script src="../../src/props.js"></script>
 <script src="../../src/camera.js"></script>
+<script src="../../src/look.js"></script>
 <script src="../../characters/threekingdoms.js"></script>
 <script src="../../scenes/city.js"></script>
 <script src="cues.js"></script>
@@ -38,7 +37,21 @@ const sm = (t, a, b) => EASE.inOut(clamp((t - a) / (b - a), 0, 1));
 const between = (t, a, b) => t >= a && t < b;
 
 // ---------- scenes: static layers built once, only actors/army/overlays change per frame ----------
+document.querySelector('defs').insertAdjacentHTML('beforeend', Look.defs({ saturation: 1.1, lift: 0.06, bloom: 0.35, warm: 0.012 }));
 const SC = { ex: City.exterior(), st: City.street(), wt: City.walltop() };
+// polish: tinted thin lines on backgrounds + light sources, rays and haze baked into the static layers
+const soft = { ink: INK, color: '#5a3a2c', k: 0.62 };
+for (const k in SC) for (const l of SC[k].layers) if (l.svg && l.id !== 'actors' && l.id !== 'army') l.svg = Look.soften(l.svg, l.id === 'near' ? Object.assign({}, soft, { k: 0.8 }) : soft);
+const L = (k, id) => SC[k].layers.find(l => l.id === id);
+L('ex', 'sky').svg += Look.rays(1650, 1050, 2600, 9, 120, 245, '#ffe6b8', 0.1) + Look.glow(1650, 1050, 420, '#ffcf8a', 0.45);
+L('ex', 'far').svg += Look.haze(-900, 3300, 1050, 1400, '#ffc090', 0.3, 'hz-ex');
+L('ex', 'ground').svg += Look.pool(1200, 1440, 420, 120, '#ffb060', 0.25) + Look.glow(920, 1260, 120, '#ff8a3a', 0.55) + Look.glow(1540, 1260, 120, '#ff8a3a', 0.55);
+L('wt', 'sky').svg += Look.rays(880, 1010, 2400, 9, 110, 250, '#ffe6b8', 0.1) + Look.glow(880, 1010, 380, '#ffcf8a', 0.45);
+L('wt', 'far').svg += Look.haze(-800, 1900, 1080, 1320, '#ffc090', 0.3, 'hz-wt');
+L('wt', 'wall').svg += Look.pool(600, 1640, 700, 200, '#ffb070', 0.2) + Look.glow(1080, 1580, 140, '#ffa060', 0.35);
+L('st', 'far').svg += Look.glow(540, 900, 320, '#ffcf8a', 0.45) + Look.haze(-600, 1700, 780, 1050, '#ffc898', 0.3, 'hz-st');
+L('st', 'ground').svg += Look.pool(540, 1300, 520, 260, '#ffb060', 0.18);
+L('st', 'houses').svg += [...L('st', 'houses').svg.matchAll(/class="st2-lantern" data-x="([\d.]+)" data-y="([\d.]+)"/g)].map(m => Look.glow(+m[1], +m[2] + 60, 100, '#ff8a3a', 0.6)).join('');
 let html = '';
 for (const k in SC) html += `<g id="sc-${k}" style="display:none">${SC[k].layers.map(l => `<g id="L-${k}-${l.id}">${l.svg}</g>`).join('')}</g>`;
 $('stage').innerHTML = html;
@@ -54,7 +67,7 @@ const SFEET = { legL: { x: -12, y: -14, endRot: 0 }, legR: { x: 14, y: -14, endR
 function draw(actor, st, x, y, s, t, shadow = true) {
   st.face = Object.assign({ _t: t }, st.face || {});
   actor.pose(st);
-  const sh = shadow ? `<ellipse cx="${x}" cy="${y + 4}" rx="${(st.view === 'side' ? 110 : 150) * s}" ry="${20 * s}" fill="#000" opacity=".3"/>` : '';
+  const sh = shadow ? Look.contact(x, y + 4, (st.view === 'side' ? 120 : 160) * s, 24 * s, 0.5) : '';
   return sh + actor.render({ x, y, scale: s, t });
 }
 const mouthAt = (line, t) => { const m = TM[line].mouth, i = Math.floor((t - LN[line]) * 30); return i >= 0 && i < m.length ? m[i] : 0; };

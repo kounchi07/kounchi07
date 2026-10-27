@@ -57,6 +57,19 @@ handheld drift, decaying impact shake, and whip-pan transitions. Scenes are spli
 (sky 0.15 → far 0.4 → set 0.8 → action 1.0 → foreground 1.35), so pans and push-ins have real depth;
 far layers can be blurred for depth of field.
 
+## Look (polish pass)
+
+`src/look.js` is the finishing pass every story should use:
+- `Look.defs()` adds the `look` filter: lifted (never crushed) blacks, a gentle S-curve, a saturation
+  adjustment and bloom on bright areas. Wrap the picture (not the captions) in `<g filter="url(#look)">`.
+- `Look.soften(svg)` gives background art thinner, tinted outlines so bold-ink characters pop.
+- `Look.glow`, `Look.rays`, `Look.haze`, `Look.pool`, `Look.contact`: light sources, sun rays, atmosphere,
+  light on the ground, soft contact shadows.
+- Light vignette (`look-vign`) and film grain (`look-grain`); no dark letterbox bars.
+
+Target numbers (measured from a polished reference short): mean luma ≈ 0.45–0.5, 5th-percentile luma
+≈ 0.15–0.18 (soft shadows), saturation ≈ 0.40–0.45, under ~8% of pixels near black.
+
 ## Voice, sound effects, mixing
 
 | Tool | What it does |
@@ -96,6 +109,7 @@ See `stories/library/`:
 | `characters/cast.js` | Thief, monk, girl (kit characters) |
 | `stories/library/` | Brainrot short: script, voice, cues, shots |
 | `src/camera.js` | Camera moves, parallax, shake, whip pans |
+| `src/look.js` | Polish pass: grade, bloom, soft lines, glows, rays, haze, grain |
 | `scenes/city.js` | Xicheng: city wall + gate tower, street, wall top (layered) |
 | `characters/threekingdoms.js` | Zhuge Liang, Sima Yi, page boys, soldiers, sweepers |
 | `stories/emptycity/` | "The Empty City" legend short (45 s) |
