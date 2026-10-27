@@ -10,7 +10,7 @@ Learned from a frame-by-frame (30 fps) study of a top-performing Ricks Clips sto
 | Length | 65 s | 45 s | 45–65 s |
 | Words | 235 | 105 | 160–240 |
 | Speaking pace (whole video) | ~217 wpm | ~140 wpm | 190–220 wpm |
-| Silence between lines | ~0.2–0.3 s | ~0.6 s avg, 8.8 s total | ≤ 0.3 s; one deliberate pause max |
+| Silence between lines | ~0.2–0.3 s (3 more shorts: 0.3–0.45 s between sentences) | ~0.6 s avg, 8.8 s total | 0.3–0.45 s between sentences, ≤ 0.25 s inside |
 | Average sentence | ~11 words, many 2–6 word punches | ~7.5 words | mix long setup lines with very short punches |
 | New picture | every sentence (~2.5–3 s) | every 2–4 s | every 2–3 s, never a static frame |
 
