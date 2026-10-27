@@ -1,0 +1,66 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+</head><body>
+<!-- Prop review sheet: each real-life prop (realprops.js) large on a wooden counter under store light.
+     Still time picks the prop: 0 tag, 1 note, 2 coin, 3 ledger, 4 sign, 5 shelf goods.
+     node tools/render.js 3d/props_sheet.html out/props --serve --workers 1 --stills 0,1,2,3,4,5 -->
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RealProps } from './realprops.js';
+
+const W = 1080, H = 1920;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95; renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const P = RealProps(THREE, { RoundedBoxGeometry, rnd });
+
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#2a1a10');
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.35;
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.005, 20);
+scene.add(new THREE.HemisphereLight('#ffe8c8', '#5a3a20', 0.8));
+const key = new THREE.DirectionalLight('#fff0d0', 2.6); key.position.set(1.5, 3, 1.2); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6, near: 0.5, far: 8 }); key.shadow.bias = -0.0003; key.shadow.radius = 4; scene.add(key);
+const fill = new THREE.PointLight('#ffcf9a', 1.2, 4, 1.5); fill.position.set(-0.6, 0.6, 0.8); scene.add(fill);
+// wooden counter top
+const wood = (() => { const c = P.canvas(1024, 1024), g = c.getContext('2d'); g.fillStyle = '#b07a46'; g.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 6; i++) { g.fillStyle = `rgba(${i % 2 ? '255,220,180' : '40,18,6'},.07)`; g.fillRect(0, i * 171, 1024, 171); g.fillStyle = '#4a2a14'; g.fillRect(0, i * 171, 1024, 3); }
+  for (let k = 0; k < 160; k++) { g.strokeStyle = `rgba(60,30,10,${0.05 + rnd() * 0.15})`; g.lineWidth = 0.6 + rnd() * 1.5; g.beginPath(); const y = rnd() * 1024; g.moveTo(0, y); for (let x = 0; x <= 1024; x += 32) g.lineTo(x, y + Math.sin(x * 0.01 + k) * 4); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const top = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshStandardMaterial({ map: wood, roughness: 0.5 })); top.rotation.x = -Math.PI / 2; top.receiveShadow = true; scene.add(top);
+const back = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshStandardMaterial({ map: wood, roughness: 0.8, color: '#8a6a50' })); back.position.set(0, 1, -0.5); scene.add(back);
+
+const items = [];
+const put = (obj, cam, look) => { obj.visible = false; scene.add(obj); items.push({ obj, cam, look }); };
+// 0 price tag leaning on a jar stand
+{ const t = P.priceTag('$1.00', 'Coffee, 1 lb.'); t.position.set(0, 0.052, 0); t.rotation.x = -0.25; put(t, [0.02, 0.07, 0.17], [0, 0.05, 0]); }
+// 1 dollar note lying on the counter, slightly lifted at the fold
+{ const n = P.dollarNote(); n.rotation.x = -Math.PI / 2 + 0.05; n.rotation.z = 0.12; n.position.y = 0.003; put(n, [0, 0.27, 0.17], [0, 0, 0]); }
+// 2 two cents: one face up, one face down, one on edge
+{ const g = new THREE.Group(); const a = P.cent(), b = P.cent(), c = P.cent(); a.position.set(-0.012, 0.00075, 0); b.position.set(0.012, 0.00075, 0.004); b.rotation.z = Math.PI; c.position.set(0, 0.0095, -0.014); c.rotation.x = Math.PI / 2; c.rotation.z = 0.3; g.add(a, b, c); put(g, [0, 0.045, 0.045], [0, 0.003, -0.002]); }
+// 3 the open day book
+{ const l = P.ledger(); put(l, [0, 0.55, 0.34], [0, 0, 0]); }
+// 4 hanging sign
+{ const g = new THREE.Group(); const m = P.signBoard([['EVERYTHING', 120, 200], ['★  ONE PRICE  ★', 52, 300]]); const s = new THREE.Mesh(new RoundedBoxGeometry(0.9, 0.4, 0.03, 3, 0.012), [new THREE.MeshStandardMaterial({ color: '#5a3a20' }), new THREE.MeshStandardMaterial({ color: '#5a3a20' }), new THREE.MeshStandardMaterial({ color: '#5a3a20' }), new THREE.MeshStandardMaterial({ color: '#5a3a20' }), m, new THREE.MeshStandardMaterial({ color: '#5a3a20' })]); s.castShadow = true; g.add(s); g.position.set(0, 0.35, -0.2); put(g, [0, 0.36, 1.9], [0, 0.35, -0.2]); }
+// 5 shelf goods: tins, boxes, bottles with real labels
+{ const g = new THREE.Group();
+  for (let i = 0; i < 5; i++) { const m = P.label('tin'); const tn = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 32, 1, true), m); tn.position.set(-0.16 + i * 0.08, 0.05, 0.05); tn.rotation.y = -Math.PI / 2; g.add(tn); const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.008, 32), new THREE.MeshStandardMaterial({ color: '#b8b0a0', metalness: 0.8, roughness: 0.35 })); lid.position.set(tn.position.x, 0.104, 0.05); g.add(lid); tn.castShadow = lid.castShadow = true; }
+  for (let i = 0; i < 4; i++) { const [front, side] = P.label('box'); const bx = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.12, 0.045), [side, side, new THREE.MeshStandardMaterial({ color: '#d8c8a0' }), new THREE.MeshStandardMaterial({ color: '#d8c8a0' }), front, side]); bx.position.set(-0.13 + i * 0.085, 0.06, -0.06); bx.castShadow = true; g.add(bx); }
+  for (let i = 0; i < 3; i++) { const lab = P.label('bottle'); const glass = new THREE.MeshPhysicalMaterial({ color: ['#3a6a4a', '#7a3a1a', '#2a4a7a'][i], transparent: true, opacity: 0.85, roughness: 0.08, clearcoat: 1 }); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.024, 0.11, 24), glass); b.position.set(0.21, 0.055, -0.05 + i * 0.05); g.add(b); const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.012, 0.04, 16), glass); neck.position.set(0.21, 0.13, -0.05 + i * 0.05); g.add(neck); const l = new THREE.Mesh(new THREE.CylinderGeometry(0.0225, 0.0225, 0.05, 24, 1, true, -Math.PI * 0.45, Math.PI * 0.9), lab); l.position.copy(b.position); l.rotation.y = Math.PI / 2; g.add(l); }
+  put(g, [0.02, 0.24, 0.62], [0.02, 0.05, 0]); }
+
+window.render = async function (t) {
+  const i = Math.max(0, Math.min(items.length - 1, Math.round(t)));
+  items.forEach((it, k) => it.obj.visible = k === i);
+  camera.position.set(...items[i].cam); camera.lookAt(...items[i].look);
+  renderer.render(scene, camera);
+};
+await window.render(0);
+window.READY = true;
+</script>
+</body></html>

@@ -34,6 +34,23 @@ Before any download (files, models, sounds, videos, packages):
   shorts for study. YouTube blocked the cloud IP (bot check; the cookies were signed-out visitor
   cookies), so nothing was downloaded. Cookie file and every copy deleted the same day; not to be reused.
 
+## Props must follow real life (user rule, 2026-10-27)
+
+Every prop, card, document, label, sign and object is designed from the real-world thing, then drawn in our
+cartoon-3D style. Never invent a generic stand-in ("a box with a word on it").
+
+1. **List the real anatomy first.** Before drawing, write down every part the real object has (a cheque: payer,
+   number, date, pay-to line, amount in figures and in words, signature, bank code line; a ticket: price badge,
+   logo, prize ribbon, play area, serial, barcode, fine print). Every listed part must appear on the prop.
+2. **Real micro-detail:** fine print, serial numbers, barcodes, spelled-out amounts, ruled lines, stamps,
+   perforations, edge wear, folds. Text must be plausible for the object and era, never filler.
+3. **Looks 3D:** real thickness, bevels, relief (bump) on embossed or stamped parts, a highlight, a contact shadow,
+   light from the scene.
+4. **Our own design:** follow the real object's anatomy, never copy another channel's prop designs or a real
+   banknote/brand facsimile.
+5. Check each new prop against a real photo or description before it ships; if it doesn't read as the real
+   thing at a glance, it is not done.
+
 ## Verified sources so far
 
 | Source | What | Verified via | License |

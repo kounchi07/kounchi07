@@ -20,6 +20,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RealProps } from './realprops.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const W = 1080, H = 1920;
@@ -39,6 +40,8 @@ scene.environmentIntensity = 0.3;
 const camera = new THREE.PerspectiveCamera(40, W / H, 0.05, 60);
 
 let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const RP = RealProps(THREE, { RoundedBoxGeometry, rnd });   // real-life props (CLAUDE.md rule)
+const LID = new THREE.MeshStandardMaterial({ color: '#b8b0a0', metalness: 0.8, roughness: 0.35 }), CARD = new THREE.MeshStandardMaterial({ color: '#d8c8a0', roughness: 0.8 });
 const rr = (a, b) => a + (b - a) * rnd();
 const pick = a => a[Math.floor(rnd() * a.length)];
 
@@ -126,14 +129,14 @@ function bottle(x, y, z, g = goods) {
   const sh = pick([1, 1, 0.75, 1.3]), pts2 = pts.map(v => new THREE.Vector2(v.x * (sh < 1 ? 1.3 : 1), v.y * sh));
   const m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts2, pick([14, 14, 4, 6])), new THREE.MeshPhysicalMaterial({ color: pick(['#2a7a4a', '#8a3a1a', '#2a5a9a', '#b8862a', '#6a2a6a']), transparent: true, opacity: 0.88, roughness: 0.08, clearcoat: 1 })), g);
   m.position.set(x, y, z);
-  const l = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.057, 0.07, 14, 1, true, 0, Math.PI), labelMat(pick(WORDS), '#efe2c0')), g, { ink: false }); l.position.set(x, y + 0.08 * sh, z); l.rotation.y = Math.PI / 2; l.scale.set(sh < 1 ? 1.3 : 1, 1, sh < 1 ? 1.3 : 1);
+  const l = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.057, 0.07, 14, 1, true, 0, Math.PI), RP.label('bottle')), g, { ink: false }); l.position.set(x, y + 0.08 * sh, z); l.rotation.y = Math.PI / 2; l.scale.set(sh < 1 ? 1.3 : 1, 1, sh < 1 ? 1.3 : 1);
 }
 function tin(x, y, z, g = goods) {
-  const h = rr(0.1, 0.28), r = rr(0.05, 0.09), m = outlined(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 18), labelMat(pick(WORDS), pick(PAL))), g); m.position.set(x, y + h / 2, z); m.rotation.y = Math.PI + rr(-0.3, 0.3);
+  const h = rr(0.1, 0.28), r = rr(0.05, 0.09), m = outlined(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 24), [RP.label('tin'), LID, LID]), g); m.position.set(x, y + h / 2, z); m.rotation.y = Math.PI + rr(-0.3, 0.3);
 }
 function box(x, y, z, g = goods) {
   const w = rr(0.14, 0.22), h = rr(0.18, 0.3), col = pick(PAL), side = new THREE.MeshStandardMaterial({ color: col, roughness: 0.7 });
-  const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 2, 0.01), [labelMat(pick(WORDS), col), side, side, side, side, side]), g); m.position.set(x, y + h / 2, z); m.rotation.y = rr(-0.3, 0.3);
+  const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 2, 0.01), (([f, sd]) => [f, CARD, CARD, CARD, sd, sd])(RP.label('box'))), g); m.position.set(x, y + h / 2, z); m.rotation.y = rr(-0.3, 0.3);
 }
 function jar(x, y, z, g = goods) {
   const gr = new THREE.Group(); gr.position.set(x, y, z); g.add(gr);
@@ -165,7 +168,7 @@ function bolt(x, y, z, g = goods) {
 }
 function stack(x, y, z, g = goods) {
   const col = pick(PAL), word = pick(WORDS); let yy = y;
-  for (let i = 0, n = 2 + Math.floor(rnd() * 2); i < n; i++) { const h = 0.07, w = 0.16 - i * 0.015; const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 1, 0.006), [labelMat(word, col), new THREE.MeshStandardMaterial({ color: col })]), g); m.position.set(x, yy + h / 2, z); m.rotation.y = rr(-0.2, 0.2); yy += h; }
+  for (let i = 0, n = 2 + Math.floor(rnd() * 2); i < n; i++) { const h = 0.07, w = 0.16 - i * 0.015; const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 1, 0.006), (([f, sd]) => [f, CARD, CARD, CARD, sd, sd])(RP.label('box'))), g); m.position.set(x, yy + h / 2, z); m.rotation.y = rr(-0.2, 0.2); yy += h; }
 }
 function pitcher(x, y, z, g = goods) {
   const pts = [[0, 0], [0.06, 0], [0.075, 0.08], [0.06, 0.16], [0.055, 0.2], [0.07, 0.23], [0.065, 0.23]].map(([a, b]) => new THREE.Vector2(a, b));
@@ -181,7 +184,7 @@ for (let s = 0; s < 6; s++) {
   outlined(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 9.6), M.shelf), scene).position.set(ROOM.x0 + 0.21, y, -1.2);
   for (const [dx, dy] of [[-0.1, 0.0], [0.04, 0.0]]) for (let z = 3.5; z > -5.9; z -= rr(0.12, 0.17)) { let mk; do mk = pick(MAKERS); while (mk === lastMk); lastMk = mk; const run = mk === tin || mk === box ? 1 + Math.floor(rnd() * 3) : 1; for (let i = 0; i < run && z > -5.9; i++, z -= 0.17) mk(ROOM.x0 + 0.22 + dx + rr(-0.02, 0.02), y + 0.02 + dy, z); }
 }
-for (let z = 3.2; z > -5.8; z -= rr(0.4, 0.7)) { const h = rr(0.25, 0.4), col = pick(PAL); outlined(new THREE.Mesh(new RoundedBoxGeometry(0.36, h, 0.32, 2, 0.015), [labelMat(pick(WORDS), col), new THREE.MeshStandardMaterial({ color: col })]), scene).position.set(ROOM.x0 + 0.22, 3.22 + h / 2, z); }
+for (let z = 3.2; z > -5.8; z -= rr(0.4, 0.7)) { const h = rr(0.25, 0.4), col = pick(PAL); outlined(new THREE.Mesh(new RoundedBoxGeometry(0.36, h, 0.32, 2, 0.015), (([f, sd]) => [f, CARD, CARD, CARD, sd, sd])(RP.label('box'))), scene).position.set(ROOM.x0 + 0.22, 3.22 + h / 2, z); }
 
 // ---------- back wall: window, pigeonholes, notices, churn, lantern ----------
 const win = new THREE.Group(); win.position.set(2.4, 1.85, ROOM.z0 + 0.02); scene.add(win);
@@ -220,7 +223,7 @@ function grinder(z, s = 1) {
 }
 const WHEELS = [...grinder(0.25, 0.8), ...grinder(-0.7, 0.62)];
 { const cs = new THREE.Group(); cs.position.set(0, 1.02, -2.6); counter.add(cs); outlined(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.36, 1.1), M.glass), cs, { cast: false }).position.y = 0.18; outlined(new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.04, 1.12), M.shelf), cs).position.y = 0.02; for (let i = 0; i < 5; i++) { const it = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshStandardMaterial({ color: pick(PAL) })); it.position.set(rr(-0.25, 0.25), 0.08, rr(-0.45, 0.45)); cs.add(it); } }
-{ const lg = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 0.32), M.cream), counter); lg.position.set(0.05, 1.04, 1.55); lg.rotation.y = 0.2; const cov = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.02, 0.34), new THREE.MeshStandardMaterial({ color: '#6a2a22' })), counter); cov.position.set(0.05, 1.02, 1.55); cov.rotation.y = 0.2; }
+{ const lg = RP.ledger(); lg.position.set(0.05, 1.0, 1.55); lg.rotation.y = Math.PI / 2 + 0.25; lg.traverse(o => o.isMesh && (o.castShadow = o.receiveShadow = true)); counter.add(lg); }
 for (let i = 0; i < 3; i++) jar(0.1, 1.02, -1.5 - i * 0.25, counter);
 
 // ---------- foreground bushel baskets (eggs, potatoes) ----------
@@ -280,20 +283,19 @@ const paperTex = (w, h, draw) => canvasTex(w, h, (c, cw, ch) => { c.fillStyle = 
 const tag = new THREE.Group(); tag.position.set(-0.8, 1.02, -2.2); scene.add(tag);
 outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.12, 6), M.ironDark), tag).position.y = 0.06;
 outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.012, 14), M.ironDark), tag).position.y = 0.006;
-const tagCard = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.006), [M.cream, M.cream, M.cream, M.cream, new THREE.MeshStandardMaterial({ roughness: 0.8, map: paperTex(256, 154, (c, w, h) => { c.strokeStyle = '#8a1a1a'; c.lineWidth = 6; c.strokeRect(8, 8, w - 16, h - 16); c.fillStyle = '#2a1a10'; c.textAlign = 'center'; c.font = 'bold 84px DejaVu Serif'; c.fillText('$1.00', w / 2, 112); }) }), M.cream]), tag);
-tagCard.position.y = 0.17; tag.rotation.y = 0.75;
+const tagCard = RP.priceTag('$1.00', 'Coffee, 1 lb.'); tagCard.scale.setScalar(1.8); tag.add(tagCard);
+tagCard.position.y = 0.2; tagCard.rotation.x = -0.08; tag.rotation.y = 0.75;
 // hanging sign over the counter; the price plate stamps in on "one dollar"
 const sign = new THREE.Group(); sign.position.set(-0.9, 2.85, -0.9); sign.rotation.y = 0.85; scene.add(sign);
 for (const x of [-0.5, 0.5]) outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.6, 6), M.ironDark), sign).position.set(x, 0.55, 0);
-outlined(new THREE.Mesh(new RoundedBoxGeometry(1.4, 0.62, 0.05, 2, 0.02), [M.beam, M.beam, M.beam, M.beam, new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex(512, 228, (c, w, h) => { c.fillStyle = '#2a4a3a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e8c070'; c.lineWidth = 8; c.strokeRect(14, 14, w - 28, h - 28); c.fillStyle = '#f4e6c0'; c.textAlign = 'center'; c.font = 'bold 66px DejaVu Serif'; c.fillText('EVERYTHING', w / 2, 96); c.font = 'bold 28px DejaVu Serif'; c.fillText('★  ONLY  ★', w / 2, 150); }) }), M.beam]), sign);
+outlined(new THREE.Mesh(new RoundedBoxGeometry(1.4, 0.62, 0.05, 2, 0.02), [M.beam, M.beam, M.beam, M.beam, RP.signBoard([['EVERYTHING', 120, 190], ['★  ONE PRICE  ★', 46, 270]]), M.beam]), sign);
 const plate = outlined(new THREE.Mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshStandardMaterial({ roughness: 0.5, map: canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#c8302a'; c.beginPath(); c.arc(128, 128, 124, 0, 7); c.fill(); c.strokeStyle = '#f4e6c0'; c.lineWidth = 8; c.beginPath(); c.arc(128, 128, 106, 0, 7); c.stroke(); c.fillStyle = '#fff4dc'; c.textAlign = 'center'; c.font = 'bold 92px DejaVu Serif'; c.fillText('$1', 128, 160); }) })), sign, { ink: false });
 plate.position.set(0.0, -0.36, 0.04);
 // the penny (spins in front of the owner on "one cent")
 const penny = new THREE.Group(); scene.add(penny);
-const copper = new THREE.MeshStandardMaterial({ color: '#c8743a', metalness: 0.85, roughness: 0.3, map: canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#c8743a'; c.fillRect(0, 0, w, h); c.strokeStyle = '#8a4a20'; c.lineWidth = 5; c.beginPath(); c.arc(64, 64, 52, 0, 7); c.stroke(); c.fillStyle = '#7a3a18'; c.textAlign = 'center'; c.font = 'bold 54px DejaVu Serif'; c.fillText('1¢', 64, 82); }) });
-outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.014, 32), [new THREE.MeshStandardMaterial({ color: '#a85a2a', metalness: 0.85, roughness: 0.35 }), copper, copper]), penny).rotation.x = Math.PI / 2;
+{ const c = RP.cent(); c.scale.setScalar(8); c.rotation.x = Math.PI / 2; penny.add(c); }
 // the dollar bill (slides off the counter into the clerk's pocket)
-const bill = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.004, 0.13), [M.cream, M.cream, new THREE.MeshStandardMaterial({ roughness: 0.8, map: canvasTex(300, 130, (c, w, h) => { c.fillStyle = '#cfe0c0'; c.fillRect(0, 0, w, h); c.strokeStyle = '#2a5a3a'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#2a5a3a'; c.beginPath(); c.ellipse(w / 2, h / 2, 34, 42, 0, 0, 7); c.fill(); c.font = 'bold 40px DejaVu Serif'; c.fillText('1', 20, 46); c.fillText('1', w - 42, h - 16); c.fillStyle = '#cfe0c0'; c.textAlign = 'center'; c.fillText('$', w / 2, h / 2 + 14); }) }), M.cream, M.cream, M.cream]), scene);
+const bill = new THREE.Group(); { const n = RP.dollarNote(); n.scale.setScalar(1.8); n.rotation.x = -Math.PI / 2; n.traverse(o => o.isMesh && (o.castShadow = true)); bill.add(n); } scene.add(bill);
 
 // ---------- post: bloom + warm grade + vignette ----------
 const composer = new EffectComposer(renderer);
@@ -366,7 +368,7 @@ window.render = async function (t, opt) {
   const sp = clamp((t - EV.dollar) / 0.18); plate.scale.setScalar(t < EV.dollar ? 0.001 : sp < 1 ? 0.2 + sp * 1.1 : 1 + Math.exp(-(t - EV.dollar - 0.18) * 10) * 0.1);
   sign.rotation.z = Math.sin(t * 1.6) * 0.02;
   // the bill: lies on the counter, then flies to the clerk's pocket
-  const bk = io((t - EV.slipped) / (EV.pocket - EV.slipped)), from = [-0.95, 1.035, 0.55], to = [-1.85, 1.06, 0.2];
+  const bk = io((t - EV.slipped) / (EV.pocket - EV.slipped)), from = [-0.95, 1.05, 0.62], to = [-1.85, 1.06, 0.2];
   const bp = V3(from, to, bk); bill.position.set(bp[0], bp[1] + Math.sin(bk * Math.PI) * 0.12, bp[2]);
   bill.rotation.set(Math.sin(bk * Math.PI) * 0.6, 0.3 + bk * 1.2, bk * 0.5); bill.scale.setScalar(1 - bk * 0.55); bill.visible = t < EV.pocket + 0.04;
   for (const w of WHEELS.slice(0, 2)) w.rotation.z = -t * 0.4;

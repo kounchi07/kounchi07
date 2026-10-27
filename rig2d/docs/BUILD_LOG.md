@@ -309,12 +309,34 @@ story (the ".99" opening), our owner and clerk, and our 3D store.
 - Tooling: `post.js` accepts `grade: false` (3D pages grade themselves); `render.js` now waits for `window.READY`
   on module pages before reading DURATION/POST (async pages were read too early).
 
+## Step 11: real-life props (`3d/realprops.js`, `3d/props_sheet.html`)
+
+**Feedback:** our cards and objects were invented stand-ins ("a box with a word on it"); premium channels build
+every prop from the real object (a ticket has a price badge, prize ribbon, play boxes with amounts in figures and
+words, serial, barcode, fine print and printer marks; a cheque has every real field). New rule in CLAUDE.md:
+props must follow real life, drawn in our cartoon-3D style.
+
+**Built** (each from the real object's anatomy, our own design, relief from the artwork as a bump map):
+- Merchandise tag: manila stock with clipped corners, brass eyelet + twine, store header, ruled No./Article/Price
+  form filled in by hand, perforated stub with the same number, crease and wear.
+- One-dollar note (invented, clearly cartoon, not a facsimile): lathe-work border, four corner counters, vignette
+  in an oval, words, sawtooth seal, two serials, series year, two signatures, bearer clause, centre fold, green back.
+- One-cent coin: beaded rim, profile with legend and date, wreath reverse, struck relief, copper metal.
+- Day book: cloth boards with leather corners, page block with edges, ruled Dr./Cr. columns, dated handwritten
+  entries with a total, page curl into the gutter, ribbon marker.
+- Painted sign: gold-leaf letters with drop shade, double border, brush texture, corner screws, chips.
+- Grocery labels for tins (wraparound), boxes (front + directions side, match boxes with a striker) and bottles:
+  brand ribbon, product, a picture of the product, quality line, net weight band, maker and city, medals, lot
+  number; 16 real product types × 12 brands, up to 24 designs per kind.
+- Review page `3d/props_sheet.html` shows each prop large; the beat test now uses all of them.
+
 ## Style rules (from the user)
 
 - Fast paced, never slow: a new shot every 1–2 s, quick moves, sound on every cut.
 - Clean and premium, light that looks real but never overdone.
 - No visible repetition in a set: vary kind, size, label and color of everything.
 - This look is the baseline, not the ceiling: keep raising detail in later videos.
+- Every prop follows the real object (CLAUDE.md): list its real parts first, then draw them all.
 
 ## Next steps
 
