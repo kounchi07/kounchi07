@@ -257,6 +257,28 @@ stitching, plank walls with grain, knots and nails, dust, and engraving for meta
 **Rule from now on:** no flat object ships. Every prop gets a contact shadow, shading on one side, a highlight,
 and at least one texture or small secondary element (label, screws, stitching, wear).
 
+## Step 9: hybrid test, 3D cartoon set + our 2D character (`3d/woodside.html`)
+
+**Ask:** "the background should be in 3D and very detailed... take a real picture and recreate that exact thing,
+but in cartoon style... the character should be our normal character... a lot of light... push it very far."
+
+**Built:**
+- A real reference: the Woodside Store interior (HABS photo, Library of Congress, public domain, reference only,
+  see `assets/PROVENANCE.md`). The set copies its layout: long vertical-board counter, cast-iron coffee grinders,
+  glass case, floor-to-ceiling shelving full of goods, pigeonholes, six-pane window, REWARD notices, churn,
+  lantern, ceiling beams, bushel baskets of eggs and potatoes.
+- Cartoon look in 3D: saturated palette, procedural board/label textures, ink outlines (inverted hull: a
+  back-face copy of each mesh pushed out along its normals).
+- Light pushed far: sun through the window with soft shadows, sky (hemisphere) light, warm fill and floor
+  bounce, flickering lantern, an additive light shaft, floating dust, ACES tone mapping, bloom, warm grade
+  and vignette.
+- Our 2D clerk inside the 3D room: every frame Rig2D draws him (with the Light module) to an SVG, which
+  becomes a canvas texture on a card standing behind the counter. The card faces the camera, is fogged like
+  the set, and casts a real shadow (alpha-tested depth material).
+- 10 s shot: slow push from a wide view of the store into the clerk; smug, then worried with a ledger tap,
+  then a crazy grin. Render: `node tools/render.js 3d/woodside.html out/wsf --serve --mp4 out/woodside_test.mp4`
+  (run from `rig2d/`, about 7 s per frame per worker on CPU).
+
 ## Next steps
 
 - Package the system for sale.

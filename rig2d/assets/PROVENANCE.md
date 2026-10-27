@@ -22,3 +22,12 @@ meme sounds. Their docs say they come from myinstants.com and are "not explicitl
 - License: MIT.
 - Verified: npm registry metadata (maintainers + official repo); tarball sha512 matches the registry `dist.integrity`; sha1 matches `dist.shasum` 6d50f70c2c437f844179bbb56d6f5b774e1ca38a. Installed with `--ignore-scripts`.
 - sha256 (tarball): 8cd068708ea44f2c73c944b1cead2ba2f0d5c15c8fc194e5700f4e4f4a033fe7
+
+## Reference photos: Woodside Store interior (HABS CA-2146) — 2026-10-27
+- What: 12 HABS photos of the Woodside Store (Woodside, CA, 1854), used ONLY as visual reference for modeling the 3D
+  general store set. Kept in the session scratchpad, not committed, not shown in any video.
+- URL: https://www.loc.gov/item/ca0858/ (files from tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0800/ca0858/)
+- Publisher: Library of Congress, Prints and Photographs Division (official loc.gov domain).
+- License: "No known restrictions on images made by the U.S. Government" (HABS, loc.gov/rr/print/res/114_habs.html).
+- Verified: item record on loc.gov (rights advisory + repository fields).
+- sha256 of the main reference (photo 9, interior with counter and coffee grinders, 017834pv.jpg): e6fb657f1e91eb31ecb58a2d56b2195641195b22c8a905b04e0786d5c113875f
