@@ -65,14 +65,16 @@ const SEAT = { hips: { y: 168, rot: 4 } };
 const SEAT_IK = { legL: { x: 92, y: -18, endRot: 0 }, legR: { x: 108, y: -20, endRot: 0 } };
 function zhugeSeated(t, o = {}) {
   const pluck = o.pluck || 0, k = o.collapse || 0;
-  const pa = Math.sin(t * 9) * 14 * pluck, pb = Math.sin(t * 9 + 1.7) * 14 * pluck;
+  // fingers travel along the strings and lift on each pluck
+  const pa = Math.sin(t * 4.5) * 22 * pluck, pb = Math.sin(t * 4.5 + 1.9) * 22 * pluck;
+  const la = Math.max(0, Math.sin(t * 13)) * 12 * pluck, lb = Math.max(0, Math.sin(t * 13 + 2)) * 12 * pluck;
   return blend({
-    view: 'side', facing: 1, sit: 1, bones: Object.assign({}, SEAT, { chest: { rot: 3 }, head: { rot: -2 } }),
-    ik: Object.assign({}, SEAT_IK, { armR: { x: 250 + pa, y: -150 - Math.abs(pa) * 0.5, weight: 1, endRot: 20 }, armL: { x: 330 + pb, y: -156 - Math.abs(pb) * 0.5, weight: 1, endRot: 20 } }),
-    face: Object.assign({ mouthSmile: 0.35, lidTop: 0.3 }, o.face || {}), props: { fan: false },
+    view: 'side', facing: 1, sit: 1, bones: Object.assign({}, SEAT, { chest: { rot: 12 }, head: { rot: -8 } }),
+    ik: Object.assign({}, SEAT_IK, { armR: { x: 150 + pa, y: -112 - la, weight: 1, endRot: 15 }, armL: { x: 190 + pb, y: -116 - lb, weight: 1, endRot: 15 } }),
+    face: Object.assign({ mouthSmile: 0.35, lidTop: 0.3, mouthShape: 'auto', mouthOpen: 0, blink: 0 }, o.face || {}), props: { fan: false },
   }, {
     bones: { hips: { y: 168, rot: 12 }, chest: { rot: 58 }, head: { rot: 0 } },
-    ik: { armR: { x: 330, y: -118, weight: 1 }, armL: { x: 420, y: -122, weight: 1 } },
+    ik: { armR: { x: 250, y: -104, weight: 1 }, armL: { x: 300, y: -108, weight: 1 } },
     face: { blink: 1, eyeSmile: 0, mouthShape: 'o', mouthOpen: 0.5, lidTop: 0 },
   }, k);
 }
@@ -144,7 +146,7 @@ function shot(t) {
     o.pluck = t > EV.wall + 0.4 ? 1 : 0;
     actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: { lookX: 0.4 } }, t, { seed: 2 }), 150, 1700, 0.95, t) +
       draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: { lookX: 0.4 } }, t, { seed: 3 }), 40, 1720, 0.95, t) +
-      draw(A.zhuge, alive(zhugeSeated(t, { pluck: o.pluck }), t, { seed: 5, sway: 0.4 }), 380, 1640, 1.0, t, false);
+      draw(A.zhuge, alive(zhugeSeated(t, { pluck: o.pluck }), t, { seed: 5, sway: 0.4 }), 470, 1640, 1.0, t, false);
   } else if (t < EV.trap) {                              // 9. Sima Yi arrives... and freezes
     hideCity = true; dof = 7;
     const froze = t >= EV.froze;
@@ -174,21 +176,27 @@ function shot(t) {
       army = SC.ex.army({ x0: 1300, x1: 2600, y0: 1380, y1: 1600, rows: 5, t, march: 0, facing: -1, seed: 4 });
       actors = draw(A.sima, alive({ view: 'front', ik: FEET, face: { eyeWide: 1, lookX: dart, browAngle: -0.6, browRaise: 0.6, sweat: 1, mouthShape: 'grit' } }, t, { seed: 13 }), 1900, 1890, 1.25, t);
     }
-  } else if (t < EV.legend) {                            // 11. the retreat: 150,000 men turn around
+  } else if (t < EV.legend) {                            // 11. the retreat: the whole army turns and runs
     const k = t - EV.retreat;
-    Object.assign(c, Camera.track([{ t: EV.retreat, x: 1500, y: 1420, z: 1.35 }, { t: EV.legend, x: 1300, y: 1200, z: 1.0, ease: 'inOut' }])(t));
+    Object.assign(c, Camera.track([{ t: EV.retreat, x: 1450, y: 1380, z: 1.3 }, { t: EV.legend, x: 1350, y: 1240, z: 1.05, ease: 'inOut' }])(t));
     o.gateOpen = 1;
-    army = `<g transform="translate(${k * 160} 0)">${SC.ex.army({ x0: 1100, x1: 2900, y0: 1460, y1: 1800, rows: 7, t, march: 1, facing: 1, seed: 7 })}</g>`;
-    const w = walk(k, { cycle: 0.55, stride: 260, stance: 0.4, bob: 14, lift: 56, armSwing: 48, lean: 14 }); w.bones.root.x = 0;
-    w.face = { eyeWide: 1, sweat: 1, browRaise: 1, mouthShape: 'grit' };
-    actors = draw(A.sima, Object.assign(alive(w, t, { seed: 13 }), { view: 'side', facing: 1 }), 980 + k * 360, 1860, 1.1, t);
+    // the main army is farther back (smaller); full-size soldiers run alongside the general
+    army = `<g transform="translate(${k * 140} 0)">${SC.ex.army({ x0: 1150, x1: 2900, y0: 1430, y1: 1580, rows: 5, t, march: 1, facing: 1, seed: 7 })}</g>`;
+    const runner = (actor, x0, y, sc, ph, face, seed) => {
+      const w = walk(k + ph, { cycle: 0.55, stride: 240, stance: 0.42, lift: 40, armSwing: 48, lean: 14 }); w.bones.root.x = 0;
+      w.face = face;
+      return draw(actor, Object.assign(alive(w, t, { seed }), { view: 'side', facing: 1 }), x0 + k * 400, y, sc, t);
+    };
+    const panic = { eyeWide: 1, sweat: 1, browRaise: 1, mouthShape: 'grit' };
+    actors = runner(A.solB, 700, 1700, 0.82, 0.2, panic, 21) + runner(A.solA, 1180, 1730, 0.86, 0.35, panic, 22) +
+      runner(A.sima, 920, 1820, 0.95, 0, panic, 13) + runner(A.solA, 560, 1880, 1.0, 0.1, panic, 23);
   } else if (t < EV.stop) {                              // 12. the legend: slow push on the calm musician
     sc = 'wt'; dof = 2;
     Object.assign(c, Camera.track([{ t: EV.legend, x: 560, y: 1400, z: 1.15 }, { t: EV.stop, x: 520, y: 1330, z: 1.5, ease: 'linear' }])(t));
     o.pluck = 1;
     actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true } }, t, { seed: 2 }), 150, 1700, 0.95, t) +
       draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true } }, t, { seed: 3 }), 40, 1720, 0.95, t) +
-      draw(A.zhuge, alive(zhugeSeated(t, { pluck: 1 }), t, { seed: 5, sway: 0.4 }), 380, 1640, 1.0, t, false);
+      draw(A.zhuge, alive(zhugeSeated(t, { pluck: 1 }), t, { seed: 5, sway: 0.4 }), 470, 1640, 1.0, t, false);
   } else if (t < EV.boy) {                               // 13. silence... "Is he gone?"
     sc = 'wt'; dof = 8;
     Object.assign(c, { x: 540, y: 1000, z: 2.4 });
@@ -208,7 +216,7 @@ function shot(t) {
     const flinch = clamp((t - EV.plant) / 0.1, 0, 1);
     actors = draw(A.boyA, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: flinch ? EX.shock : {} }, t, { seed: 2 }), 150, 1700, 0.95, t) +
       draw(A.boyB, alive({ view: 'side', facing: 1, ik: SFEET, props: { broom: true }, face: flinch ? EX.shock : {} }, t, { seed: 3 }), 40, 1720, 0.95, t) +
-      draw(A.zhuge, Object.assign(zhugeSeated(t, { collapse: k }), { sit: 1 }), 380, 1640, 1.0, t, false);
+      draw(A.zhuge, Object.assign(zhugeSeated(t, { collapse: k }), { sit: 1 }), 470, 1640, 1.0, t, false);
   }
 
   // whip-pan transitions on selected cuts

@@ -544,7 +544,8 @@
   // heels roll, hips dip on "down" and rise on "up", arms swing opposite the
   // legs and lag a couple of frames behind.
   function walk(t, o = {}) {
-    const P = Object.assign({ cycle: 1.0, stride: 200, stance: 0.6, bob: 8, lift: 40, armSwing: 32, lag: 0.07, lean: 5, ankle: 14, foot: 38, x0: 0, phase: 0, mood: 1 }, o);
+    // leg = thigh + shin (straight-leg length); bob adds extra cartoon bounce on top (0 = none)
+    const P = Object.assign({ cycle: 1.0, stride: 200, stance: 0.6, bob: 0, lift: 22, armSwing: 32, lag: 0.07, lean: 5, ankle: 14, foot: 38, leg: 215, x0: 0, phase: 0, mood: 1 }, o);
     const speed = P.stride / P.cycle;                 // px per second, root space
     const p = ((t / P.cycle + P.phase) % 1 + 1) % 1;
     const a = speed * P.stance * P.cycle / 2;         // planted foot slides from +a to -a
@@ -562,7 +563,10 @@
     };
     const legR = legState(p), legL = legState((p + 0.5) % 1);
     const q = (p * 2) % 1;                              // step phase
-    const hipsY = P.bob * P.mood * Math.cos(2 * Math.PI * (q - 0.18)); // + = lower (down pose at q~.18)
+    // Stance legs stay straight: the hips sit exactly as high as a straight leg reaches the planted foot.
+    const drop = f => P.leg - Math.sqrt(Math.max(0, P.leg * P.leg - f * f));
+    const stanceDrop = Math.max(p < P.stance ? drop(legR.x) : 0, (p + 0.5) % 1 < P.stance ? drop(legL.x) : 0);
+    const hipsY = stanceDrop + P.bob * P.mood * Math.cos(2 * Math.PI * (q - 0.18)); // + = lower
     const sw = P.armSwing * P.mood, pa = 2 * Math.PI * (p - P.lag);
     return {
       bones: {

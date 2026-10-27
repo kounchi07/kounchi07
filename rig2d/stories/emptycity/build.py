@@ -51,6 +51,13 @@ cues += [
     {'file': 'sfx/guqin_crash.wav', 't': EV['plant'], 'gain': 1.0},
     {'file': 'sfx/impact.wav', 't': EV['plant'], 'gain': 0.5},
 ]
+# Prefer real recordings (tools/fetch_sfx.py -> sfx/real/) over synthesized ones when present.
+REAL = {'sfx/swish.wav': 'whoosh', 'sfx/impact.wav': 'dramatic-boomer'}
+for c in cues:
+    real = REAL.get(c['file'])
+    if real and os.path.exists(os.path.join(HERE, 'sfx', 'real', f'{real}.wav')):
+        c['file'] = f'sfx/real/{real}.wav'
+
 data = {'duration': DURATION, 'lines': LINES, 'events': EV, 'cues': cues, 'timing': T}
 open(os.path.join(HERE, 'cues.js'), 'w').write('window.CUES = ' + json.dumps(data) + ';\n')
 print(DURATION, json.dumps(EV))

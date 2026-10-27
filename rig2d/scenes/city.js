@@ -97,6 +97,61 @@
       `<text x="${n2(x + w / 2)}" y="${n2(y - h + fh / 2 + wave(0.5) + fh * 0.12)}" font-family="IPAPGothic" font-weight="bold" font-size="${n2(fh * 0.38)}" text-anchor="middle" fill="${INK}">${glyph}</text>`;
   }
 
+  function pine(x, y, s, seed) {
+    const [R, rr] = rngOf(seed);
+    let o = `<ellipse cx="${n2(x)}" cy="${n2(y)}" rx="${n2(90 * s)}" ry="${n2(16 * s)}" fill="#000" opacity=".3"/><path d="M${n2(x - 14 * s)},${n2(y)} L${n2(x - 9 * s)},${n2(y - 260 * s)} L${n2(x + 9 * s)},${n2(y - 260 * s)} L${n2(x + 14 * s)},${n2(y)}Z" fill="#5a3a22" stroke="${INK}" stroke-width="4"/>`;
+    for (let i = 0; i < 4; i++) {
+      const ty = y - 120 * s - i * 70 * s, w = (150 - i * 28) * s, h = 70 * s;
+      const d = `M${n2(x - w)},${n2(ty)} Q${n2(x - w * 0.5)},${n2(ty - h * 0.4)} ${n2(x)},${n2(ty - h)} Q${n2(x + w * 0.5)},${n2(ty - h * 0.4)} ${n2(x + w)},${n2(ty)} Q${n2(x)},${n2(ty + h * 0.35)} ${n2(x - w)},${n2(ty)}Z`;
+      o += `<path d="${d}" fill="${i % 2 ? '#3f6a3a' : '#4a7a40'}" stroke="${INK}" stroke-width="4"/><path d="M${n2(x - w * 0.6)},${n2(ty - 4)} Q${n2(x - w * 0.2)},${n2(ty - h * 0.5)} ${n2(x + w * 0.1)},${n2(ty - h * 0.7)}" stroke="#7aa65a" stroke-width="${n2(5 * s)}" fill="none" opacity=".7" stroke-linecap="round"/>`;
+      for (let k = 0; k < 4; k++) o += `<path d="M${n2(x + rr(-w * 0.7, w * 0.7))},${n2(ty - rr(0, h * 0.5))} l${n2(6 * s)},${n2(10 * s)}" stroke="#2a4a28" stroke-width="2.5"/>`;
+    }
+    return o;
+  }
+  function lion(x, y, k) {
+    // stone guardian lion on a plinth
+    let o = `<rect x="${x - 50}" y="${y - 40}" width="100" height="40" fill="#8a8478" stroke="${INK}" stroke-width="4"/><rect x="${x - 56}" y="${y - 48}" width="112" height="12" fill="#a29c90" stroke="${INK}" stroke-width="3"/>`;
+    o += `<path d="M${x - 34},${y - 48} Q${x - 40},${y - 110} ${x},${y - 120} Q${x + 40},${y - 110} ${x + 34},${y - 48}Z" fill="#a29c90" stroke="${INK}" stroke-width="4"/>`;
+    o += `<circle cx="${x + k * 6}" cy="${y - 140}" r="34" fill="#a29c90" stroke="${INK}" stroke-width="4"/>`;
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; o += `<circle cx="${n2(x + k * 6 + Math.cos(a) * 32)}" cy="${n2(y - 140 + Math.sin(a) * 32)}" r="10" fill="#8a8478" stroke="${INK}" stroke-width="2.5"/>`; }
+    o += `<circle cx="${x + k * 6}" cy="${y - 140}" r="26" fill="#b2ac9e" stroke="${INK}" stroke-width="3"/><circle cx="${x + k * 6 - 9}" cy="${y - 146}" r="4" fill="${INK}"/><circle cx="${x + k * 6 + 9}" cy="${y - 146}" r="4" fill="${INK}"/><path d="M${x + k * 6 - 10},${y - 130} q10,8 20,0" stroke="${INK}" stroke-width="3" fill="none"/>`;
+    o += `<circle cx="${x + k * 22}" cy="${y - 60}" r="14" fill="#b2ac9e" stroke="${INK}" stroke-width="3"/><path d="M${x + k * 14},${y - 62} l${k * 16},0" stroke="${INK}" stroke-width="2"/>`;
+    return o;
+  }
+  function lanternPost(x, y) {
+    return `<rect x="${x - 6}" y="${y - 220}" width="12" height="220" fill="#5a3a22" stroke="${INK}" stroke-width="3"/><rect x="${x - 40}" y="${y - 226}" width="80" height="12" fill="#5a3a22" stroke="${INK}" stroke-width="3"/>` +
+      `<line x1="${x + 30}" y1="${y - 214}" x2="${x + 30}" y2="${y - 196}" stroke="${INK}" stroke-width="2"/><circle cx="${x + 30}" cy="${y - 166}" r="60" fill="#ffb060" opacity=".25"/><ellipse cx="${x + 30}" cy="${y - 170}" rx="24" ry="30" fill="#d8402a" stroke="${INK}" stroke-width="3"/>` +
+      `<path d="M${x + 22},${y - 186} q8,14 0,30" stroke="#ffd27a" stroke-width="4" fill="none" opacity=".7"/><line x1="${x + 30}" y1="${y - 140}" x2="${x + 30}" y2="${y - 118}" stroke="#b8322a" stroke-width="4"/>`;
+  }
+  function crates(x, y) {
+    let o = '';
+    for (const [dx, dy, w, h] of [[0, 0, 90, 70], [86, 4, 80, 64], [30, -66, 80, 66]]) {
+      const X = x + dx, Y = y + dy;
+      o += `<rect x="${X}" y="${Y - h}" width="${w}" height="${h}" fill="#9a6a3a" stroke="${INK}" stroke-width="4"/><path d="M${X},${Y - h} L${X + w},${Y} M${X + w},${Y - h} L${X},${Y}" stroke="#6a4424" stroke-width="5"/><rect x="${X}" y="${Y - h}" width="${w}" height="${h}" fill="none" stroke="#6a4424" stroke-width="8" opacity=".6"/><rect x="${X}" y="${Y - h}" width="${w}" height="${h}" fill="none" stroke="${INK}" stroke-width="4"/>`;
+    }
+    o += `<g transform="translate(${x + 190} ${y})"><ellipse cx="0" cy="-2" rx="34" ry="10" fill="#000" opacity=".3"/><path d="M-30,0 Q-38,-45 -30,-90 L30,-90 Q38,-45 30,0Z" fill="#8a5a2e" stroke="${INK}" stroke-width="4"/><ellipse cx="0" cy="-90" rx="30" ry="9" fill="#a8743e" stroke="${INK}" stroke-width="3"/>` +
+      `<path d="M-35,-25 Q0,-18 35,-25 M-36,-65 Q0,-58 36,-65" stroke="#3a3a3a" stroke-width="6" fill="none"/></g>`;
+    return o;
+  }
+  function cart(x, y) {
+    let o = `<ellipse cx="${x}" cy="${y + 4}" rx="150" ry="18" fill="#000" opacity=".3"/>`;
+    o += `<path d="M${x - 140},${y - 80} L${x + 120},${y - 80} L${x + 110},${y - 40} L${x - 130},${y - 40}Z" fill="#9a6a3a" stroke="${INK}" stroke-width="4"/>`;
+    for (let i = 0; i < 9; i++) o += `<path d="M${x - 120 + i * 28},${y - 80} q${10 - (i % 3) * 6},-50 ${-4 + (i % 2) * 14},-74" stroke="#d8b45e" stroke-width="10" stroke-linecap="round" fill="none"/>`;
+    o += `<path d="M${x - 130},${y - 120} Q${x},${y - 190} ${x + 110},${y - 120} L${x + 115},${y - 82} L${x - 135},${y - 82}Z" fill="#e2c26e" stroke="${INK}" stroke-width="4"/>`;
+    for (let i = 0; i < 12; i++) o += `<path d="M${x - 110 + i * 20},${y - 90} l${(i % 2) * 6 - 3},-30" stroke="#b8963e" stroke-width="2.5"/>`;
+    o += `<path d="M${x + 110},${y - 60} L${x + 230},${y - 20}" stroke="#6a4424" stroke-width="10" stroke-linecap="round"/>`;
+    for (const wx of [x - 80, x + 60]) {
+      o += `<circle cx="${wx}" cy="${y - 30}" r="34" fill="none" stroke="${INK}" stroke-width="12"/><circle cx="${wx}" cy="${y - 30}" r="34" fill="none" stroke="#7a5430" stroke-width="6"/><circle cx="${wx}" cy="${y - 30}" r="7" fill="#7a5430" stroke="${INK}" stroke-width="3"/>`;
+      for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; o += `<line x1="${wx}" y1="${y - 30}" x2="${n2(wx + Math.cos(a) * 30)}" y2="${n2(y - 30 + Math.sin(a) * 30)}" stroke="#7a5430" stroke-width="4"/>`; }
+    }
+    return o;
+  }
+  function signpost(x, y) {
+    return `<rect x="${x - 7}" y="${y - 190}" width="14" height="190" fill="#6a4424" stroke="${INK}" stroke-width="3"/>` +
+      `<path d="M${x - 100},${y - 180} L${x + 70},${y - 180} L${x + 96},${y - 158} L${x + 70},${y - 136} L${x - 100},${y - 136}Z" fill="#c89a5a" stroke="${INK}" stroke-width="4"/><text x="${x - 20}" y="${y - 145}" font-family="IPAPGothic" font-weight="bold" font-size="32" text-anchor="middle" fill="#3a2414">西城</text>` +
+      `<path d="M${x + 80},${y - 120} L${x - 80},${y - 120} L${x - 104},${y - 100} L${x - 80},${y - 80} L${x + 80},${y - 80}Z" fill="#b8884a" stroke="${INK}" stroke-width="4"/><text x="${x + 6}" y="${y - 89}" font-family="IPAPGothic" font-weight="bold" font-size="28" text-anchor="middle" fill="#3a2414">魏</text>`;
+  }
+
   // A marching mass of soldiers: cheap shapes, perspective rows, banners.
   function army({ x0, x1, y0, y1, rows = 7, t = 0, seed = 5, facing = -1, march = 0 }) {
     const [R, rr] = rngOf(seed);
@@ -104,9 +159,18 @@
     for (let r = 0; r < rows; r++) {
       const k = r / (rows - 1), y = y0 + (y1 - y0) * k, sc = 0.35 + k * 0.75, gap = 46 * sc;
       for (let x = x0 + rr(0, gap); x < x1; x += gap * rr(0.9, 1.15)) {
-        const bob = Math.abs(Math.sin(t * 6 + x * 0.05)) * 4 * sc * march, xx = x + rr(-6, 6);
-        s += `<ellipse cx="${n2(xx)}" cy="${n2(y)}" rx="${n2(20 * sc)}" ry="${n2(5 * sc)}" fill="#000" opacity=".25"/>` +
-          `<rect x="${n2(xx - 13 * sc)}" y="${n2(y - 70 * sc - bob)}" width="${n2(26 * sc)}" height="${n2(62 * sc)}" rx="${n2(8 * sc)}" fill="${R() < 0.5 ? '#2a3a6a' : '#22305a'}" stroke="${INK}" stroke-width="${n2(2.5 * sc + 1)}"/>` +
+        const ph = t * 6 + x * 0.05, bob = Math.abs(Math.sin(ph)) * 4 * sc * march, xx = x + rr(-6, 6), lw = n2(2.5 * sc + 1);
+        const step = Math.sin(ph) * 7 * sc * march, body = R() < 0.5 ? '#2a3a6a' : '#22305a';
+        s += `<ellipse cx="${n2(xx)}" cy="${n2(y)}" rx="${n2(20 * sc)}" ry="${n2(5 * sc)}" fill="#000" opacity=".25"/>`;
+        for (const k of [-1, 1]) {       // legs: straight, alternating while marching
+          const hx = xx + k * 5 * sc, fx = hx + k * step, fy = y - (k * step > 0 ? 3 * sc * march : 0);
+          s += `<line x1="${n2(hx)}" y1="${n2(y - 34 * sc - bob)}" x2="${n2(fx)}" y2="${n2(fy - 6 * sc)}" stroke="${INK}" stroke-width="${n2(9 * sc + 2)}" stroke-linecap="round"/>` +
+            `<line x1="${n2(hx)}" y1="${n2(y - 34 * sc - bob)}" x2="${n2(fx)}" y2="${n2(fy - 6 * sc)}" stroke="#2a2428" stroke-width="${n2(7 * sc)}" stroke-linecap="round"/>` +
+            `<path d="M${n2(fx - 6 * sc)},${n2(fy)} q${n2(-1 * sc)},${n2(-9 * sc)} ${n2(6 * sc)},${n2(-9 * sc)} l${n2(facing * -9 * sc + 6 * sc)},${n2(4 * sc)} l0,${n2(5 * sc)}Z" fill="#141016" stroke="${INK}" stroke-width="${n2(1.5 * sc + 0.5)}"/>`;
+        }
+        s += `<rect x="${n2(xx - 13 * sc)}" y="${n2(y - 72 * sc - bob)}" width="${n2(26 * sc)}" height="${n2(42 * sc)}" rx="${n2(8 * sc)}" fill="${body}" stroke="${INK}" stroke-width="${lw}"/>` +
+          `<path d="M${n2(xx - 14 * sc)},${n2(y - 40 * sc - bob)} l${n2(28 * sc)},0 l${n2(3 * sc)},${n2(10 * sc)} l${n2(-34 * sc)},0Z" fill="#6f7782" stroke="${INK}" stroke-width="${n2(1.5 * sc + 0.5)}"/>` +
+          `<line x1="${n2(xx - 13 * sc)}" y1="${n2(y - 52 * sc - bob)}" x2="${n2(xx + 13 * sc)}" y2="${n2(y - 52 * sc - bob)}" stroke="#8a6a3a" stroke-width="${n2(3 * sc)}"/>` +
           `<circle cx="${n2(xx)}" cy="${n2(y - 84 * sc - bob)}" r="${n2(15 * sc)}" fill="#ecd3b0" stroke="${INK}" stroke-width="${n2(2.5 * sc + 1)}"/>` +
           `<path d="M${n2(xx - 16 * sc)},${n2(y - 86 * sc - bob)} a${n2(16 * sc)},${n2(16 * sc)} 0 0 1 ${n2(32 * sc)},0Z" fill="#6f7782" stroke="${INK}" stroke-width="${n2(2 * sc + 1)}"/>` +
           `<circle cx="${n2(xx)}" cy="${n2(y - 104 * sc - bob)}" r="${n2(4 * sc)}" fill="#c0282a"/>` +
@@ -131,15 +195,18 @@
     sky += cloud(500, 420, 1.3, 1) + cloud(1500, 300, 1.0, 2) + cloud(2300, 520, 1.4, 3) + cloud(-100, 620, 1.1, 4) + cloud(1000, 640, 0.8, 5, '#ffd8b8', '#d88a7a');
     sky += `<g id="ex-birds">${birds(900, 520, 6, 7)}${birds(1900, 420, 4, 8)}</g>`;
     let far = mountains(1130, -700, 3100, 380, 11, '#b48aa0', '#8a6a88') + mountains(1220, -700, 3100, 260, 12, '#8a6a8c', '#6a4e72') + `<rect x="-900" y="1050" width="4200" height="260" fill="url(#ex-mist)" opacity=".7"/>`;
+    // rooftops of the city peeking over the wall
+    let city = '';
+    for (const [l, r, top, bot, sd] of [[180, 470, 790, 880, 41], [520, 880, 760, 870, 42], [1520, 1860, 770, 875, 43], [1900, 2240, 800, 885, 44], [380, 640, 830, 905, 45], [1700, 1960, 835, 905, 46]])
+      city += `<rect x="${l + 30}" y="${bot}" width="${r - l - 60}" height="60" fill="#a8743e" stroke="${INK}" stroke-width="4"/>` + roof(l, r, top, bot, sd % 2 ? '#3d4b5c' : '#4a5664', sd);
     // wall + gate tower
-    let city = bricks(150, 960, 2100, 430, 21) + `<rect x="150" y="960" width="2100" height="430" fill="none" stroke="${INK}" stroke-width="6"/>`;
+    city += bricks(150, 960, 2100, 430, 21) + `<rect x="150" y="960" width="2100" height="430" fill="none" stroke="${INK}" stroke-width="6"/>`;
     city += `<rect x="130" y="940" width="2140" height="26" fill="#8a7a64" stroke="${INK}" stroke-width="5"/>`;
     for (let x = 150; x < 2240; x += 84) city += `<rect x="${x}" y="888" width="54" height="54" fill="#9c8a74" stroke="${INK}" stroke-width="5"/><rect x="${x + 4}" y="892" width="10" height="46" fill="#c8b8a0" opacity=".5"/>`;
     for (const x of [380, 700, 1720, 2040]) city += `<line x1="${x}" y1="890" x2="${x}" y2="690" stroke="${INK}" stroke-width="9"/><line x1="${x}" y1="890" x2="${x}" y2="690" stroke="#7a5430" stroke-width="4"/><circle cx="${x}" cy="684" r="8" fill="#c8963f" stroke="${INK}" stroke-width="3"/>`;
     // gate arch (doors drawn separately so they can open)
     city += `<path d="M1050,1390 L1050,1220 A150,150 0 0 1 1350,1220 L1350,1390Z" fill="url(#ex-dark)"/>`;
-    city += `<g id="ex-inside" opacity="0"><path d="M1120,1390 L1190,1260 L1210,1260 L1280,1390Z" fill="#c8a070" opacity=".7"/><rect x="1150" y="1215" width="100" height="50" fill="#d89060" opacity=".5"/>` +
-      `<g fill="${INK}"><rect x="1160" y="1300" width="12" height="34" rx="5"/><circle cx="1166" cy="1294" r="8"/><rect x="1228" y="1312" width="10" height="28" rx="4"/><circle cx="1233" cy="1306" r="7"/></g></g>`;
+    city += `<clipPath id="ex-archclip"><path d="M1050,1390 L1050,1220 A150,150 0 0 1 1350,1220 L1350,1390Z"/></clipPath><g id="ex-inside" clip-path="url(#ex-archclip)" opacity="0"></g>`;
     city += `<g id="ex-doors"></g>`;
     for (let i = 0; i < 13; i++) { const a = Math.PI * (1 + i / 12), x = 1200 + Math.cos(a) * 170, y = 1220 + Math.sin(a) * 170; city += `<line x1="${n2(1200 + Math.cos(a) * 150)}" y1="${n2(1220 + Math.sin(a) * 150)}" x2="${n2(x)}" y2="${n2(y)}" stroke="${INK}" stroke-width="4"/>`; }
     city += `<path d="M1050,1390 L1050,1220 A150,150 0 0 1 1350,1220 L1350,1390" fill="none" stroke="${INK}" stroke-width="7"/><path d="M1030,1390 L1030,1220 A170,170 0 0 1 1370,1220 L1370,1390" fill="none" stroke="${INK}" stroke-width="5"/>`;
@@ -161,8 +228,50 @@
     for (let i = 0; i < 40; i++) { const y = rr(1400, 1900); ground += `<ellipse cx="${n2(1200 + rr(-1, 1) * (y - 1380) * 0.6)}" cy="${n2(y)}" rx="${n2(rr(3, 8))}" ry="${n2(rr(2, 4))}" fill="#7a5a3a" opacity=".6"/>`; }
     ground += tufts(-800, 1000, 1400, 1900, 60, 31) + tufts(1420, 3200, 1400, 1900, 60, 32);
     ground += rock(700, 1560, 1, 41) + rock(1760, 1650, 1.3, 42) + rock(300, 1800, 1.6, 43) + rock(2200, 1500, 0.8, 44);
+    ground += pine(300, 1430, 1.0, 61) + pine(60, 1480, 1.3, 62) + pine(2120, 1440, 1.1, 63) + pine(2380, 1500, 1.4, 64);
+    for (const [x, k] of [[980, -1], [1420, 1]]) ground += lion(x, 1440, k) + lanternPost(x + k * 90, 1430, t0 => 0);
+    ground += crates(1520, 1440) + cart(760, 1620) + signpost(1520, 1640);
+    for (const side of [-1, 1]) for (let i = 0; i < 6; i++) { const y = 1470 + i * 90, x = 1200 + side * (230 + (y - 1390) * 0.62); ground += `<rect x="${n2(x - 6)}" y="${n2(y - 50 - i * 4)}" width="${n2(12 + i)}" height="${n2(56 + i * 6)}" fill="#7a5430" stroke="${INK}" stroke-width="3"/>`; }
     let near = `<path d="M-900,2160 Q-300,2000 200,2090 T1200,2140 T2200,2060 T3300,2120 L3300,2600 L-900,2600Z" fill="#3a2a1a" stroke="${INK}" stroke-width="5"/>` + tufts(-800, 3200, 2040, 2120, 70, 51, '#2a3a1a');
     near += `<path d="M2500,1960 q-60,-200 -20,-420 M2480,1700 q60,-60 120,-50 M2470,1640 q-70,-50 -110,-30" stroke="${INK}" stroke-width="18" fill="none" stroke-linecap="round"/><path d="M2500,1960 q-60,-200 -20,-420 M2480,1700 q60,-60 120,-50 M2470,1640 q-70,-50 -110,-30" stroke="#4a3424" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+
+    // Through the gate: warm street with shops, lanterns, signs and two sweepers (VP at the far end).
+    const inSky = `<linearGradient id="ex-insky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2b07a"/><stop offset="1" stop-color="#ffd8a0"/></linearGradient>`;
+    function insideView(t) {
+      const VX = 1200, VY = 1250;
+      let s = `<defs>${inSky}</defs><rect x="1040" y="1060" width="320" height="200" fill="url(#ex-insky)"/>`;
+      s += `<rect x="1160" y="1196" width="80" height="56" fill="#9c8a74" stroke="${INK}" stroke-width="2"/>` + roof(1150, 1250, 1170, 1198, '#3d4b5c', 31);
+      for (const side of [-1, 1]) {
+        for (let i = 2; i >= 0; i--) {
+          const a = 0.35 + i * 0.25, b = a + 0.25;
+          const xa = VX + side * (40 + 230 * a * a), xb = VX + side * (40 + 230 * b * b);
+          const ta = VY - 70 * a - 10, tb = VY - 70 * b - 30, ba = VY + 150 * a, bb = VY + 150 * b;
+          const wall = i % 2 ? '#b07a4a' : '#c89060';
+          s += `<path d="M${n2(xa)},${n2(ta)} L${n2(xb)},${n2(tb)} L${n2(xb)},${n2(bb)} L${n2(xa)},${n2(ba)}Z" fill="${wall}" stroke="${INK}" stroke-width="3"/>`;
+          s += `<path d="M${n2(xa + (xb - xa) * 0.25)},${n2(ta + (tb - ta) * 0.25 + 20 * a)} L${n2(xa + (xb - xa) * 0.6)},${n2(ta + (tb - ta) * 0.6 + 20 * a)} L${n2(xa + (xb - xa) * 0.6)},${n2(ba + (bb - ba) * 0.6)} L${n2(xa + (xb - xa) * 0.25)},${n2(ba + (bb - ba) * 0.25)}Z" fill="#3a2414" stroke="${INK}" stroke-width="2"/>`;
+          s += `<path d="M${n2(xa)},${n2(ta)} L${n2(xb)},${n2(tb)} L${n2(xb - side * 14 * b)},${n2(tb - 26 * b)} L${n2(xa - side * 14 * a)},${n2(ta - 26 * a)}Z" fill="#3d4b5c" stroke="${INK}" stroke-width="3"/>`;
+          const lx = (xa + xb) / 2, ly = (ta + tb) / 2 + 6, lr = 7 * b;
+          s += `<line x1="${n2(lx)}" y1="${n2(ly - 10)}" x2="${n2(lx)}" y2="${n2(ly)}" stroke="${INK}" stroke-width="1.5"/><circle cx="${n2(lx)}" cy="${n2(ly + lr)}" r="${n2(lr * 2.4)}" fill="#ffb060" opacity=".35"/><ellipse cx="${n2(lx)}" cy="${n2(ly + lr)}" rx="${n2(lr)}" ry="${n2(lr * 1.3)}" fill="#e0482a" stroke="${INK}" stroke-width="1.5"/>`;
+          const sx = xa + (xb - xa) * 0.8, sy = ta + (tb - ta) * 0.8 + 18 * b, sh = 36 * b;
+          s += `<rect x="${n2(sx - sh * 0.22)}" y="${n2(sy)}" width="${n2(sh * 0.44)}" height="${n2(sh)}" fill="#1d2a50" stroke="#c8963f" stroke-width="1.5"/><text x="${n2(sx)}" y="${n2(sy + sh * 0.66)}" font-family="IPAPGothic" font-weight="bold" font-size="${n2(sh * 0.42)}" text-anchor="middle" fill="#e8c27a">${['茶', '酒', '米', '書', '藥', '布'][(i + (side > 0 ? 3 : 0)) % 6]}</text>`;
+        }
+      }
+      s += `<path d="M${VX - 40},${VY + 2} L${VX + 40},${VY + 2} L1360,1395 L1040,1395Z" fill="#c8a070" stroke="${INK}" stroke-width="2"/>`;
+      for (let i = -4; i <= 4; i++) s += `<line x1="${VX + i * 9}" y1="${VY + 2}" x2="${VX + i * 50}" y2="1395" stroke="#8a6a48" stroke-width="1.5"/>`;
+      for (let k = 0.15; k < 1.2; k *= 1.45) s += `<line x1="1040" y1="${n2(VY + 2 + 145 * k)}" x2="1360" y2="${n2(VY + 2 + 145 * k)}" stroke="#8a6a48" stroke-width="1.5"/>`;
+      // two sweepers, sweeping
+      for (const [x, y, sc, ph] of [[1160, 1340, 0.55, 0], [1236, 1306, 0.42, 2]]) {
+        const sw = Math.sin(t * 4.2 + ph) * 8 * sc;
+        s += `<ellipse cx="${x}" cy="${y + 2}" rx="${n2(20 * sc)}" ry="${n2(4 * sc)}" fill="#000" opacity=".3"/>` +
+          `<line x1="${x - 5 * sc}" y1="${y - 30 * sc}" x2="${x - 6 * sc}" y2="${y}" stroke="#4a3e34" stroke-width="${n2(8 * sc)}" stroke-linecap="round"/><line x1="${x + 5 * sc}" y1="${y - 30 * sc}" x2="${x + 6 * sc}" y2="${y}" stroke="#4a3e34" stroke-width="${n2(8 * sc)}" stroke-linecap="round"/>` +
+          `<rect x="${n2(x - 14 * sc)}" y="${n2(y - 76 * sc)}" width="${n2(28 * sc)}" height="${n2(50 * sc)}" rx="${n2(8 * sc)}" fill="#7a6a52" stroke="${INK}" stroke-width="2"/>` +
+          `<circle cx="${x}" cy="${n2(y - 92 * sc)}" r="${n2(17 * sc)}" fill="#ecd0a8" stroke="${INK}" stroke-width="2"/><path d="M${n2(x - 17 * sc)},${n2(y - 96 * sc)} a${n2(17 * sc)},${n2(17 * sc)} 0 0 1 ${n2(34 * sc)},0Z" fill="#2a2228"/>` +
+          `<line x1="${n2(x + 10 * sc)}" y1="${n2(y - 60 * sc)}" x2="${n2(x + 30 * sc + sw)}" y2="${n2(y - 2)}" stroke="#a87a3e" stroke-width="${n2(4 * sc + 1)}"/><path d="M${n2(x + 22 * sc + sw)},${n2(y - 8 * sc)} l${n2(18 * sc)},0 l${n2(6 * sc)},${n2(10 * sc)} l${n2(-30 * sc)},0Z" fill="#d8b45e" stroke="${INK}" stroke-width="1.5"/>` +
+          `<circle cx="${n2(x + 40 * sc + sw * 2)}" cy="${n2(y - 6 * sc)}" r="${n2(8 * sc + Math.abs(sw))}" fill="#e8d0a8" opacity=".55"/>`;
+      }
+      s += `<rect x="1040" y="1060" width="320" height="340" fill="#ffb060" opacity=".12"/>`;
+      return s;
+    }
 
     function doors(open) {
       // two leaves hinged at the arch sides; `open` 0..1 swings them inward (foreshortened)
@@ -190,7 +299,8 @@
       update(t, o = {}) {
         const $ = id => document.getElementById(id);
         $('ex-doors').innerHTML = doors(o.gateOpen || 0);
-        $('ex-inside').setAttribute('opacity', o.gateOpen || 0);
+        $('ex-inside').setAttribute('opacity', Math.min(1, (o.gateOpen || 0) * 1.5));
+        if (o.gateOpen) $('ex-inside').innerHTML = insideView(t);
         $('ex-birds').setAttribute('transform', `translate(${(t * 22) % 400 - 100} ${Math.sin(t) * 6})`);
       },
       army,
@@ -244,7 +354,7 @@
     const leaves = Array.from({ length: 16 }, () => [rr(-200, 1300), rr(1100, 1900), rr(0, 6.28), rr(0.6, 1.4)]);
     return {
       origin: [540, 1100],
-      layers: [{ id: 'sky', depth: 0.15, svg: sky }, { id: 'far', depth: 0.5, svg: far }, { id: 'houses', depth: 0.85, svg: houses }, { id: 'ground', depth: 1, svg: ground }, { id: 'actors', depth: 1, svg: '' }, { id: 'near', depth: 1.4, svg: near }],
+      layers: [{ id: 'sky', depth: 0.15, svg: sky }, { id: 'far', depth: 0.5, svg: far }, { id: 'houses', depth: 1, svg: houses }, { id: 'ground', depth: 1, svg: ground }, { id: 'actors', depth: 1, svg: '' }, { id: 'near', depth: 1.4, svg: near }],
       update(t) {
         document.querySelectorAll('.st2-lantern').forEach((e, i) => e.setAttribute('transform', `rotate(${n2(Math.sin(t * 1.6 + i) * 4)} ${e.dataset.x} ${e.dataset.y})`));
         let s = '';
@@ -275,7 +385,7 @@
     wall += bricks(-800, 1300, 2700, 130, 61, '#a08e78') + `<rect x="-800" y="1300" width="2700" height="130" fill="none" stroke="${INK}" stroke-width="5"/>`;
     for (let x = -780; x < 1900; x += 150) wall += `<rect x="${x}" y="1220" width="90" height="84" fill="#a08e78" stroke="${INK}" stroke-width="5"/><rect x="${x + 6}" y="1226" width="14" height="72" fill="#d0c0a8" opacity=".5"/>`;
     // props on the wall: cushion, low table + guqin, incense burner
-    wall += `<ellipse cx="380" cy="1640" rx="150" ry="34" fill="#8a2a2a" stroke="${INK}" stroke-width="5"/><ellipse cx="380" cy="1630" rx="120" ry="20" fill="#a83a32"/>`;
+    wall += `<ellipse cx="440" cy="1640" rx="150" ry="34" fill="#8a2a2a" stroke="${INK}" stroke-width="5"/><ellipse cx="440" cy="1630" rx="120" ry="20" fill="#a83a32"/>`;
     wall += `<g id="wt-table"><rect x="560" y="1555" width="420" height="26" rx="6" fill="#5a2e1a" stroke="${INK}" stroke-width="5"/>` +
       `<path d="M585,1580 L600,1680 L620,1680 L612,1580Z M935,1580 L950,1680 L970,1680 L962,1580Z" fill="#4a2414" stroke="${INK}" stroke-width="4"/>` +
       P.woodGrain({ x: 562, y: 1557, w: 416, h: 22, seed: 5, knots: 1, color: '#2a1408', op: 0.35 }) + `</g>`;

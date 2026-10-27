@@ -346,6 +346,15 @@
       return cfg.props.map(p => Object.assign({ type: 'shape', z: 19 }, p, view === 'side' && p.sideZ != null ? { z: p.sideZ } : {}));
     }
 
+    const notSit = ctx => !(ctx.state && ctx.state.sit);
+    // Kneeling: the robe pools on the floor over folded legs (hips frame, ground ~61 below the hips).
+    const kneel = ctx => {
+      const g = 61, d = `M-78,-14 C-96,30 -92,${g} -66,${g} L156,${g} C184,${g} 190,${g - 30} 160,${g - 52} C120,-18 40,-26 -78,-14Z`;
+      return `<path d="${d}" fill="${C.cloth}" stroke="${INK}" stroke-width="7" stroke-linejoin="round"/>` +
+        `<path d="M-60,${g - 10} L150,${g - 10}" stroke="${C.trim}" stroke-width="14"/><path d="M-60,${g - 16} L150,${g - 16}" stroke="${C.sash || C.dots}" stroke-width="3"/>` +
+        `<path d="M-40,0 Q-30,30 -36,${g - 18} M30,-10 Q46,22 40,${g - 18} M100,8 Q120,30 112,${g - 18}" stroke="${C.clothDark}" stroke-width="4.5" fill="none" opacity=".6" stroke-linecap="round"/>` +
+        `<path d="M-70,-4 Q-84,30 -70,${g - 16}" stroke="${O.rim}" stroke-width="8" fill="none" opacity=".35"/>`;
+    };
     const faceDefaults = () => Object.assign(H.style === 'hood' ? { blush: 0 } : {}, cfg.faceDefaults);
 
     // ---------- views ----------
@@ -356,10 +365,10 @@
       return {
         name: cfg.name, view: 'front', ink: INK, light: cfg.light, bones: sk.bones, ik: sk.ik, dims: sk.dims, face: faceDefaults(),
         parts: [
-          { name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail },
-          { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
-          { name: 'shoeL', type: 'shape', bone: 'footL', z: 1, draw: shoe(-1) },
-          { name: 'shoeR', type: 'shape', bone: 'footR', z: 1, draw: shoe(1) },
+          { name: 'legL', type: 'tube', visible: notSit, bones: ['thighL', 'shinL'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail },
+          { name: 'legR', type: 'tube', visible: notSit, bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
+          { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: 1, draw: shoe(-1) },
+          { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1) },
           { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverFront },
           { name: 'handL', type: 'shape', bone: 'handL', z: 18, draw: hand },
           { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand },
@@ -380,17 +389,18 @@
         name: cfg.name, view: 'side', ink: INK, light: cfg.light, bones: sk.bones, ik: sk.ik, dims: sk.dims,
         face: Object.assign({ turn: 1 }, faceDefaults()),
         parts: [
-          far({ name: 'legL', type: 'tube', bones: ['thighL', 'shinL'], widths: legW, z: -2, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail }, C.pantsFar),
-          { name: 'shoeL', type: 'shape', bone: 'footL', z: -1, draw: shoe(1) },
+          far({ name: 'legL', type: 'tube', visible: notSit, bones: ['thighL', 'shinL'], widths: legW, z: -2, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail }, C.pantsFar),
+          { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: -1, draw: shoe(1) },
           { name: 'handL', type: 'shape', bone: 'handL', z: 3, draw: hand },
           far({ name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: robe ? [46, 50, 64] : [42, 40, 44], z: 4, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail }, C.clothFar),
-          { name: 'legR', type: 'tube', bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
-          { name: 'shoeR', type: 'shape', bone: 'footR', z: 1, draw: shoe(1) },
+          { name: 'legR', type: 'tube', visible: notSit, bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
+          { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1) },
           { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverSide },
           { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand },
           { name: 'sleeveR', type: 'tube', bones: ['upperArmR', 'lowerArmR'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveR', detail: sleeveDetail },
           headPart(),
           ...(H.style === 'long' ? [{ name: 'hairLong', type: 'shape', bone: 'head', frame: 90, z: 2, draw: longHair }] : []),
+          { name: 'kneel', type: 'shape', bone: 'hips', frame: 90, z: 11, visible: ctx => !!(ctx.state && ctx.state.sit), draw: kneel },
           ...propParts('side'),
         ],
       };
