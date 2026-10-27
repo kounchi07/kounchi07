@@ -25,7 +25,7 @@ const W = 1080, H = 1920;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H); renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.9;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -34,7 +34,7 @@ scene.background = new THREE.Color('#2a1a10');
 scene.fog = new THREE.Fog('#4a3020', 10, 22);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.35;
+scene.environmentIntensity = 0.3;
 const camera = new THREE.PerspectiveCamera(40, W / H, 0.05, 60);
 
 let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -70,16 +70,23 @@ function boards(ctx, w, h, base, dark, n, vertical = true) {
   }
 }
 const PAL = ['#d8483a', '#f2b23a', '#3a8ad0', '#4aa86a', '#c85a9a', '#efe2c0', '#2a6a7a', '#a8642a', '#e8783a'];
-const WORDS = ['COFFEE', 'TEA', 'SODA', 'STARCH', 'SPICE', 'SOAP', 'COCOA', 'PEPPER', 'OATS', 'TONIC', 'BLUING', 'MATCHES'];
-const lblCache = {};
-function labelMat(word, col) {
-  const k = word + col; if (lblCache[k]) return lblCache[k];
-  return (lblCache[k] = new THREE.MeshStandardMaterial({ roughness: 0.6, map: canvasTex(256, 256, (c, w, h) => {
-    c.fillStyle = col; c.fillRect(0, 0, w, h); c.fillStyle = '#f8eedc'; c.fillRect(16, 58, w - 32, 140);
-    c.strokeStyle = '#3a1a10'; c.lineWidth = 5; c.strokeRect(24, 66, w - 48, 124);
-    c.fillStyle = '#3a1a10'; c.font = 'bold 46px DejaVu Serif'; c.textAlign = 'center'; c.fillText(word, w / 2, 140);
-    c.font = 'bold 18px DejaVu Serif'; c.fillText('★ FINEST ★', w / 2, 174); c.fillStyle = 'rgba(0,0,0,.28)'; c.fillRect(0, 0, w, 12); c.fillRect(0, h - 12, w, 12);
-  }) }));
+const WORDS = ['COFFEE', 'TEA', 'SODA', 'STARCH', 'SPICE', 'SOAP', 'COCOA', 'PEPPER', 'OATS', 'TONIC', 'BLUING', 'MATCHES', 'MUSTARD', 'GINGER',
+  'CLOVES', 'LARD', 'SALT', 'SUGAR', 'MOLASSES', 'VINEGAR', 'CANDLES', 'RAISINS', 'CINNAMON', 'NUTMEG', 'LYE', 'HONEY', 'CRACKERS', 'BEANS', 'RICE', 'BISCUITS'];
+const BRANDS = ['ACME', 'EAGLE', 'STAR', 'LION', 'QUEEN', 'ROYAL', 'GOLD SEAL', 'PIONEER', 'LIBERTY', 'UNION', 'ARBUCKLE', 'SAUERS', 'QUEST', 'BALDWIN', 'CROWN', 'EMPIRE', 'MONARCH', 'OWL'];
+const INKS = ['#3a1a10', '#1a2a4a', '#5a1010', '#1a3a20'];
+// five label layouts so no two neighbouring products look alike
+function labelMat(word, col, brand = pick(BRANDS)) {
+  const lay = Math.floor(rnd() * 5), ink = pick(INKS), paper = pick(['#f8eedc', '#f2e2b8', '#fff6e6']);
+  return new THREE.MeshStandardMaterial({ roughness: 0.6, map: canvasTex(256, 256, (c, w, h) => {
+    c.fillStyle = col; c.fillRect(0, 0, w, h); c.textAlign = 'center'; const T = (str, size, y, f = ink) => { c.fillStyle = f; c.font = `bold ${size}px DejaVu Serif`; let sz = size; while (c.measureText(str).width > w - 40 && sz > 12) c.font = `bold ${--sz}px DejaVu Serif`; c.fillText(str, w / 2, y); };
+    if (lay === 0) { c.fillStyle = paper; c.fillRect(16, 58, w - 32, 140); c.strokeStyle = ink; c.lineWidth = 5; c.strokeRect(24, 66, w - 48, 124); T(brand, 20, 94); T(word, 46, 148); T('★ FINEST ★', 16, 178); }
+    else if (lay === 1) { c.fillStyle = paper; c.beginPath(); c.ellipse(w / 2, h / 2, 100, 74, 0, 0, 7); c.fill(); c.strokeStyle = ink; c.lineWidth = 6; c.stroke(); T(word, 40, h / 2 + 12); T(brand, 18, h / 2 - 34); T('PURE', 16, h / 2 + 46); }
+    else if (lay === 2) { c.fillStyle = paper; c.fillRect(0, 70, w, 116); c.fillStyle = ink; c.fillRect(0, 70, w, 10); c.fillRect(0, 176, w, 10); T(word, 44, 145); T(brand, 22, 50, paper); T('CO.', 18, 226, paper); }
+    else if (lay === 3) { c.save(); c.translate(w / 2, h / 2); c.rotate(-0.35); c.fillStyle = paper; c.fillRect(-w, -34, w * 2, 68); c.restore(); c.save(); c.translate(w / 2, h / 2); c.rotate(-0.35); T(word, 38, 13); c.restore(); T(brand, 20, 40, paper); }
+    else { c.fillStyle = paper; c.beginPath(); c.arc(w / 2, 96, 56, 0, 7); c.fill(); c.strokeStyle = ink; c.lineWidth = 5; c.stroke(); T(word[0], 64, 118); T(word, 34, 196, paper); T(brand, 16, 228, paper); }
+    c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, 0, w, 10); c.fillRect(0, h - 10, w, 10);
+    c.fillStyle = 'rgba(90,60,20,.12)'; for (let i = 0; i < 40; i++) c.fillRect(rr(0, w), rr(0, h), rr(2, 9), rr(2, 9));   // age spots
+  }) });
 }
 
 // ---------- materials ----------
@@ -95,7 +102,7 @@ const M = {
   ironDark: new THREE.MeshStandardMaterial({ color: '#2a2a30', metalness: 0.6, roughness: 0.45 }),
   brass: new THREE.MeshStandardMaterial({ color: '#e0b058', metalness: 0.9, roughness: 0.25 }),
   glass: new THREE.MeshPhysicalMaterial({ color: '#eaf8fa', transparent: true, opacity: 0.25, roughness: 0.04, clearcoat: 1, depthWrite: false }),
-  cream: new THREE.MeshStandardMaterial({ color: '#f4ead6', roughness: 0.4 }),
+  cream: new THREE.MeshStandardMaterial({ color: '#e6d8bc', roughness: 0.85 }),
   crock: new THREE.MeshStandardMaterial({ color: '#d8c8a8', roughness: 0.35 }),
   basket: new THREE.MeshStandardMaterial({ map: canvasTex(512, 128, (c, w, h) => { boards(c, w, h, '#c89a5a', '#6a4a24', 22); c.strokeStyle = '#5a3a1a'; c.lineWidth = 8; for (const y of [20, 64, 108]) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); } }), roughness: 0.9 }),
 };
@@ -115,16 +122,17 @@ outlined(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.3, ROOM.z1 - ROOM.z0), M.b
 const goods = new THREE.Group(); scene.add(goods);
 function bottle(x, y, z, g = goods) {
   const pts = [[0, 0], [0.05, 0], [0.055, 0.15], [0.035, 0.2], [0.018, 0.23], [0.018, 0.28], [0, 0.28]].map(([a, b]) => new THREE.Vector2(a, b));
-  const m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts, 14), new THREE.MeshPhysicalMaterial({ color: pick(['#2a7a4a', '#8a3a1a', '#2a5a9a', '#b8862a', '#6a2a6a']), transparent: true, opacity: 0.88, roughness: 0.08, clearcoat: 1 })), g);
+  const sh = pick([1, 1, 0.75, 1.3]), pts2 = pts.map(v => new THREE.Vector2(v.x * (sh < 1 ? 1.3 : 1), v.y * sh));
+  const m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts2, pick([14, 14, 4, 6])), new THREE.MeshPhysicalMaterial({ color: pick(['#2a7a4a', '#8a3a1a', '#2a5a9a', '#b8862a', '#6a2a6a']), transparent: true, opacity: 0.88, roughness: 0.08, clearcoat: 1 })), g);
   m.position.set(x, y, z);
-  const l = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.057, 0.07, 14, 1, true, 0, Math.PI), labelMat(pick(WORDS), '#efe2c0')), g, { ink: false }); l.position.set(x, y + 0.08, z); l.rotation.y = Math.PI / 2;
+  const l = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.057, 0.057, 0.07, 14, 1, true, 0, Math.PI), labelMat(pick(WORDS), '#efe2c0')), g, { ink: false }); l.position.set(x, y + 0.08 * sh, z); l.rotation.y = Math.PI / 2; l.scale.set(sh < 1 ? 1.3 : 1, 1, sh < 1 ? 1.3 : 1);
 }
 function tin(x, y, z, g = goods) {
-  const h = rr(0.16, 0.26), m = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, h, 18), labelMat(pick(WORDS), pick(PAL))), g); m.position.set(x, y + h / 2, z); m.rotation.y = Math.PI;
+  const h = rr(0.1, 0.28), r = rr(0.05, 0.09), m = outlined(new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 18), labelMat(pick(WORDS), pick(PAL))), g); m.position.set(x, y + h / 2, z); m.rotation.y = Math.PI + rr(-0.3, 0.3);
 }
 function box(x, y, z, g = goods) {
   const w = rr(0.14, 0.22), h = rr(0.18, 0.3), col = pick(PAL), side = new THREE.MeshStandardMaterial({ color: col, roughness: 0.7 });
-  const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 2, 0.01), [labelMat(pick(WORDS), col), side, side, side, side, side]), g); m.position.set(x, y + h / 2, z);
+  const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 2, 0.01), [labelMat(pick(WORDS), col), side, side, side, side, side]), g); m.position.set(x, y + h / 2, z); m.rotation.y = rr(-0.3, 0.3);
 }
 function jar(x, y, z, g = goods) {
   const gr = new THREE.Group(); gr.position.set(x, y, z); g.add(gr);
@@ -135,18 +143,44 @@ function jar(x, y, z, g = goods) {
 }
 function crock(x, y, z, g = goods) {
   const pts = [[0, 0], [0.07, 0], [0.09, 0.08], [0.085, 0.16], [0.06, 0.2], [0.06, 0.22], [0, 0.22]].map(([a, b]) => new THREE.Vector2(a, b));
-  const m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts, 18), M.crock), g); m.position.set(x, y, z);
-  const band = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.008, 6, 20), new THREE.MeshStandardMaterial({ color: '#3a5a9a' })); band.rotation.x = Math.PI / 2; band.position.set(x, y + 0.11, z); g.add(band);
+  const k = rr(0.75, 1.35), m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts, 18), new THREE.MeshStandardMaterial({ color: pick(['#d8c8a8', '#8a5a3a', '#c8b48a', '#e8dcc4', '#5a6a4a']), roughness: 0.35 })), g); m.position.set(x, y, z); m.scale.setScalar(k);
+  if (rnd() < 0.7) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.008, 6, 20), new THREE.MeshStandardMaterial({ color: pick(['#3a5a9a', '#8a2a1a', '#2a2a2a']) })); band.rotation.x = Math.PI / 2; band.position.set(x, y + 0.11 * k, z); band.scale.setScalar(k); g.add(band); }
 }
-const MAKERS = [bottle, bottle, tin, tin, box, jar, crock];
+function sack(x, y, z, g = goods) {
+  const pts = [[0, 0], [0.08, 0], [0.1, 0.06], [0.1, 0.16], [0.07, 0.22], [0.03, 0.25], [0.04, 0.29], [0, 0.29]].map(([a, b]) => new THREE.Vector2(a, b));
+  const col = pick(['#c8a878', '#b8946a', '#d8c098']);
+  const m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts, 9), new THREE.MeshStandardMaterial({ color: col, roughness: 1, flatShading: true })), g); m.position.set(x, y, z); m.rotation.y = rr(0, 6);
+  const t = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 5, 12), M.ironDark); t.rotation.x = Math.PI / 2; t.position.set(x, y + 0.245, z); g.add(t);
+}
+function plates(x, y, z, g = goods) {
+  const n = 3 + Math.floor(rnd() * 5), col = pick(['#f4ead6', '#e8eef4']), rim = new THREE.MeshStandardMaterial({ color: pick(['#3a5a9a', '#2a7a5a', '#8a2a2a']) });
+  for (let i = 0; i < n; i++) { const p = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.018, 20), new THREE.MeshStandardMaterial({ color: col, roughness: 0.25 })), g, { ink: i === n - 1 }); p.position.set(x, y + 0.01 + i * 0.02, z); }
+  const r = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.004, 4, 24), rim); r.rotation.x = Math.PI / 2; r.position.set(x, y + 0.02 + (n - 1) * 0.02, z); g.add(r);
+}
+function bolt(x, y, z, g = goods) {
+  const a = pick(PAL), b = pick(['#f4ead6', '#2a2a3a', pick(PAL)]), check = rnd() < 0.5;
+  const tex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = a; c.fillRect(0, 0, w, h); c.fillStyle = b; for (let i = 0; i < 8; i += 2) { c.globalAlpha = check ? 0.55 : 1; c.fillRect(i * 8, 0, 6, h); if (check) c.fillRect(0, i * 8, w, 6); } });
+  const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.3, rr(0.08, 0.14), 0.16, 2, 0.03), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 })), g); m.position.set(x, y + 0.06, z); m.rotation.y = rr(-0.15, 0.15);
+}
+function stack(x, y, z, g = goods) {
+  const col = pick(PAL), word = pick(WORDS); let yy = y;
+  for (let i = 0, n = 2 + Math.floor(rnd() * 2); i < n; i++) { const h = 0.07, w = 0.16 - i * 0.015; const m = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.14, h, w, 1, 0.006), [labelMat(word, col), new THREE.MeshStandardMaterial({ color: col })]), g); m.position.set(x, yy + h / 2, z); m.rotation.y = rr(-0.2, 0.2); yy += h; }
+}
+function pitcher(x, y, z, g = goods) {
+  const pts = [[0, 0], [0.06, 0], [0.075, 0.08], [0.06, 0.16], [0.055, 0.2], [0.07, 0.23], [0.065, 0.23]].map(([a, b]) => new THREE.Vector2(a, b));
+  const m = outlined(new THREE.Mesh(new THREE.LatheGeometry(pts, 18), new THREE.MeshStandardMaterial({ color: pick(['#f4f0e6', '#7aa8c8', '#c8d8b8']), roughness: 0.2, side: THREE.DoubleSide })), g); m.position.set(x, y, z);
+  const hd = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.01, 6, 12, Math.PI), m.material); hd.position.set(x - 0.07, y + 0.13, z); hd.rotation.z = Math.PI / 2; g.add(hd);
+}
+const MAKERS = [bottle, bottle, tin, tin, tin, box, box, jar, crock, sack, plates, bolt, stack, pitcher];
 // tall shelving on the left wall (uprights, 6 shelves, crown boxes on top)
 for (let z = 3.6; z > -6.0; z -= 1.35) outlined(new THREE.Mesh(new THREE.BoxGeometry(0.42, 3.2, 0.06), M.shelf), scene).position.set(ROOM.x0 + 0.21, 1.6, z);
+let lastMk = null;
 for (let s = 0; s < 6; s++) {
   const y = 0.45 + s * 0.5;
   outlined(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 9.6), M.shelf), scene).position.set(ROOM.x0 + 0.21, y, -1.2);
-  for (let z = 3.5; z > -5.9; z -= rr(0.17, 0.24)) MAKERS[Math.floor(rnd() * MAKERS.length)](ROOM.x0 + 0.22 + rr(-0.04, 0.04), y + 0.02, z);
+  for (const [dx, dy] of [[-0.1, 0.0], [0.04, 0.0]]) for (let z = 3.5; z > -5.9; z -= rr(0.12, 0.17)) { let mk; do mk = pick(MAKERS); while (mk === lastMk); lastMk = mk; const run = mk === tin || mk === box ? 1 + Math.floor(rnd() * 3) : 1; for (let i = 0; i < run && z > -5.9; i++, z -= 0.17) mk(ROOM.x0 + 0.22 + dx + rr(-0.02, 0.02), y + 0.02 + dy, z); }
 }
-for (let z = 3.2; z > -5.8; z -= rr(0.4, 0.7)) { const h = rr(0.25, 0.4), col = pick(PAL); outlined(new THREE.Mesh(new RoundedBoxGeometry(0.36, h, 0.32, 2, 0.015), [labelMat(pick(['SAUERS', 'QUEST', 'ARBUCKLE', 'LION']), col), new THREE.MeshStandardMaterial({ color: col })]), scene).position.set(ROOM.x0 + 0.22, 3.22 + h / 2, z); }
+for (let z = 3.2; z > -5.8; z -= rr(0.4, 0.7)) { const h = rr(0.25, 0.4), col = pick(PAL); outlined(new THREE.Mesh(new RoundedBoxGeometry(0.36, h, 0.32, 2, 0.015), [labelMat(pick(WORDS), col), new THREE.MeshStandardMaterial({ color: col })]), scene).position.set(ROOM.x0 + 0.22, 3.22 + h / 2, z); }
 
 // ---------- back wall: window, pigeonholes, notices, churn, lantern ----------
 const win = new THREE.Group(); win.position.set(2.4, 1.85, ROOM.z0 + 0.02); scene.add(win);
@@ -199,23 +233,23 @@ function basket(x, z, kind) {
 basket(0.0, 3.0, 'eggs'); basket(0.75, 3.5, 'potatoes');
 
 // ---------- lights: lots of it ----------
-scene.add(new THREE.HemisphereLight('#ffe8c8', '#5a3a20', 0.9));
-const sun = new THREE.DirectionalLight('#fff0d0', 5.5); sun.position.set(4.5, 5.5, -11); sun.target.position.set(0.5, 0, 0.5);
+scene.add(new THREE.HemisphereLight('#ffe8c8', '#5a3a20', 0.8));
+const sun = new THREE.DirectionalLight('#fff0d0', 3.0); sun.position.set(4.5, 5.5, -11); sun.target.position.set(0.5, 0, 0.5);
 sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 30 }); sun.shadow.bias = -0.0005; sun.shadow.radius = 5;
 scene.add(sun, sun.target);
-const fill = new THREE.PointLight('#ffcf9a', 7, 9, 1.4); fill.position.set(2.0, 2.6, 2.2); scene.add(fill);       // warm bounce from the front
-const bounce = new THREE.PointLight('#ffb878', 3, 6, 1.5); bounce.position.set(-1.8, 0.6, 0.5); scene.add(bounce);   // floor bounce behind the counter
+const fill = new THREE.PointLight('#ffcf9a', 3.5, 9, 1.4); fill.position.set(2.0, 2.6, 2.2); scene.add(fill);       // warm bounce from the front
+const bounce = new THREE.PointLight('#ffb878', 2, 6, 1.5); bounce.position.set(-1.8, 0.6, 0.5); scene.add(bounce);   // floor bounce behind the counter
 const lantern = new THREE.Group(); lantern.position.set(1.4, 2.7, -2.8); scene.add(lantern);
 outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.9, 6), M.ironDark), lantern).position.y = 0.6;
 outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.06, 14), M.ironDark), lantern).position.y = 0.16;
-const flame = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), new THREE.MeshStandardMaterial({ color: '#fff0c0', emissive: '#ffbf60', emissiveIntensity: 4 })); lantern.add(flame);
+const flame = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), new THREE.MeshStandardMaterial({ color: '#fff0c0', emissive: '#ffbf60', emissiveIntensity: 2.2 })); lantern.add(flame);
 outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.22, 14, 1, true), M.glass), lantern, { cast: false });
-const lanternLight = new THREE.PointLight('#ffb050', 5, 7, 1.5); lantern.add(lanternLight);
+const lanternLight = new THREE.PointLight('#ffb050', 3, 7, 1.5); lantern.add(lanternLight);
 // light shaft through the window + dust
-const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.6, 9, 4, 1, true), new THREE.MeshBasicMaterial({ color: '#fff2cc', transparent: true, opacity: 0.045, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.6, 9, 4, 1, true), new THREE.MeshBasicMaterial({ color: '#fff2cc', transparent: true, opacity: 0.02, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
 shaft.position.set(1.4, 1.4, -2.0); shaft.rotation.set(-0.75, 0.35, 0.2); scene.add(shaft);
 const dg = new THREE.BufferGeometry(), dp = []; for (let i = 0; i < 500; i++) dp.push(rr(-1, 3.5), rr(0.2, 3.2), rr(-5.5, 2)); dg.setAttribute('position', new THREE.Float32BufferAttribute(dp, 3));
-const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#fff4d0', size: 0.016, transparent: true, opacity: 0.8, depthWrite: false })); scene.add(dust);
+const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#fff4d0', size: 0.014, transparent: true, opacity: 0.45, depthWrite: false })); scene.add(dust);
 
 // ---------- the 2D clerk, drawn by Rig2D into a texture standing in the room ----------
 const CW = 1024, CH = 2048;
@@ -237,32 +271,46 @@ function drawClerk(t, state) {
 // ---------- post: bloom + warm grade + vignette ----------
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.4, 0.55, 0.88));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.16, 0.4, 0.96));
 composer.addPass(new ShaderPass({ uniforms: { tDiffuse: { value: null } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
   fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); vec2 d = vUv - .5; float v = smoothstep(.9, .3, length(d*vec2(1.,.72))); c.rgb *= mix(.7, 1., v); float l = dot(c.rgb, vec3(.3,.59,.11)); c.rgb = mix(vec3(l), c.rgb, 1.12); c.rgb = mix(c.rgb, c.rgb*vec3(1.05,1.0,.92), .5); gl_FragColor = c; }' }));
 composer.addPass(new OutputPass());
 
-// ---------- animation (10 s) ----------
-const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
-const lerp = (a, b, k) => a + (b - a) * k;
-const CRANK = 5.2, GRIN = 7.4;
+// ---------- animation (10 s, fast cut: six shots, each a quick eased move) ----------
+const clamp = x => x < 0 ? 0 : x > 1 ? 1 : x;
+const out3 = x => 1 - Math.pow(1 - clamp(x), 3), out5 = x => 1 - Math.pow(1 - clamp(x), 5);
+const V3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+const FACE = [-1.95, 1.62, 0.15], GRIND = [-0.95, 1.36, -0.55], POSTER = [3.75, 2.0, -6.18];
+//   t1: shot end | cam from -> to | look from -> to | ease
+const SHOTS = [
+  { t1: 1.6, c0: [3.4, 2.7, 4.4], c1: [1.9, 1.85, 2.6], l0: [-1.6, 1.0, -1.8], l1: [-1.9, 1.4, -0.4], e: out3 },          // fly into the store
+  { t1: 2.9, c0: [0.45, 1.6, 0.95], c1: [0.1, 1.5, 0.45], l0: GRIND, l1: GRIND, e: out5 },                                   // insert: grinder spinning
+  { t1: 4.4, c0: [-0.75, 2.15, -0.6], c1: [-0.75, 2.0, -2.5], l0: [-3.0, 1.85, -1.5], l1: [-3.0, 1.7, -3.4], e: out3 },            // whip along the shelves
+  { t1: 6.6, c0: [0.9, 1.6, 2.2], c1: [0.35, 1.6, 1.55], l0: [-1.95, 1.45, 0.15], l1: FACE, e: out3 },                       // clerk: smug, then worried
+  { t1: 8.5, c0: [0.1, 1.64, 1.25], c1: [-0.55, 1.66, 0.8], l0: FACE, l1: FACE, e: out5 },                                   // snap-zoom: crazy grin
+  { t1: 10, c0: [2.7, 2.0, -4.0], c1: [3.25, 2.05, -5.0], l0: POSTER, l1: POSTER, e: out5 },                                 // punchline: the REWARD poster
+];
+window.CUT_TIMES = SHOTS.slice(0, -1).map(s => s.t1);
+const TAP = 5.5, WORRY = 5.9, GRIN = 6.6;
 window.DURATION = 10;
 window.render = async function (t) {
-  // camera: slow push down the aisle toward the clerk, gentle drift
-  const k = ease(t / 10);
-  camera.position.set(lerp(2.4, 0.7, k) + Math.sin(t * 0.6) * 0.03, lerp(1.85, 1.6, k) + Math.sin(t * 0.8) * 0.015, lerp(4.4, 2.1, k));
-  camera.lookAt(lerp(-1.6, -1.95, k), lerp(1.35, 1.5, k), lerp(-0.7, 0.15, k));
-  // clerk: smug look at camera, taps the ledger, then grins
-  const crank = t > CRANK && t < GRIN ? 1 : 0, ang = crank * (t - CRANK) * 7;
-  const face = t < 2 ? { lookX: -0.6, mouthSmile: 0.2 } : t < CRANK ? EX.smugBar : t < GRIN ? Object.assign({}, EX.worried, { lookX: 0.8, sweat: 0 }) : EX.crazy;
-  const reach = crank ? { armR: { x: 150, y: -340 - Math.abs(Math.sin(ang)) * 40, weight: 1 } } : {};   // taps the ledger
+  let i = 0; while (i < SHOTS.length - 1 && t >= SHOTS[i].t1) i++;
+  const S = SHOTS[i], t0 = i ? SHOTS[i - 1].t1 : 0, k = S.e((t - t0) / (S.t1 - t0));
+  const c = V3(S.c0, S.c1, k), l = V3(S.l0, S.l1, k);
+  const kick = Math.exp(-(t - t0) * 9) * 0.02;                  // small camera kick right after each cut
+  camera.position.set(c[0] + Math.sin(t * 41) * kick, c[1] + Math.cos(t * 37) * kick, c[2]);
+  camera.lookAt(...l);
+  // clerk: smug at camera, taps the ledger, worried, then a crazy grin
+  const face = t < 1.6 ? { lookX: -0.6, mouthSmile: 0.2 } : t < WORRY ? EX.smugBar : t < GRIN ? Object.assign({}, EX.worried, { lookX: 0.8, sweat: 0 }) : EX.crazy;
+  const reach = t > TAP && t < GRIN ? { armR: { x: 150, y: -340 - Math.abs(Math.sin((t - TAP) * 12)) * 40, weight: 1 } } : {};
   await drawClerk(t, { ik: Object.assign({}, FEET, reach), face });
   card.position.set(-1.95, 1.1, 0.15);
   card.lookAt(camera.position.x, 1.1, camera.position.z);
-  // grinder wheels turn while he cranks; lantern flickers; dust drifts
-  for (const w of WHEELS.slice(0, 2)) w.rotation.z = -t * 0.4;
-  lanternLight.intensity = 5 + Math.sin(t * 13) * 0.4 + Math.sin(t * 29) * 0.25;
+  // grinder spins hard in its insert, idles otherwise; lantern flickers; dust drifts
+  const spin = t < 1.6 ? t * 0.4 : t < 2.9 ? 0.64 + (t - 1.6) * 9 : 12.3 + (t - 2.9) * 0.4;
+  for (const w of WHEELS.slice(0, 2)) w.rotation.z = -spin;
+  lanternLight.intensity = 3 + Math.sin(t * 13) * 0.4 + Math.sin(t * 29) * 0.25;
   dust.rotation.y = t * 0.015; dust.position.y = Math.sin(t * 0.25) * 0.04;
   composer.render();
 };

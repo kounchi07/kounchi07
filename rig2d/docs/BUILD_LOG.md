@@ -279,6 +279,27 @@ but in cartoon style... the character should be our normal character... a lot of
   then a crazy grin. Render: `node tools/render.js 3d/woodside.html out/wsf --serve --mp4 out/woodside_test.mp4`
   (run from `rig2d/`, about 7 s per frame per worker on CPU).
 
+**Feedback on v1:** "premium enough... looks clean, the kind of clean I want", but the light was too much, it felt
+slow, and there was a lot of repetition.
+
+**v2:**
+- Light toned down: sun 5.5 → 3.0, fill and lantern roughly halved, bloom 0.4 → 0.16 (threshold 0.96), exposure 0.9,
+  fainter light shaft and dust, matte ledger paper (it was blowing out).
+- No repetition: 30 product words × 18 brands × 5 label layouts (panel, oval, band, diagonal sash, big initial),
+  three ink colors, age spots; 11 kinds of goods (bottles in 4 shapes, tins of random size, boxes, box stacks,
+  candy jars, crocks in 5 glazes and sizes, burlap sacks, plate stacks, cloth bolts in stripes or checks,
+  pitchers); never the same kind twice in a row; two rows deep so the shelves read full.
+- Fast pace: six shots in 10 s (fly-in, grinder insert, shelf whip, clerk, snap-zoom on the grin, punchline
+  cut to the REWARD poster), each a short eased move with a small camera kick after the cut.
+- Sound: whoosh on every cut, a ratchet under the grinder, ledger taps, a pop on the grin, a sting on the poster.
+
+## Style rules (from the user)
+
+- Fast paced, never slow: a new shot every 1–2 s, quick moves, sound on every cut.
+- Clean and premium, light that looks real but never overdone.
+- No visible repetition in a set: vary kind, size, label and color of everything.
+- This look is the baseline, not the ceiling: keep raising detail in later videos.
+
 ## Next steps
 
 - Package the system for sale.
