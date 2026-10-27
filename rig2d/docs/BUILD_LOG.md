@@ -330,9 +330,23 @@ props must follow real life, drawn in our cartoon-3D style.
   number; 16 real product types × 12 brands, up to 24 designs per kind.
 - Review page `3d/props_sheet.html` shows each prop large; the beat test now uses all of them.
 
+## Step 12: magnifier push-in + faster camera (`3d/beat10.html`)
+
+**Feedback:** add the magnifier push-in for details; the camera and movement were too slow.
+
+- Magnifying glass built from the real thing (brass bezel, glass lens with edge falloff and glare, ferrule, turned
+  wooden handle with an end cap). A second camera at the same eye renders the detail with the lens's own view angle
+  divided by the zoom (2.4–2.6x) into the lens, so the lens truly magnifies. It slides in from the bottom-right
+  with a hard ease-out and leaves fast. Used on the "$1.00" tag (while the owner reacts) and on the note lying on
+  the day book (just before it flies to the pocket).
+- Camera: 10 shots in 10.45 s (was 6), about 1 s each. Every move covers real distance with a hard ease-out
+  (fast start, then settles), a small kick after each punch-in, and a shake on the "$1" stamp. One dissolve.
+- Sound: a whoosh on every cut and a glass swish when the magnifier slides in.
+
 ## Style rules (from the user)
 
-- Fast paced, never slow: a new shot every 1–2 s, quick moves, sound on every cut.
+- Fast paced, never slow: a new shot about every 1 s, hard ease-out moves that cover real distance, sound on every cut.
+- Push in or use a magnifier whenever a detail matters (prices, serials, writing).
 - Clean and premium, light that looks real but never overdone.
 - No visible repetition in a set: vary kind, size, label and color of everything.
 - This look is the baseline, not the ceiling: keep raising detail in later videos.
