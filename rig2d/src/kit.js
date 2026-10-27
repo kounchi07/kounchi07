@@ -56,6 +56,8 @@
       props: cfgIn.props || [],
       faceDefaults: cfgIn.faceDefaults || {},
       straightLegs: cfgIn.straightLegs,
+      style: cfgIn.style || 'detailed',   // 'simple' = Ricks Clips-style body (pill torso, stick limbs)
+      limbs: cfgIn.limbs || '#2a1d18',    // simple style: color of the stick arms and legs
     };
     const INK = cfg.ink, O = cfg.outfit;
     const C = {
@@ -162,6 +164,7 @@
 
     const handBlob = R2.Blob({ cx: 12, cy: 0, rx: 21, ry: 18, seed: (cfg.head.seed || 1) + 4, wobble: 0.1 });
     const hand = () => `<path d="${handBlob.path}" fill="${C.skin}" stroke="${INK}" stroke-width="5"/><path d="M14,-10 Q24,-4 22,8" stroke="${C.skinShade}" stroke-width="5" fill="none" opacity=".7" stroke-linecap="round"/>`;
+    const handLight = { d: handBlob.path, c: [12, 0], r: 24, line: 5 };
     const shoe = sign => () => `<g transform="scale(1 ${sign})"><rect x="-22" y="8" width="78" height="11" rx="5" fill="${C.sole}" stroke="${INK}" stroke-width="4"/>` +
       `<path d="M-20,10 C-22,-10 -4,-16 10,-15 C28,-13 42,-3 52,2 Q62,0 60,-8 Q66,2 58,10 Z" fill="${C.shoe}" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>` +
       `<path d="M2,-12 Q14,-2 26,-6" stroke="${lt(C.shoe, 0.25)}" stroke-width="3" fill="none"/></g>`;
@@ -372,8 +375,8 @@
           { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: 1, draw: shoe(-1) },
           { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1) },
           { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverFront },
-          { name: 'handL', type: 'shape', bone: 'handL', z: 18, draw: hand, skin: true },
-          { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand, skin: true },
+          { name: 'handL', type: 'shape', bone: 'handL', z: 18, draw: hand, skin: true, lightShape: handLight },
+          { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand, skin: true, lightShape: handLight },
           { name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail },
           { name: 'sleeveR', type: 'tube', bones: ['upperArmR', 'lowerArmR'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveR', detail: sleeveDetail },
           headPart(),
@@ -394,12 +397,12 @@
         parts: [
           far({ name: 'legL', type: 'tube', visible: notSit, bones: ['thighL', 'shinL'], widths: legW, z: -2, line: 5, capEnd: 'flat', smooth: false, clipId: 'legL', detail: legDetail }, C.pantsFar),
           { name: 'shoeL', type: 'shape', visible: notSit, bone: 'footL', z: -1, draw: shoe(1) },
-          { name: 'handL', type: 'shape', bone: 'handL', z: 3, draw: hand, skin: true },
+          { name: 'handL', type: 'shape', bone: 'handL', z: 3, draw: hand, skin: true, lightShape: handLight },
           far({ name: 'sleeveL', type: 'tube', bones: ['upperArmL', 'lowerArmL'], widths: robe ? [46, 50, 64] : [42, 40, 44], z: 4, line: 6, capEnd: 'flat', clipId: 'sleeveL', detail: sleeveDetail }, C.clothFar),
           { name: 'legR', type: 'tube', visible: notSit, bones: ['thighR', 'shinR'], widths: legW, fill: C.pants, z: 0, line: 5, capEnd: 'flat', smooth: false, clipId: 'legR', detail: legDetail },
           { name: 'shoeR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: shoe(1) },
           { name: 'torso', type: 'tube', bones: ['hips', 'chest', 'neck'], extendStart: ctx => hang * (1 - 0.72 * (ctx.state.sit || 0)), widths: torsoW, fill: C.cloth, z: 10, line: 7, capStart: 'flat', clipId: 'torso', detail: torsoDetail, over: torsoOverSide },
-          { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand, skin: true },
+          { name: 'handR', type: 'shape', bone: 'handR', z: 18, draw: hand, skin: true, lightShape: handLight },
           { name: 'sleeveR', type: 'tube', bones: ['upperArmR', 'lowerArmR'], widths: robe ? [50, 52, 68] : [46, 44, 48], fill: C.cloth, z: 20, line: 6, capEnd: 'flat', clipId: 'sleeveR', detail: sleeveDetail },
           headPart(),
           ...(H.style === 'long' ? [{ name: 'hairLong', type: 'shape', bone: 'head', frame: 90, z: 2, draw: longHair }] : []),
@@ -409,7 +412,75 @@
       };
     }
 
-    const specFn = (opts = {}) => (opts.view === 'side' ? side() : front());
+    // ---------- simple style (study §2): pill torso, stick limbs with straight segments, ball hands, L feet ----------
+    const SIMPLE_BODY = { thigh: 135, shin: 130, spine: 72, chest: 96, neck: 8, upperArm: 82, lowerArm: 76, hand: 18, foot: 30, shoulderW: 58, shoulderY: 0.78, hipW: 34 };
+    const pillW = O.width || 235, LIMB = cfg.limbs, limbHi = lt(LIMB, 0.35);
+    const pillDetail = (geo, ctx) => shade(geo, ctx, 0.3, 0.35);
+    // flat clothing marks on the pill: tie, pocket, pen, badge (outfit.tie / pocket / pen / badge)
+    const pillMarks = side => geo => {
+      let s = '';
+      const cx = side ? 0.35 : 0;
+      if (O.tie) {   // starts under the chin (the head overlaps the top of the pill) and hangs to mid-belly
+        const d = `M${pt(geo.at(0.86, cx - 0.06))} L${pt(geo.at(0.86, cx + 0.06))} L${pt(geo.at(0.36, cx + 0.085))} L${pt(geo.at(0.28, cx))} L${pt(geo.at(0.36, cx - 0.085))}Z`;
+        s += `<path d="${d}" fill="${O.tie}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`;
+        for (let u = 0.8; u > 0.38; u -= 0.08) s += `<path d="M${pt(geo.at(u, cx - 0.065))} L${pt(geo.at(u - 0.045, cx + 0.065))}" stroke="${lt(O.tie, 0.35)}" stroke-width="3"/>`;
+        s += `<path d="M${pt(geo.at(0.9, cx - 0.09))} L${pt(geo.at(0.82, cx))} L${pt(geo.at(0.9, cx + 0.09))}" fill="${O.tie}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`;
+      }
+      if (O.pocket && !side) {
+        const a = geo.at(0.74, 0.36), b = geo.at(0.58, 0.72);
+        s += `<rect x="${n2(Math.min(a[0], b[0]))}" y="${n2(Math.min(a[1], b[1]))}" width="${n2(Math.abs(b[0] - a[0]))}" height="${n2(Math.abs(b[1] - a[1]))}" fill="none" stroke="${dk(O.color, 0.35)}" stroke-width="4"/>`;
+        if (O.pen) { const q = geo.at(0.74, 0.46); s += `<rect x="${n2(q[0] - 4)}" y="${n2(q[1] - 30)}" width="8" height="36" rx="3" fill="${O.pen}" stroke="${INK}" stroke-width="2"/>`; }
+      }
+      if (O.badge) { const q = geo.at(0.74, side ? 0.6 : -0.5); s += `<circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="13" fill="${O.badge}" stroke="${INK}" stroke-width="3"/><circle cx="${n2(q[0] - 4)}" cy="${n2(q[1] - 4)}" r="4" fill="#fff" opacity=".7"/>`; }
+      return s;
+    };
+    const limb = (name, bones, w, z, fill) => ({ name, type: 'tube', bones, widths: [w, w, w], fill: fill || LIMB, z, line: 3, smooth: false, capStart: 'round', capEnd: 'round',
+      over: geo => `<path d="${geo.line([[0.04, -0.15], [0.5, -0.15], [0.96, -0.15]])}" stroke="${limbHi}" stroke-width="2.5" fill="none" opacity=".55"/>` });
+    const footL = () => `<path d="M-4,0 L30,0" stroke="${INK}" stroke-width="15" stroke-linecap="round"/><path d="M-4,0 L30,0" stroke="${LIMB}" stroke-width="9" stroke-linecap="round"/>`;
+    const ballLight = { d: 'M-9,0 A17,17 0 1,0 25,0 A17,17 0 1,0 -9,0Z', c: [8, 0], r: 18, line: 3 };
+    const ball = () => `<circle cx="8" cy="0" r="17" fill="${LIMB}" stroke="${INK}" stroke-width="3"/><circle cx="3" cy="-6" r="5" fill="${limbHi}" opacity=".5"/>`;
+    function simpleFront() {
+      const sk = R2.biped(Object.assign({}, SIMPLE_BODY, cfg.body));
+      if (cfg.straightLegs !== false) { sk.ik.legL.rigid = true; sk.ik.legR.rigid = true; }
+      return {
+        name: cfg.name, view: 'front', ink: INK, light: cfg.light, bones: sk.bones, ik: sk.ik, dims: sk.dims, face: faceDefaults(),
+        parts: [
+          Object.assign(limb('legL', ['thighL', 'shinL'], 15, 0), { visible: notSit }),
+          Object.assign(limb('legR', ['thighR', 'shinR'], 15, 0), { visible: notSit }),
+          { name: 'footL', type: 'shape', visible: notSit, bone: 'footL', z: 1, draw: footL },
+          { name: 'footR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: footL },
+          { name: 'torso', type: 'tube', bones: ['hips', 'chest'], extendStart: 34, extendEnd: 18, widths: [pillW * 0.8, pillW, pillW * 0.98, pillW * 0.78], fill: C.cloth, z: 10, line: 7, clipId: 'torso', detail: pillDetail, over: pillMarks(false) },
+          limb('armL', ['upperArmL', 'lowerArmL'], 14, 20), limb('armR', ['upperArmR', 'lowerArmR'], 14, 20),
+          { name: 'handL', type: 'shape', bone: 'handL', z: 21, draw: ball, lightShape: ballLight }, { name: 'handR', type: 'shape', bone: 'handR', z: 21, draw: ball, lightShape: ballLight },
+          headPart(),
+          ...(H.style === 'long' ? [{ name: 'hairLong', type: 'shape', bone: 'head', frame: 90, z: 5, draw: longHair }] : []),
+          ...propParts('front'),
+        ],
+      };
+    }
+    function simpleSide() {
+      const sk = R2.bipedSide(Object.assign({}, SIMPLE_BODY, cfg.body));
+      if (cfg.straightLegs !== false) { sk.ik.legL.rigid = true; sk.ik.legR.rigid = true; }
+      const far = dk(LIMB, 0.3);
+      return {
+        name: cfg.name, view: 'side', ink: INK, light: cfg.light, bones: sk.bones, ik: sk.ik, dims: sk.dims,
+        face: Object.assign({ turn: 1 }, faceDefaults()),
+        parts: [
+          Object.assign(limb('legL', ['thighL', 'shinL'], 15, -2, far), { visible: notSit }),
+          { name: 'footL', type: 'shape', visible: notSit, bone: 'footL', z: -1, draw: footL },
+          limb('armL', ['upperArmL', 'lowerArmL'], 14, 3, far), { name: 'handL', type: 'shape', bone: 'handL', z: 4, draw: ball, lightShape: ballLight },
+          Object.assign(limb('legR', ['thighR', 'shinR'], 15, 0), { visible: notSit }),
+          { name: 'footR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: footL },
+          { name: 'torso', type: 'tube', bones: ['hips', 'chest'], extendStart: 34, extendEnd: 18, widths: [pillW * 0.66, pillW * 0.8, pillW * 0.78, pillW * 0.62], fill: C.cloth, z: 10, line: 7, clipId: 'torso', detail: pillDetail, over: pillMarks(true) },
+          limb('armR', ['upperArmR', 'lowerArmR'], 14, 20), { name: 'handR', type: 'shape', bone: 'handR', z: 21, draw: ball, lightShape: ballLight },
+          headPart(),
+          ...(H.style === 'long' ? [{ name: 'hairLong', type: 'shape', bone: 'head', frame: 90, z: 2, draw: longHair }] : []),
+          ...propParts('side'),
+        ],
+      };
+    }
+
+    const specFn = (opts = {}) => cfg.style === 'simple' ? (opts.view === 'side' ? simpleSide() : simpleFront()) : (opts.view === 'side' ? side() : front());
     specFn.config = cfg;
     specFn.colors = C;
     return specFn;

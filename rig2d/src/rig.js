@@ -369,14 +369,47 @@
     mouthY: 0.42, mouthW: 0.13, blushColor: '#f19a8a', mouthColor: '#5a1f22', tongueColor: '#e0646a',
   };
 
+  // Scene light on one body part (from Light via ctx.lit.body): its own outline gets a multiplied gradient
+  // (light color on the lit side -> shade on the far side, dimmed at night), a screen glow on the lit edge and a
+  // rim just inside the outline. (dx, dy) is the light direction in the part's local space, c/r its center/radius.
+  function partLight(ctx, id, d, c, r, dx, dy, line) {
+    const Lt = ctx.lit, B = Lt.body;
+    if (!B) return { svg: '', defs: '' };
+    const a = [c[0] + dx * r, c[1] + dy * r], b = [c[0] - dx * r, c[1] - dy * r];
+    const lin = (gid, p1, p2, stops) => `<linearGradient id="${id}-${gid}" gradientUnits="userSpaceOnUse" x1="${n2(p1[0])}" y1="${n2(p1[1])}" x2="${n2(p2[0])}" y2="${n2(p2[1])}">${stops}</linearGradient>`;
+    const defs = lin('b', a, b, `<stop offset="0" stop-color="${B.lit}"/><stop offset=".5" stop-color="${B.mid}"/><stop offset="1" stop-color="${B.far}"/>`) +
+      lin('g', a, b, `<stop offset="0" stop-color="${Lt.color}" stop-opacity="${n2(B.glow)}"/><stop offset=".4" stop-color="${Lt.color}" stop-opacity="0"/>`) +
+      lin('r', a, c, `<stop offset="0" stop-color="${Lt.rim}" stop-opacity="${n2(Lt.rimOp * 0.85)}"/><stop offset=".7" stop-color="${Lt.rim}" stop-opacity="0"/>`) +
+      `<clipPath id="${id}-c"><path d="${d}"/></clipPath>`;
+    const svg = `<path d="${d}" fill="url(#${id}-b)" style="mix-blend-mode:multiply"/><path d="${d}" fill="url(#${id}-g)" style="mix-blend-mode:screen"/>` +
+      `<path d="${d}" fill="none" stroke="url(#${id}-r)" stroke-width="${n2(line + 2 * Lt.rimWidth * 0.75)}" clip-path="url(#${id}-c)" style="mix-blend-mode:screen"/>`;
+    return { svg, defs };
+  }
+  // light direction from character space into a part's local space (inverse of its matrix)
+  function localDir(m, vx, vy) {
+    const det = m[0] * m[3] - m[1] * m[2] || 1;
+    let dx = (m[3] * vx - m[2] * vy) / det, dy = (-m[1] * vx + m[0] * vy) / det;
+    const l = Math.hypot(dx, dy) || 1;
+    return [dx / l, dy / l];
+  }
+
   // ---------- part renderers ----------
   const RENDER = {
     // Rigid art attached to a bone. `frame` rotates the drawing space; 90 makes
     // an upward-pointing bone draw with normal screen axes.
     shape(p, ctx, ch) {
       const m = M.mul(ch.bones[p.bone].world, M.rot(p.frame || 0));
-      const inner = `<g transform="${M.str(m)}">${p.draw(ctx)}</g>`;
-      return { svg: p.clip ? `<g clip-path="url(#${ch.id}-${p.clip})">${inner}</g>` : inner };
+      let art = p.draw(ctx), sdefs = '';
+      // parts that declare their outline (lightShape: { d, c, r }) catch the scene light like tubes do
+      if (ctx.lit && ctx.lit.body && p.lightShape && !ctx.mask) {
+        const ls = typeof p.lightShape === 'function' ? p.lightShape(ctx) : p.lightShape;
+        const [dx, dy] = localDir(m, ctx.lit.dx, ctx.lit.dy);
+        const pl = partLight(ctx, `${ch.id}${ctx.uid || ''}-${p.name}-l`, ls.d, ls.c, ls.r, dx, dy, ls.line || 4);
+        art += pl.svg; sdefs = pl.defs;
+      }
+      const inner = `<g transform="${M.str(m)}">${art}</g>`;
+      if (sdefs) return { svg: p.clip ? `<g clip-path="url(#${ch.id}${ctx.uid || ''}-${p.clip})">${inner}</g>` : inner, defs: sdefs };
+      return { svg: p.clip ? `<g clip-path="url(#${ch.id}${ctx.uid || ''}-${p.clip})">${inner}</g>` : inner };
     },
 
     // Width-varying tube through a bone chain (bone origins + tip of the last).
@@ -391,9 +424,18 @@
       const geo = tubeGeo(pts, p.widths, p.segments || 10, p.smooth !== false);
       const d = geo.outline(p.capStart || 'round', p.capEnd || 'round');
       let defs = '';
-      if (p.clipId) defs += `<clipPath id="${ch.id}-${p.clipId}"><path d="${d}"/></clipPath>`;
+      const cid = `${ch.id}${ctx.uid || ''}-${p.clipId || p.name}`;
+      if (p.clipId) defs += `<clipPath id="${cid}"><path d="${d}"/></clipPath>`;
       let svg = `<path d="${d}" fill="${p.fill}"/>`;
-      if (p.detail) svg += `<g clip-path="url(#${ch.id}-${p.clipId})">${p.detail(geo, ctx)}</g>`;
+      if (p.detail) svg += `<g clip-path="url(#${cid})">${p.detail(geo, ctx)}</g>`;
+      if (ctx.lit && ctx.lit.body && !ctx.mask) {
+        // scene light on this tube, across its own shape (each sleeve/leg shades like a rounded form)
+        const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]);
+        const c = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+        const r = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2 + Math.max(...p.widths) / 2;
+        const pl = partLight(ctx, `${cid}-l`, d, c, r, ctx.lit.dx, ctx.lit.dy, p.line || 6);
+        svg += pl.svg; defs += pl.defs;
+      }
       svg += `<path d="${d}" fill="none" stroke="${ctx.ink}" stroke-width="${p.line || 6}" stroke-linejoin="round"/>`;
       if (p.over) svg += p.over(geo, ctx);
       return { svg, defs };
@@ -408,6 +450,10 @@
       const L = Object.assign({}, FACE_LAYOUT, p.face);
       let defs = `<clipPath id="${idp}-clip"><path d="${blob.path}"/></clipPath>` +
         `<filter id="${idp}-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${n2(H.rx * 0.09)}"/></filter>`;
+      if (ctx.mask === 'body') {   // body mask: the face is lit by the head itself, hair/hats/beards by the body light
+        const wht = x => x ? `<g class="rig-wht">${x}</g>` : '';
+        return { svg: `<g transform="${M.str(m)}">${wht(p.back ? p.back(ctx, blob, fs) : '')}<path d="${blob.path}" fill="#000" stroke="#000" stroke-width="${H.line || 8}"/>${wht(p.hair ? p.hair(ctx, blob, fs) : '')}${wht(p.front ? p.front(ctx, blob, fs) : '')}</g>`, defs };
+      }
       if (ctx.mask === 'hands') return { svg: `<g transform="${M.str(m)}" class="rig-blk"><path d="${blob.path}" fill="#000" stroke="#000" stroke-width="${H.line || 8}"/>${p.hair ? p.hair(ctx, blob, fs) : ''}${p.front ? p.front(ctx, blob, fs) : ''}</g>`, defs };
       if (ctx.mask === 'skin') {   // skin mask: blob white; hair, face features and outline black
         const blk = x => x ? `<g class="rig-blk">${x}</g>` : '';
@@ -549,6 +595,7 @@
       let defs = '', body = '';
       // mask: 'skin' draws skin white and everything else black, in the same draw order, so hats, hair and
       // sleeves in front of skin hide it; 'hands' is the same without heads (heads light themselves);
+      // 'body' is everything except the face (clothes, hands, hair, hats, props);
       // 'silhouette' draws everything black (cast shadows). Used by Light.
       // Colors are forced with a CSS rule (cheaper than a filter per part).
       const mask = opts.mask;
@@ -562,7 +609,7 @@
       for (const { p } of list) {
         if (p.visible && !p.visible(ctx)) continue;
         const r = RENDER[p.type](p, ctx, this);
-        body += mask === 'silhouette' ? r.svg : mask && p.type !== 'head' ? `<g class="rig-${p.skin ? 'wht' : 'blk'}">${r.svg}</g>` : r.svg;
+        body += mask === 'silhouette' ? r.svg : mask && p.type !== 'head' ? `<g class="rig-${p.skin || mask === 'body' ? 'wht' : 'blk'}">${r.svg}</g>` : r.svg;
         defs += r.defs || '';
       }
       if (mask === 'silhouette') body = `<g class="rig-blk">${body}</g>`;

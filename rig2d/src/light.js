@@ -14,8 +14,10 @@
  *   5. Ambient    optional faint cast of the surrounding light (e.g. moonlight at night; 0 in daylight)
  *   6. Pattern    optional light shapes from the set (window blinds, leaves) falling on the skin
  *   7. Cast       a shadow on the ground, pointing away from the light
- * Heads draw 1-5 themselves (so the glow follows the head's shape); hands get them through a mask.
- * `affect: 'all'` also lays the glow and shadow over clothes and props (default: 'skin').
+ * Every part lights itself from its own outline (cheap, and each limb shades like a rounded form): heads
+ * draw the face light; sleeves, legs, torsos and shapes that declare `lightShape` (hands, shoes, props) get
+ * the light's color on the lit side, the shade on the far side, a glow and a rim; at night clothes dim toward
+ * the ambient color (`bodyDim`). `affect: 'skin'` lights only the face.
  *
  * Direction: `dir` is where the light comes FROM, in screen degrees (0 = from the right, 180 = from the
  * left, -90 = from above), or `source: {x, y}` (a candle, window or sun in the scene) and every
@@ -25,16 +27,19 @@
 (function (root) {
   'use strict';
   const n2 = v => +(+v).toFixed(2);
+  const rgb = c => { const h = c.replace('#', ''); const f = h.length === 3 ? h.split('').map(x => x + x).join('') : h; return [0, 2, 4].map(i => parseInt(f.substr(i, 2), 16)); };
+  const toward1 = (c, k) => rgb(c).map(v => 255 + (v - 255) * k);              // white blended toward c
+  const mul = (...cs) => 'rgb(' + [0, 1, 2].map(i => Math.round(cs.reduce((a, c) => a * c[i] / 255, 255))).join(',') + ')';
 
   const PRESETS = {
     //          light color      glow       shine       rim color + strength           far-side shadow                ambient cast (0 = none)            dir      ground shadow
-    day:      { color: '#ffeccc', key: 0.25, spec: 0.3, rim: '#ffffff', rimOp: 0.55, shade: '#4a5290', shadeOp: 0.16, amb: '#9fb4ff', ambTint: 0, dir: -55, shadow: 0.32 },
-    golden:   { color: '#ffbe6a', key: 0.6, spec: 0.45, rim: '#ffd486', rimOp: 0.9, shade: '#5a2a50', shadeOp: 0.3, amb: '#c08aa0', ambTint: 0.05, dir: -20, shadow: 0.38 },
-    overcast: { color: '#eef2fa', key: 0.15, spec: 0.12, rim: '#ffffff', rimOp: 0.3, shade: '#2c3550', shadeOp: 0.16, amb: '#b8c2d4', ambTint: 0.06, dir: -80, shadow: 0.18 },
-    interior: { color: '#ffdcaa', key: 0.38, spec: 0.3, rim: '#fff0cc', rimOp: 0.55, shade: '#3a2030', shadeOp: 0.24, amb: '#d8b8a0', ambTint: 0.04, dir: -60, shadow: 0.3 },
-    night:    { color: '#ffb45a', key: 0.6, spec: 0.4, rim: '#ffc27a', rimOp: 0.95, shade: '#140c34', shadeOp: 0.45, amb: '#8a7ad8', ambTint: 0.22, dir: 0, shadow: 0.4 },
-    candle:   { color: '#ffa040', key: 0.7, spec: 0.5, rim: '#ffb24a', rimOp: 1.0, shade: '#2a0c18', shadeOp: 0.5, amb: '#a07060', ambTint: 0.12, dir: 0, shadow: 0.45 },
-    forge:    { color: '#ff9a30', key: 0.8, spec: 0.6, rim: '#ffb040', rimOp: 1.0, shade: '#2a0812', shadeOp: 0.45, amb: '#c08060', ambTint: 0.08, dir: 0, shadow: 0.45 },
+    day:      { bodyDim: 0, color: '#ffeccc', key: 0.25, spec: 0.3, rim: '#ffffff', rimOp: 0.55, shade: '#4a5290', shadeOp: 0.16, amb: '#9fb4ff', ambTint: 0, dir: -55, shadow: 0.32 },
+    golden:   { bodyDim: 0.1, color: '#ffbe6a', key: 0.6, spec: 0.45, rim: '#ffd486', rimOp: 0.9, shade: '#5a2a50', shadeOp: 0.3, amb: '#c08aa0', ambTint: 0.05, dir: -20, shadow: 0.38 },
+    overcast: { bodyDim: 0.08, color: '#eef2fa', key: 0.15, spec: 0.12, rim: '#ffffff', rimOp: 0.3, shade: '#2c3550', shadeOp: 0.16, amb: '#b8c2d4', ambTint: 0.06, dir: -80, shadow: 0.18 },
+    interior: { bodyDim: 0.08, color: '#ffdcaa', key: 0.38, spec: 0.3, rim: '#fff0cc', rimOp: 0.55, shade: '#3a2030', shadeOp: 0.24, amb: '#d8b8a0', ambTint: 0.04, dir: -60, shadow: 0.3 },
+    night:    { bodyDim: 0.75, color: '#ffb45a', key: 0.6, spec: 0.4, rim: '#ffc27a', rimOp: 0.95, shade: '#140c34', shadeOp: 0.45, amb: '#8a7ad8', ambTint: 0.22, dir: 0, shadow: 0.4 },
+    candle:   { bodyDim: 0.5, color: '#ffa040', key: 0.7, spec: 0.5, rim: '#ffb24a', rimOp: 1.0, shade: '#2a0c18', shadeOp: 0.5, amb: '#a07060', ambTint: 0.12, dir: 0, shadow: 0.45 },
+    forge:    { bodyDim: 0.25, color: '#ff9a30', key: 0.8, spec: 0.6, rim: '#ffb040', rimOp: 1.0, shade: '#2a0812', shadeOp: 0.45, amb: '#c08060', ambTint: 0.08, dir: 0, shadow: 0.45 },
   };
   const preset = (name, over = {}) => Object.assign({ name }, PRESETS[name], over);
 
@@ -75,20 +80,19 @@
       rim: L.rim || '#fff', rimOp: Math.min(1, (L.rimOp == null ? 0.6 : L.rimOp) * (back ? 1.1 : 1)), rimWidth: (L.rimWidth || 7) * (back ? 1.3 : 1),
       shade: L.shade || '#000', shadeOp: L.shadeOp == null ? 0.25 : L.shadeOp, amb: L.amb || '#fff', ambTint: L.ambTint || 0, dx: ux, dy: uy,
     };
+    // body light colors (clothes, hands, shoes, props that declare an outline): lit side takes the light's
+    // color, the far side the shade, everything dimmed toward the ambient color at night (bodyDim)
+    if (L.affect !== 'skin') {
+      const dim = toward1(lit.amb, L.bodyDim || 0);
+      lit.body = { lit: mul(toward1(lit.color, lit.key * 0.75), dim), mid: mul([255, 255, 255], dim), far: mul(toward1(lit.shade, lit.shadeOp), dim), glow: lit.key * 0.55 };
+    }
     const base = Object.assign({}, o, { light: ux >= 0 ? 1 : -1 });
     const id = `lt${o.id || ''}${uid++}`;
     const inner = actor.render(Object.assign({}, base, { lit, uid: id }));
     const reg = `x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}"`;
-    const all = L.affect === 'all';
+    const skinOnly = L.affect === 'skin';
 
-    // gradients across the character box along the light direction (for hands / clothes)
-    const g1 = [cx + ux * W / 2, cy + uy * H / 2], g0 = [cx - ux * W / 2, cy - uy * H / 2];
-    const lin = (gid, a, b, col, op, end) => `<linearGradient id="${id}-${gid}" gradientUnits="userSpaceOnUse" x1="${n2(a[0])}" y1="${n2(a[1])}" x2="${n2(b[0])}" y2="${n2(b[1])}">` +
-      `<stop offset="0" stop-color="${col}" stop-opacity="${n2(op)}"/><stop offset="${end}" stop-color="${col}" stop-opacity="0"/></linearGradient>`;
-    // masked layers: the mask goes on each blended element (a masked group would blend against nothing)
-    const rect = (fill, blend, mask) => `<rect ${reg} fill="${fill}" mask="url(#${id}-${mask})" style="mix-blend-mode:${blend}"/>`;
-
-    let defs = lin('k', g1, g0, lit.color, lit.key, 0.85) + lin('g', g1, g0, lit.color, lit.key * 0.8, 0.4) + lin('s', g0, g1, lit.shade, lit.shadeOp, 0.6);
+    let defs = '';
     let out = '';
 
     // 7. cast shadow on the ground: skew away from the light, squash (toward the camera when backlit)
@@ -101,14 +105,9 @@
     }
     out += inner;
 
-    // hands (or the whole body with affect: 'all'): the same glow + shadow through a mask
-    const maskSvg = all ? `<g class="rig-wht">${actor.render(Object.assign({}, base, { mask: 'silhouette' }))}</g>` : actor.render(Object.assign({}, base, { mask: 'hands' }));
-    defs += `<mask id="${id}-m" maskUnits="userSpaceOnUse" ${reg}>${maskSvg}</mask>`;
-    out += rect(`url(#${id}-s)`, 'multiply', 'm') + rect(`url(#${id}-k)`, 'multiply', 'm') + rect(`url(#${id}-g)`, 'screen', 'm');
-
     // 6. set light pattern (e.g. blinds) on all skin, heads included
     if (L.pattern) {
-      defs += `<mask id="${id}-p" maskUnits="userSpaceOnUse" ${reg}>${actor.render(Object.assign({}, base, { mask: all ? 'silhouette' : 'skin' }))}</mask>`;
+      defs += `<mask id="${id}-p" maskUnits="userSpaceOnUse" ${reg}>${actor.render(Object.assign({}, base, { mask: 'skin' }))}</mask>`;
       out += `<g mask="url(#${id}-p)" style="mix-blend-mode:${L.pattern.blend || 'screen'}" opacity="${n2(L.pattern.opacity == null ? 0.5 : L.pattern.opacity)}">${L.pattern.svg}</g>`;
     }
     return `<g class="lit"><defs>${defs}</defs>${out}</g>`;

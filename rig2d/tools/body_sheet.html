@@ -1,0 +1,51 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}svg{display:block}
+text{font-family:'DejaVu Sans',sans-serif;font-weight:700;font-size:30px;fill:#fff;stroke:#000;stroke-width:6px;paint-order:stroke;text-anchor:middle}</style></head>
+<body>
+<!-- Body sheet: the Kit 'simple' body style (pill torso, stick limbs, ball hands, L feet) in poses and lights. -->
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><g id="stage"></g></svg>
+<script src="../src/rig.js"></script>
+<script src="../src/kit.js"></script>
+<script src="../src/light.js"></script>
+<script>
+const Guy = Kit.character({
+  name: 'guy', style: 'simple', skin: '#f6efea', head: { rx: 150, ry: 140, wobble: 0.06, seed: 3 },
+  hair: { style: 'short', color: '#2a1d18' },
+  outfit: { color: '#e8a83a', tie: '#8a3a22', pocket: true, pen: '#3a7ad8' },
+  face: { layout: { eyeShape: 'oval', eyeShine: 0, eyeR: 0.075, mouthW: 0.17, mouthY: 0.38 } }, faceDefaults: { blush: 0 },
+});
+const Lady = Kit.character({
+  name: 'lady', style: 'simple', skin: '#f6efea', head: { rx: 145, ry: 138, wobble: 0.06, seed: 8 },
+  hair: { style: 'bun', color: '#7a3a1e', pin: false }, outfit: { color: '#6a3ab0', badge: '#e8c040' },
+  face: { layout: { eyeShape: 'oval', eyeShine: 0, eyeR: 0.072, mouthW: 0.17, mouthY: 0.38 } }, faceDefaults: { blush: 0 },
+});
+const G = new Rig2D.Actor(Guy, { id: 'g' }), Ld = new Rig2D.Actor(Lady, { id: 'l' });
+const FEET = { legL: { x: -30, y: -12 }, legR: { x: 30, y: -12 } };
+const SFEET = { legL: { x: -12, y: -12, endRot: 0 }, legR: { x: 14, y: -12, endRot: 0 } };
+const EX = Rig2D.EXPRESSIONS;
+window.DURATION = 2;
+window.render = function (t) {
+  const cells = [
+    ['standing', '#cfe8ff', null, a => G.pose({ view: 'front', ik: FEET, face: EX.smugBar })],
+    ['pointing', '#cfe8ff', null, a => G.pose({ view: 'front', ik: Object.assign({ armR: { x: 230, y: -430, weight: 1 } }, FEET), face: EX.crazy })],
+    ['walking (side)', '#cfe8ff', null, a => { const w = Rig2D.walk(t, { stride: 180 }); w.bones.root.x = 0; G.pose(Object.assign(w, { view: 'side', facing: 1, face: EX.worried })); }],
+    ['lady, side', '#cfe8ff', null, a => Ld.pose({ view: 'side', facing: -1, ik: SFEET, face: EX.smugBar })],
+    ['night window', '#1a1636', { name: 'night', src: [520, 120] }, a => G.pose({ view: 'front', ik: FEET, face: EX.nervous })],
+    ['forge', '#3a1206', { name: 'forge', src: [20, 300] }, a => Ld.pose({ view: 'front', ik: Object.assign({ armL: { x: -200, y: -380, weight: 1 } }, FEET), face: EX.grin })],
+  ];
+  let s = '', defs = '';
+  cells.forEach(([label, bg, lit, pose], i) => {
+    const x0 = (i % 2) * 540, y0 = Math.floor(i / 2) * 640;
+    defs += `<clipPath id="c${i}"><rect x="${x0}" y="${y0}" width="540" height="640"/></clipPath>`;
+    pose();
+    const actor = label.startsWith('lady') || label === 'forge' ? Ld : G;
+    const o = { x: x0 + 270, y: y0 + 600, scale: 0.62, id: 'b' + i, t };
+    s += `<g clip-path="url(#c${i})"><rect x="${x0}" y="${y0}" width="540" height="640" fill="${bg}"/><rect x="${x0}" y="${y0 + 590}" width="540" height="50" fill="${lit ? '#0e0a18' : '#a8c8e8'}"/>`;
+    if (lit) s += `<circle cx="${x0 + lit.src[0]}" cy="${y0 + lit.src[1]}" r="26" fill="#ffd27a"/>`;
+    s += (lit ? Light.render(actor, Object.assign(o, { light: Light.preset(lit.name, { source: { x: x0 + lit.src[0], y: y0 + lit.src[1] } }) })) : actor.render(o)) +
+      `<text x="${x0 + 270}" y="${y0 + 44}">${label}</text></g>`;
+  });
+  document.getElementById('stage').innerHTML = `<defs>${defs}</defs>` + s;
+};
+window.render(0.3);
+</script></body></html>

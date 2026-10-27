@@ -131,9 +131,45 @@ They were widened, and the grin became a deep crescent instead of a V.
 
 **Check it:** `tools/face_sheet.html` renders every expression on a Rick-style test face (oval eyes, no shine).
 
+## Step 4 — Body (2026-10-27)
+
+### 4a. Light on the body
+Clothes, hands and props now catch the scene light, the same way faces do:
+- Every sleeve, leg and torso (tube) and every shape that declares a `lightShape` outline (kit hands, ball
+  hands) lights itself from its own outline: a multiplied gradient (the light's color on the lit side, the
+  shade on the far side), a screen glow on the lit edge, and a rim just inside the outline. Each limb shades
+  like a rounded form, as in Rick's frames.
+- At night (and by candle/forge) clothes dim toward the ambient color (`bodyDim` per preset), so a bright
+  yellow vest no longer glows in a dark alley.
+- `affect: 'skin'` keeps the old face-only behaviour.
+
+**Performance:** the first version lit the body through a mask of the whole character, which pushed Empty
+City from ~280 ms to ~850 ms per frame. Per-part lighting looks the same and costs ~410 ms.
+
+**Also fixed:** tube and shape clip IDs now include the render's `uid`, so an actor drawn twice in one frame
+(the retreat shot) can't borrow the other copy's clip shapes.
+
+### 4b. Simple Rick-style body (Kit `style: 'simple'`)
+From the body study (`docs/RICKS_STUDY.md` §2):
+- **Torso:** a pill in one flat clothing color, wider than the detailed torso (`outfit.width`, default 235).
+- **Limbs:** stick arms and legs made of straight segments (`limbs` color, default dark brown) with a thin
+  highlight line. Knees and elbows bend as angles.
+- **Hands and feet:** ball hands and short L-shaped feet.
+- **Clothing marks:** `outfit.tie` (striped, from under the chin to mid-belly), `outfit.pocket` + `outfit.pen`,
+  `outfit.badge`.
+- Front and side views, works with the walk cycle, IK, face kit, hair, hats and props.
+
+```js
+const Guy = Kit.character({ style: 'simple', outfit: { color: '#e8a83a', tie: '#8a3a22', pocket: true, pen: '#3a7ad8' },
+  face: { layout: { eyeShape: 'oval', eyeShine: 0 } } });
+```
+
+**Check it:** `tools/body_sheet.html` (standing, pointing, walking, side view, night window, forge).
+
+**Not yet lit:** hair, hats and shoes don't take the body light yet (they draw arbitrary shapes; they need a
+`lightShape` outline). Dark hair barely changes under multiplied light, so this is minor.
+
 ## Next steps
 
-- **Step 4 — Body:** light on clothes, and an optional "simple" body style (pill torso, stick limbs with straight
-  segments, ball hands, L feet) next to our detailed outfits (study §2).
 - **Step 5 — Edit and sound:** dissolve + push-in transitions, an accent about every 1.5 s, always-on bed
   12–15 dB under the voice (study §4, §6).

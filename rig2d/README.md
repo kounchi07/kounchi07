@@ -32,7 +32,9 @@ part hangs off a bone, so moving a bone moves everything attached to it.
 
 ## Making any character (Kit)
 
-`src/kit.js` builds a full character (front + side view, all parts) from a description:
+`src/kit.js` builds a full character (front + side view, all parts) from a description. Two body styles:
+the detailed outfits (robe, tunic, armor) and `style: 'simple'`, the Ricks Clips look (pill torso, stick limbs,
+ball hands, L feet, with `outfit.tie`, `pocket`, `pen`, `badge` marks; see `tools/body_sheet.html`):
 
 ```js
 const Thief = Kit.character({
@@ -89,19 +91,19 @@ shadow. It needs nothing from the character file:
 
 | Layer | What it does |
 |---|---|
-| Key | Lit side reflects the light's color (+ edge glow), fading across the face |
+| Key | Lit side reflects the light's color (+ edge glow), fading across the face; clothes and hands too, per part |
 | Shine, rim | Soft bright spot and bright edge on the lit side |
 | Shadow | Far side falls into the scene's shadow color |
-| Ambient | Faint cast of surrounding light (moonlight at night; 0 in daylight) |
+| Ambient | Faint cast of surrounding light (moonlight at night; 0 in daylight); clothes dim at night (`bodyDim`) |
 | Pattern | Optional set light on the skin (`pattern: { svg: Light.blinds(...), blend: 'screen' }`) |
 | Cast shadow | On the ground, away from the light (toward the camera when `back: true`) |
 
-By default only the **skin** is lit (face, hands; parts marked `skin: true`); clothes keep their colors.
-`affect: 'all'` lights the whole character.
+Every part lights itself from its own outline: heads, sleeves, legs, torsos, and shapes that declare a
+`lightShape` (hands, props). `affect: 'skin'` lights only the face.
 
 Presets: `day`, `golden`, `overcast`, `interior`, `night`, `candle`, `forge`. Override any field
 (`color`, `key`, `spec`, `rim`, `rimOp`, `rimWidth`, `shade`, `shadeOp`, `amb`, `ambTint`, `dir`, `source`,
-`back`, `shadow`, `shadowLen`, `affect`). `dir` is where the light comes from in screen degrees
+`back`, `shadow`, `shadowLen`, `affect`, `bodyDim`). `dir` is where the light comes from in screen degrees
 (0 = right, 180 = left, -90 = above); `source` is a point in the scene (candle, window, sun) and each
 character works out its own direction from it. Test sheets: `tools/light_test.html`, `tools/light_face.html`.
 
@@ -149,6 +151,7 @@ See `stories/library/`:
 | `tools/light_test.html` | Every light preset on the same character, unlit vs lit |
 | `tools/light_face.html` | Face close-ups per light preset |
 | `tools/face_sheet.html` | Every expression on a Rick-style face (`?lit=night` adds light) |
+| `tools/body_sheet.html` | The simple body style in poses, walk, side view, night and forge light |
 | `scenes/city.js` | Xicheng: city wall + gate tower, street, wall top (layered) |
 | `characters/threekingdoms.js` | Zhuge Liang, Sima Yi, page boys, soldiers, sweepers |
 | `stories/emptycity/` | "The Empty City" legend short (45 s) |
