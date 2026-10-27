@@ -14,3 +14,11 @@ Every downloaded asset, how its source was verified, and its license (see ../../
 
 Rejected (license not verified): Remotion's vine-boom, dramatic-boomer, record-scratch, ding, bruh and other
 meme sounds. Their docs say they come from myinstants.com and are "not explicitly released under a free license".
+
+## three.js 0.186.1 (npm `three`) — 2026-10-27
+- What: 3D engine for the full-3D style test (`rig2d/3d/`), installed into `rig2d/3d/node_modules` (gitignored).
+- URL: https://registry.npmjs.org/three/-/three-0.186.1.tgz
+- Publisher: npm maintainers `mrdoob` (info@mrdoob.com) and `mugen87`, repository github.com/mrdoob/three.js, homepage threejs.org.
+- License: MIT.
+- Verified: npm registry metadata (maintainers + official repo); tarball sha512 matches the registry `dist.integrity`; sha1 matches `dist.shasum` 6d50f70c2c437f844179bbb56d6f5b774e1ca38a. Installed with `--ignore-scripts`.
+- sha256 (tarball): 8cd068708ea44f2c73c944b1cead2ba2f0d5c15c8fc194e5700f4e4f4a033fe7

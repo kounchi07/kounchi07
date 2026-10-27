@@ -1,6 +1,6 @@
 // Render a page that defines window.render(t) and window.DURATION to frames + MP4.
 // usage: node tools/render.js <page.html[?query]> <outDir> [--fps 30] [--stills 0.5,2,4] [--mp4 out.mp4]
-//        [--workers N] [--audio voice.wav] [--exact] [--range 10,14] [--flags "--num-raster-threads=1"]
+//        [--workers N] [--audio voice.wav] [--exact] [--range 10,14] [--flags "--num-raster-threads=1"] [--serve]
 //
 // Fast mode (default for --mp4 when the page defines window.POST): the page is loaded with `?post`,
 // so it skips its full-frame grade/bloom/vignette/grain/captions/fades; frames are captured as JPEG and
@@ -25,7 +25,20 @@ const fps = +opt('--fps', 30), stills = opt('--stills'), mp4 = opt('--mp4'), aud
 const workers = +opt('--workers', Math.max(1, os.cpus().length));
 const range = opt('--range') ? opt('--range').split(',').map(Number) : null;
 const flags = opt('--flags') ? opt('--flags').split(' ') : [];
-const url = q => 'file://' + path.resolve(pageFile) + (q ? '?' + q : '');
+// --serve: load the page from a local static server (needed for ES modules, e.g. the Three.js pages in 3d/)
+let base = null;
+const url = q => (base ? base + '/' + path.relative(process.cwd(), path.resolve(pageFile)).split(path.sep).join('/') : 'file://' + path.resolve(pageFile)) + (q ? '?' + q : '');
+function serve() {
+  const http = require('http');
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.css': 'text/css' };
+  const srv = http.createServer((req, res) => {
+    const f = path.join(process.cwd(), decodeURIComponent(req.url.split('?')[0]));
+    if (!f.startsWith(process.cwd()) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream' });
+    fs.createReadStream(f).pipe(res);
+  });
+  return new Promise(r => srv.listen(0, '127.0.0.1', () => { base = `http://127.0.0.1:${srv.address().port}`; r(srv); }));
+}
 
 async function worker(b, pageUrl, times, ids, ext) {
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 } });
@@ -71,6 +84,7 @@ async function worker(b, pageUrl, times, ids, ext) {
 
 (async () => {
   fs.mkdirSync(out, { recursive: true });
+  const server = args.includes('--serve') ? await serve() : null;
   const t0 = Date.now();
   const b = await chromium.launch({ args: flags });
   const probe = await b.newPage();
@@ -99,5 +113,6 @@ async function worker(b, pageUrl, times, ids, ext) {
     execFileSync('ffmpeg', a.concat(['-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', path.resolve(mp4)]), { stdio: 'inherit' });
   }
   const s = (Date.now() - t0) / 1000, cap = (t1 - t0) / 1000;
+  if (server) server.close();
   console.log(`rendered ${times.length} frame(s) in ${s.toFixed(1)}s (capture ${cap.toFixed(1)}s = ${(times.length / cap).toFixed(1)} fps)${fast ? ' [fast]' : ''}`);
 })().catch(e => { console.error(e.message); process.exit(1); });

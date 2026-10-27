@@ -44,3 +44,4 @@ Before any download (files, models, sounds, videos, packages):
 | PyPI `kokoro-onnx` | Runtime + phoneme vocab | PyPI package | MIT |
 | PyPI `yt-dlp` | Video download for study only | PyPI package | Unlicense |
 | PyPI `yt-dlp-ejs` 0.8.0 | yt-dlp's YouTube JS solver (run with `--js-runtimes node`) | Pinned by yt-dlp's own PyPI metadata (`default` extra); repo yt-dlp/ejs; installed with `--require-hashes` sha256 79300e5f…bdb4 | Unlicense AND MIT AND ISC |
+| npm `three` 0.186.1 | 3D engine (Three.js) for the 3D style test | npm maintainers `mrdoob`, `mugen87`, repo mrdoob/three.js; sha512 matches registry integrity | MIT |
