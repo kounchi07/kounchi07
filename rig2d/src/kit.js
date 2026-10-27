@@ -296,6 +296,11 @@
         const w = (r[0] - l[0]) * (0.86 - 0.12 * tw), cx = (l[0] + r[0]) / 2 + shift;
         d += ` M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.62)} ${pt(r)} L${n2(cx + w / 2)},${n2(top + 20)} L${n2(cx + w / 2 - 20)},${n2(top)} L${n2(cx - w / 2 + 20)},${n2(top)} L${n2(cx - w / 2)},${n2(top + 20)}Z`;
       }
+      if (T.style === 'bowler' || T.style === 'cap') {
+        const l = blob.point(Math.PI * (T.style === 'bowler' ? 1.17 : 1.13), 1.04), r = blob.point(Math.PI * (T.style === 'bowler' ? 1.83 : 1.87), 1.04);
+        const top = blob.cy - blob.ry * (T.style === 'bowler' ? 1.5 : 1.12), by = T.style === 'bowler' ? blob.cy - blob.ry * 0.6 : (l[1] + r[1]) / 2;
+        d += ` M${n2(l[0])},${n2(by)} C${n2(l[0])},${n2(top)} ${n2(r[0])},${n2(top)} ${n2(r[0])},${n2(by)}Z`;
+      }
       if (T.style === 'helmet') {
         const pts = [];
         for (let i = 0; i <= 16; i++) pts.push(blob.point(Math.PI * (1.0 + i / 16), 1.1));
@@ -331,6 +336,30 @@
         }
         const top = blob.point(-Math.PI / 2, 1.18), x = top[0] - fs.turn * blob.rx * 0.1;
         s += `<path d="M${n2(x - 10)},${n2(top[1] + 10)} L${n2(x)},${n2(top[1] - 44)} L${n2(x + 10)},${n2(top[1] + 10)}Z" fill="${T.trim}" stroke="${INK}" stroke-width="4"/><circle cx="${n2(x)}" cy="${n2(top[1] - 44)}" r="9" fill="${T.trim}" stroke="${INK}" stroke-width="3"/>`;
+        return s;
+      }
+      if (T.style === 'bowler') {        // round felt bowler with a short brim and a ribbon band
+        const l = blob.point(Math.PI * 1.17, 1.04), r = blob.point(Math.PI * 1.83, 1.04), by = blob.cy - blob.ry * 0.6, cx = (l[0] + r[0]) / 2 + shift;
+        const w = (r[0] - l[0]) * 0.92, top = blob.cy - blob.ry * 1.5;
+        let s = `<path d="M${n2(cx - w / 2)},${n2(by)} C${n2(cx - w / 2)},${n2(top)} ${n2(cx + w / 2)},${n2(top)} ${n2(cx + w / 2)},${n2(by)}Z" fill="${T.color}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        s += `<path d="M${n2(cx - w / 2 + 4)},${n2(by - 22)} Q${n2(cx)},${n2(by - 30)} ${n2(cx + w / 2 - 4)},${n2(by - 22)} L${n2(cx + w / 2)},${n2(by - 2)} Q${n2(cx)},${n2(by - 10)} ${n2(cx - w / 2)},${n2(by - 2)}Z" fill="${T.trim}" stroke="${INK}" stroke-width="3"/>`;
+        s += `<path d="M${n2(cx - w / 2 - 44)},${n2(by + 6)} Q${n2(cx)},${n2(by - 20)} ${n2(cx + w / 2 + 44)},${n2(by + 6)} Q${n2(cx)},${n2(by + 18)} ${n2(cx - w / 2 - 44)},${n2(by + 6)}Z" fill="${T.color}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        s += `<path d="M${n2(cx - w * 0.28)},${n2(top + (by - top) * 0.32)} q${n2(w * 0.15)},-14 ${n2(w * 0.32)},-8" stroke="${lt(T.color, 0.45)}" stroke-width="7" fill="none" stroke-linecap="round" opacity=".7"/>`;
+        return s;
+      }
+      if (T.style === 'visor') {         // green celluloid eyeshade on a band (the classic clerk)
+        const l = blob.point(Math.PI * 1.1, 1.0), r = blob.point(Math.PI * 1.9, 1.0), y = blob.cy - blob.ry * 0.52, cx = blob.cx + shift;
+        let s = `<path d="M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.98)} ${pt(r)}" stroke="${INK}" stroke-width="20" fill="none"/><path d="M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.98)} ${pt(r)}" stroke="${T.trim}" stroke-width="12" fill="none"/>`;
+        s += `<path d="M${n2(cx - blob.rx * 0.82)},${n2(y)} Q${n2(cx)},${n2(y - 26)} ${n2(cx + blob.rx * 0.82)},${n2(y)} L${n2(cx + blob.rx * 0.62)},${n2(y + 58)} Q${n2(cx)},${n2(y + 40)} ${n2(cx - blob.rx * 0.62)},${n2(y + 58)}Z" fill="${T.color}" fill-opacity=".86" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        s += `<path d="M${n2(cx - blob.rx * 0.5)},${n2(y + 12)} Q${n2(cx)},${n2(y - 4)} ${n2(cx + blob.rx * 0.5)},${n2(y + 12)}" stroke="${lt(T.color, 0.5)}" stroke-width="5" fill="none" opacity=".7"/>`;
+        return s;
+      }
+      if (T.style === 'cap') {           // modern baseball cap
+        const l = blob.point(Math.PI * 1.13, 1.04), r = blob.point(Math.PI * 1.87, 1.04), top = blob.cy - blob.ry * 1.12, cx = blob.cx + shift;
+        let s = `<path d="M${pt(l)} C${n2(l[0])},${n2(top)} ${n2(r[0])},${n2(top)} ${pt(r)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.62)} ${pt(l)}Z" fill="${T.color}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        const vy = blob.cy - blob.ry * 0.6, dir = fs.turn >= 0 ? 1 : -1;
+        s += `<path d="M${n2(cx - blob.rx * 0.7)},${n2(vy)} Q${n2(cx + dir * blob.rx * 0.2)},${n2(vy + 34)} ${n2(cx + blob.rx * 0.75 + dir * blob.rx * 0.45 * Math.abs(fs.turn))},${n2(vy + 4)} Q${n2(cx)},${n2(vy - 16)} ${n2(cx - blob.rx * 0.7)},${n2(vy)}Z" fill="${dk(T.color, 0.25)}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        s += `<circle cx="${n2(cx)}" cy="${n2(top + 10)}" r="9" fill="${dk(T.color, 0.3)}" stroke="${INK}" stroke-width="3"/><path d="M${n2(cx)},${n2(top + 14)} L${n2(cx)},${n2(vy - 8)}" stroke="${dk(T.color, 0.3)}" stroke-width="3"/>`;
         return s;
       }
       if (T.style === 'band') {
@@ -450,6 +479,17 @@
         const a = geo.at(0.74, 0.36), b = geo.at(0.58, 0.72);
         s += `<rect x="${n2(Math.min(a[0], b[0]))}" y="${n2(Math.min(a[1], b[1]))}" width="${n2(Math.abs(b[0] - a[0]))}" height="${n2(Math.abs(b[1] - a[1]))}" fill="none" stroke="${dk(O.color, 0.35)}" stroke-width="4"/>`;
         if (O.pen) { const q = geo.at(0.74, 0.46); s += `<rect x="${n2(q[0] - 4)}" y="${n2(q[1] - 30)}" width="8" height="36" rx="3" fill="${O.pen}" stroke="${INK}" stroke-width="2"/>`; }
+      }
+      if (O.apron) {   // apron over the lower pill, with a neck strap and a pocket
+        const d = `M${pt(geo.at(0.66, cx - 0.55))} L${pt(geo.at(0.66, cx + 0.55))} L${pt(geo.at(0.04, cx + 0.8))} Q${pt(geo.at(-0.05, cx))} ${pt(geo.at(0.04, cx - 0.8))}Z`;
+        s += `<path d="${d}" fill="${O.apron}" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>`;
+        s += `<path d="M${pt(geo.at(0.66, cx - 0.45))} L${pt(geo.at(0.97, cx - 0.2))} M${pt(geo.at(0.66, cx + 0.45))} L${pt(geo.at(0.97, cx + 0.2))}" stroke="${O.apron}" stroke-width="10" fill="none"/>`;
+        const a = geo.at(0.42, cx - 0.25), b = geo.at(0.28, cx + 0.25);
+        s += `<rect x="${n2(Math.min(a[0], b[0]))}" y="${n2(Math.min(a[1], b[1]))}" width="${n2(Math.abs(b[0] - a[0]))}" height="${n2(Math.abs(b[1] - a[1]))}" fill="none" stroke="${dk(O.apron, 0.25)}" stroke-width="4"/>`;
+      }
+      if (O.bowtie) {
+        const q = geo.at(0.86, cx), w = 30, h = 18;
+        s += `<path d="M${n2(q[0])},${n2(q[1])} L${n2(q[0] - w)},${n2(q[1] - h)} L${n2(q[0] - w)},${n2(q[1] + h)}Z M${n2(q[0])},${n2(q[1])} L${n2(q[0] + w)},${n2(q[1] - h)} L${n2(q[0] + w)},${n2(q[1] + h)}Z" fill="${O.bowtie}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="7" fill="${O.bowtie}" stroke="${INK}" stroke-width="3"/>`;
       }
       if (O.badge) { const q = geo.at(0.74, side ? 0.6 : -0.5); s += `<circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="13" fill="${O.badge}" stroke="${INK}" stroke-width="3"/><circle cx="${n2(q[0] - 4)}" cy="${n2(q[1] - 4)}" r="4" fill="#fff" opacity=".7"/>`; }
       return s;

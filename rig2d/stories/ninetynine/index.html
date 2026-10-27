@@ -1,0 +1,239 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+html,body{margin:0;background:#000;overflow:hidden}
+svg{display:block}
+.cap{font-family:Inter,'DejaVu Sans',sans-serif;font-weight:900;font-size:80px;fill:#fff;stroke:#1a0e0a;stroke-width:11px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle;filter:url(#capShadow)}
+</style></head>
+<body>
+<!-- "Why prices end in .99" — built on the full Rig2D system: simple Rick-style bodies, face kit, scene light,
+     dissolves (window.CUTS), music bed + accents (build.py), fast render (window.POST). -->
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="dofB" stdDeviation="0"/></filter>
+    <filter id="capShadow" x="-10%" y="-30%" width="120%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <g id="graded" filter="url(#look)"><g id="stage"></g></g>
+  <rect id="vign" width="1080" height="1920" fill="url(#look-vign)"/>
+  <rect id="grain" width="1080" height="1920" filter="url(#look-grain)" opacity=".05" style="mix-blend-mode:overlay"/>
+  <text id="cap" class="cap" x="540" y="1540"></text>
+  <rect id="flash" width="1080" height="1920" fill="#fff" opacity="0"/>
+  <rect id="fade" width="1080" height="1920" fill="#000" opacity="0"/>
+</svg>
+<script src="../../src/rig.js"></script>
+<script src="../../src/kit.js"></script>
+<script src="../../src/props.js"></script>
+<script src="../../src/camera.js"></script>
+<script src="../../src/look.js"></script>
+<script src="../../src/light.js"></script>
+<script src="../../characters/store.js"></script>
+<script src="../../scenes/store.js"></script>
+<script src="cues.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const { alive, clamp, lerp, EASE, EXPRESSIONS: EX } = Rig2D;
+const CUE = window.CUES, EV = CUE.events, LN = CUE.lines, TM = CUE.timing;
+const sm = (t, a, b) => EASE.inOut(clamp((t - a) / (b - a), 0, 1));
+const pulse = (t, t0, d = 0.6) => t >= t0 && t < t0 + d ? 1 - (t - t0) / d : 0;
+const wordT = (line, i) => LN[line] + TM[line].words[i].start;
+
+// ---------- grade, sets, light ----------
+const GRADE = { saturation: 1.12, lift: 0.05, bloom: 0.3, warm: 0.01 };
+document.querySelector('defs').insertAdjacentHTML('beforeend', Look.defs(GRADE));
+const POSTMODE = location.search.includes('post');
+if (POSTMODE) { $('graded').removeAttribute('filter'); for (const id of ['vign', 'grain', 'cap', 'fade']) $(id).style.display = 'none'; }
+const SC = { os: Store.oldStore(), ai: Store.aisle(), co: Store.checkout(), bt: Store.bigTag(), sc: Store.scale() };
+const LIGHT = {};
+for (const k in SC) LIGHT[k] = Light.preset(SC[k].light.preset, SC[k].light);
+let html = '';
+for (const k in SC) html += `<g id="sc-${k}" style="display:none">${SC[k].layers.map(l => `<g id="L-${k}-${l.id}">${l.svg}</g>`).join('')}</g>`;
+$('stage').innerHTML = html;
+
+// ---------- cast ----------
+const A = {}; for (const n of ['owner', 'clerk', 'lady', 'shopper']) A[n] = new Rig2D.Actor(ST[n], { id: n });
+const FEET = { legL: { x: -30, y: -12 }, legR: { x: 30, y: -12 } };
+const SFEET = { legL: { x: -12, y: -12, endRot: 0 }, legR: { x: 14, y: -12, endRot: 0 } };
+let SCN = 'os';
+function draw(name, st, x, y, s, t, seed = 1) {
+  const a = A[name];
+  a.pose(alive(Object.assign({ view: 'front', ik: FEET }, st, { face: Object.assign({ _t: t }, st.face || {}) }), t, { seed }));
+  return Light.render(a, { x, y, scale: s, t, light: LIGHT[SCN], id: name });
+}
+// world position of a point on a bone of an actor drawn at (x, y, s)
+function handAt(name, bone, x, y, s, lx = 8, ly = 0) {
+  const a = A[name], p = a.current.worldPoint(bone, lx, ly), f = a.state && a.state.facing < 0 ? -1 : 1;
+  return [x + p[0] * s * f, y + p[1] * s];
+}
+
+// ---------- shots ----------
+// SEL (from render(t, opt)) picks which side of a cut to draw during a dissolve (tools/render.js).
+let SEL = null;
+function shot(t) {
+  const ts = SEL && SEL.side === 'before' ? Math.min(t, SEL.cut - 1e-3) : SEL && SEL.side === 'after' ? Math.max(t, SEL.cut + 1e-3) : t;
+  const r = { sc: 'os', c: { x: 540, y: 960, z: 1, r: 0 }, staff: '', actors: '', o: {}, dof: 0, flash: 0 };
+  const cam = keys => Object.assign(r.c, Camera.track(keys)(t));
+  if (ts < EV.counter) {                                   // 1. hook: the owner, an almost-empty cash box, the $1.00 tag
+    SCN = r.sc = 'os'; r.dof = 3;
+    cam([{ t: 0, x: 540, y: 1000, z: 1.38 }, { t: EV.counter, x: 540, y: 960, z: 1.62, ease: 'linear' }]);
+    const fix = wordT('n1', 9) - 0.05, cent = EV.cent;
+    const up = sm(t, cent - 0.35, cent);
+    const face = t < fix ? { lookY: 0.7, lookX: -0.1, browAngle: -0.7, browRaise: 0.5, mouthShape: 'wavy', sweat: 1 } : EX.smugBar;
+    r.staff = draw('owner', { ik: Object.assign({ armR: { x: lerp(120, 170, up), y: lerp(-300, -620, up), weight: up } }, FEET), face }, 540, 1470, 1.05, t, 3);
+    const box = Store.cashbox({ x: 520, y: 1215, s: 1.05, coins: 1 });
+    const pen = up > 0.05 ? (([px, py]) => Store.penny({ x: px, y: py, r: 30, squash: Math.abs(Math.cos(t * 9)) * 0.8 + 0.2 }))(handAt('owner', 'handR', 540, 1470, 1.05, 14, 0)) : '';
+    r.o.counterTop = box;
+    r.o.near = Store.tag({ x: 150, y: 1430, text: '$1.00', s: 1.5, rot: -8 }) + pen + (up > 0.5 ? Look.glow(handAt('owner', 'handR', 540, 1470, 1.05)[0], handAt('owner', 'handR', 540, 1470, 1.05)[1], 160, '#fff0b0', 0.5 * up) : '');
+  } else if (ts < EV.pocket) {                             // 2. the lady pays one dollar, no change needed
+    SCN = r.sc = 'os'; r.dof = 2;
+    cam([{ t: EV.counter, x: 480, y: 1120, z: 1.02 }, { t: EV.pocket, x: 470, y: 1100, z: 1.12, ease: 'linear' }]);
+    const k = sm(t, EV.counter + 0.4, EV.counter + 1.8), shrug = t > wordT('n2', 11) - 0.1;
+    const lady = { view: 'side', facing: 1, ik: Object.assign({ armR: { x: 150, y: -470, weight: 1 - k * 0.3 } }, SFEET), face: { mouthSmile: 0.5, lookX: 1 } };
+    r.actors = draw('lady', lady, 170, 1900, 1.0, t, 4);
+    const clerk = { ik: Object.assign({ armL: { x: lerp(-150, -260, 1 - k), y: lerp(-430, -470, 1 - k), weight: 1 } }, FEET, shrug ? { armR: { x: 200, y: -560, weight: 1 } } : {}), face: shrug ? EX.grin : { mouthSmile: 0.5, lookX: -1 } };
+    r.staff = draw('clerk', clerk, 720, 1470, 1.05, t, 5);
+    const from = handAt('lady', 'handR', 170, 1900, 1.0), to = handAt('clerk', 'handL', 720, 1470, 1.05);
+    r.o.counterTop = Store.tag({ x: 860, y: 1120, text: '$1.00', s: 0.9, rot: 5 }) + Store.bill({ x: lerp(from[0], to[0], k), y: lerp(from[1], to[1], k), s: 0.7, rot: lerp(-10, 8, k) });
+  } else if (ts < EV.receipt) {                            // 3. ...straight into his pocket
+    SCN = r.sc = 'os'; r.dof = 6;
+    cam([{ t: EV.pocket, x: 720, y: 930, z: 1.85 }, { t: EV.receipt, x: 740, y: 950, z: 2.05, ease: 'linear' }]);
+    const k = sm(t, EV.pocket + 0.3, EV.pocket + 1.3), dart = Math.sin(t * 9) > 0 ? 1 : -1;
+    const clerk = { ik: Object.assign({ armR: { x: lerp(170, 70, k), y: lerp(-470, -400, k), weight: 1 } }, FEET), face: Object.assign({}, EX.smugBar, { lookX: k < 1 ? 0 : dart }) };
+    r.staff = draw('clerk', clerk, 720, 1470, 1.05, t, 5);
+    const h = handAt('clerk', 'handR', 720, 1470, 1.05);
+    if (k < 0.98) r.o.counterTop = Store.bill({ x: h[0], y: h[1], s: 0.7 * (1 - 0.6 * k), rot: -20 + 40 * k });
+  } else if (ts < EV.record) {                             // 4a. no receipt
+    SCN = r.sc = 'os'; r.dof = 8;
+    cam([{ t: EV.receipt, x: 540, y: 1070, z: 2.3 }, { t: EV.record, x: 540, y: 1060, z: 2.45 }]);
+    r.o.counterTop = Store.spike({ x: 540, y: 1215, s: 1.3, slips: 0 });
+  } else if (ts < EV.nobody) {                             // 4b. no record
+    SCN = r.sc = 'os'; r.dof = 8;
+    cam([{ t: EV.record, x: 540, y: 1060, z: 2.3 }, { t: EV.nobody, x: 540, y: 1050, z: 2.45 }]);
+    r.o.counterTop = Store.ledger({ x: 540, y: 1225, s: 1.15, rows: 0 });
+  } else if (ts < EV.shelf) {                              // 4c. nobody knew
+    SCN = r.sc = 'os'; r.dof = 5;
+    cam([{ t: EV.nobody, x: 480, y: 900, z: 1.75 }, { t: EV.shelf, x: 480, y: 900, z: 1.85 }]);
+    const scratch = Math.sin(t * 18) * 14;
+    r.staff = draw('owner', { ik: Object.assign({ armR: { x: 150 + scratch, y: -760, weight: 1 } }, FEET), face: { browAngle: -0.6, browRaise: 0.8, mouthShape: 'wavy', lookY: -0.6 } }, 480, 1470, 1.05, t, 3);
+    r.o.near = `<text x="${600}" y="${560 - 20 * sm(t, EV.nobody, EV.nobody + 0.3)}" font-size="150" font-family="Inter,DejaVu Sans" font-weight="900" fill="#fff" stroke="#2b1d16" stroke-width="10" paint-order="stroke" opacity="${sm(t, EV.nobody, EV.nobody + 0.2)}">?</text>`;
+  } else if (ts < EV.penny) {                              // 5. the owner swaps every tag to 99¢
+    SCN = r.sc = 'os'; r.dof = 2;
+    cam([{ t: EV.shelf, x: 620, y: 620, z: 1.55 }, { t: EV.penny, x: 680, y: 600, z: 1.8, ease: 'linear' }]);
+    const flipK = clamp((t - EV.flip + 0.12) / 0.24, 0, 1), sx = Math.abs(Math.cos(flipK * Math.PI));
+    const after = flipK >= 0.5;
+    r.staff = draw('owner', { ik: Object.assign({ armR: { x: 260, y: -560, weight: 1 } }, FEET), face: after ? EX.grin : EX.smugBar }, 470, 1300, 1.0, t, 3);
+    r.o.near = `<g transform="translate(800 640) scale(${(sx * 1.5).toFixed(3)} 1.5)">${Store.tag({ x: 0, y: 0, text: after ? '99¢' : '$1.00', hl: after ? pulse(t, EV.flip, 0.8) : 0, string: true })}</g>`;
+  } else if (ts < EV.register) {                           // 6. now the clerk owes you a penny
+    SCN = r.sc = 'os'; r.dof = 6;
+    cam([{ t: EV.penny, x: 720, y: 880, z: 1.9 }, { t: EV.register, x: 720, y: 860, z: 2.1, ease: 'linear' }]);
+    const k = sm(t, EV.penny, EV.penny + 0.4);
+    r.staff = draw('clerk', { ik: Object.assign({ armR: { x: 160, y: lerp(-430, -600, k), weight: 1 } }, FEET), face: EX.nervous }, 720, 1470, 1.05, t, 5);
+    const h = handAt('clerk', 'handR', 720, 1470, 1.05, 14, 0);
+    r.o.near = Store.penny({ x: h[0], y: h[1] - 10, r: 34 }) + Look.glow(h[0], h[1] - 10, 140, '#fff0b0', 0.45 * k);
+  } else if (ts < EV.counted) {                            // 7. ...and the only penny is in the register: DING
+    SCN = r.sc = 'os'; r.dof = 4;
+    const bell = EV.bell;
+    cam([{ t: EV.register, x: 560, y: 1000, z: 1.45 }, { t: bell, x: 540, y: 1000, z: 1.7, ease: 'in' }, { t: EV.counted, x: 540, y: 980, z: 1.85, ease: 'linear' }]);
+    Camera.shake(r.c, t, 9, bell, 0.4);
+    const press = t < bell ? Math.max(0, Math.sin(t * 14)) : 0;
+    r.staff = draw('clerk', { ik: Object.assign({ armL: { x: -170, y: -420 + 20 * press, weight: 1 } }, FEET), face: t < bell ? { lookY: 0.7, lookX: -0.4, mouthShape: 'wavy', browAngle: -0.5 } : EX.shock }, 700, 1470, 1.05, t, 5);
+    const open = sm(t, bell, bell + 0.18), ding = pulse(t, bell, 0.7), flag = sm(t, bell + 0.05, bell + 0.25);
+    r.o.counterTop = Store.register({ x: 470, y: 1215, s: 1.0, open, flag, ding, text: '.99' });
+    r.flash = ding * 0.25;
+  } else if (ts < EV.stopped) {                            // 8a. every sale counted
+    SCN = r.sc = 'os'; r.dof = 8;
+    cam([{ t: EV.counted, x: 540, y: 1060, z: 2.25 }, { t: EV.stopped, x: 540, y: 1050, z: 2.4 }]);
+    r.o.counterTop = Store.ledger({ x: 540, y: 1225, s: 1.15, rows: sm(t, EV.counted, EV.stopped - 0.1) });
+  } else if (ts < EV.today) {                              // 8b. the stealing stopped
+    SCN = r.sc = 'os'; r.dof = 5;
+    cam([{ t: EV.stopped, x: 700, y: 900, z: 1.7 }, { t: EV.today, x: 700, y: 900, z: 1.85 }]);
+    r.staff = draw('clerk', { ik: Object.assign({ armL: { x: -230, y: -520, weight: 1 }, armR: { x: 230, y: -520, weight: 1 } }, FEET), face: EX.sad }, 700, 1470, 1.05, t, 5);
+  } else if (ts < EV.brain) {                              // 9. today: cameras, card machines... and still .99
+    SCN = r.sc = 'ai'; r.dof = 1;
+    cam([{ t: EV.today, x: 540, y: 1150, z: 0.98 }, { t: EV.brain, x: 540, y: 1220, z: 1.32, ease: 'linear' }]);
+    const look = t < EV.cameras ? 0 : Math.sin((t - EV.cameras) * 3);
+    r.actors = draw('shopper', { face: t < EV.never ? { lookX: look, lookY: -0.3, mouthSmile: 0.3 } : EX.crazy }, 540, 1850, 1.1, t, 6);
+    const camG = pulse(t, EV.cameras, 0.8);
+    r.actors = (camG > 0 ? Look.glow(120, 72, 160, '#ff6a5a', 0.7 * camG) : '') + r.actors;
+    const n = sm(t, EV.never - 0.1, EV.never + 0.3);
+    if (n > 0) r.o.near = Store.tag({ x: lerp(1300, 820, n), y: 980, text: '9.99', s: 1.6, rot: lerp(30, -6, n), color: '#ffe14a', ink: '#c8282a', hl: pulse(t, EV.never + 0.2, 0.8) });
+  } else if (ts < EV.scale) {                              // 10. your brain reads left to right... decides on the first number
+    SCN = r.sc = 'bt';
+    cam([{ t: EV.brain, x: 540, y: 960, z: 1.0 }, { t: EV.scale, x: 520, y: 950, z: 1.14, ease: 'linear' }]);
+    const scan = t < EV.brain + 0.6 ? -1 : clamp((t - EV.brain - 0.6) / (EV.first - EV.brain - 0.6), 0, 1);
+    const k = sm(t, EV.first, EV.first + 0.35);
+    r.o.tag = Store.splitTag({ x: 560, y: 900, s: 1.1, big: 1 + 0.35 * k, small: 1 - 0.4 * k, glow: k, scan: scan < 1 ? scan : -1 });
+  } else if (ts < EV.checkout) {                           // 11. 2.99 lands with the twos, not the threes
+    SCN = r.sc = 'sc';
+    cam([{ t: EV.scale, x: 540, y: 1050, z: 1.0 }, { t: EV.checkout, x: 540, y: 1030, z: 1.1, ease: 'linear' }]);
+    const drop = sm(t, EV.scale + 0.2, EV.scale + 0.7), tilt = 0.7 * EASE.back(clamp((t - EV.scale - 0.6) / 0.5, 0, 1));
+    const no = sm(t, EV.three, EV.three + 0.15);
+    const label = (txt, col) => `<rect x="-90" y="-120" width="180" height="110" rx="14" fill="${col}" stroke="#2b1d16" stroke-width="7"/><text x="0" y="-40" text-anchor="middle" font-size="72" font-family="Inter,DejaVu Sans" font-weight="900" fill="#fff">${txt}</text>`;
+    const left = label('$2', '#3a9a5a') + (drop > 0 ? `<g transform="translate(0 ${(-400 * (1 - drop)).toFixed(1)})">${Store.tag({ x: 0, y: -190, text: '2.99', s: 0.75, color: '#ffe14a', ink: '#c8282a', string: false })}</g>` : '');
+    const right = label('$3', '#5a6a8a') + (no > 0 ? `<g opacity="${no}" transform="scale(${(1.4 - 0.4 * no).toFixed(3)})"><path d="M-70,-140 L70,10 M70,-140 L-70,10" stroke="#e8302a" stroke-width="26" stroke-linecap="round"/></g>` : '');
+    r.o.scale = Store.balance({ x: 540, y: 1510, tilt, left, right });
+    Camera.shake(r.c, t, 8, EV.three, 0.35);
+  } else {                                                 // 12. it was made to catch the clerk... now it catches you
+    SCN = r.sc = 'co'; r.dof = 2;
+    const you = EV.you;
+    cam([{ t: EV.checkout, x: 800, y: 380, z: 1.85 }, { t: you - 0.5, x: 780, y: 420, z: 1.95, ease: 'linear' }, { t: you, x: 540, y: 1050, z: 1.0, ease: 'out' }, { t: CUE.duration, x: 520, y: 1100, z: 1.1, ease: 'linear' }]);
+    Camera.shake(r.c, t, 10, you + 0.1, 0.4);
+    const wink = t > you + 0.6 && t < you + 1.3 ? 1 : 0;
+    // the 1880s owner, framed on the wall
+    A.owner.pose({ view: 'front', ik: FEET, face: Object.assign({}, EX.smugBar, { blinkL: wink, _t: t }) });
+    r.o.portrait = `<defs><clipPath id="pf"><rect x="664" y="164" width="272" height="352"/></clipPath></defs><g clip-path="url(#pf)"><rect x="664" y="164" width="272" height="352" fill="#d8c8a0"/>${A.owner.render({ x: 800, y: 760, scale: 0.62 })}<rect x="664" y="164" width="272" height="352" fill="#c8a060" opacity=".22" style="mix-blend-mode:multiply"/></g>`;
+    const shocked = t >= you + 0.1;
+    r.actors = draw('shopper', { ik: Object.assign({ armR: { x: 190, y: shocked ? -620 : -420, weight: 1 }, armL: { x: -190, y: shocked ? -620 : -420, weight: 1 } }, FEET), face: shocked ? EX.panic : EX.happy }, 270, 1880, 1.1, t, 6);
+    const total = shocked ? '$99.99' : '$9.99';
+    r.o.screen = `<text x="430" y="890" text-anchor="middle" font-size="64" font-family="Inter,DejaVu Sans" font-weight="900" fill="${shocked ? '#ff5a4a' : '#5ad0a0'}">${total}</text>`;
+    const len = Math.max(0, t - you) * 520;
+    r.o.receipt = len > 0 ? `<rect x="560" y="1000" width="120" height="${len.toFixed(1)}" fill="#fbfaf6" stroke="#2b1d16" stroke-width="4"/>` + Array.from({ length: Math.floor(len / 34) }, (_, i) => `<path d="M575,${1020 + i * 34} h${60 + (i * 23) % 30}" stroke="#8a8a90" stroke-width="5"/>`).join('') : '';
+    r.flash = pulse(t, you + 0.1, 0.25) * 0.3;
+  }
+  return r;
+}
+
+// ---------- captions (also exported to POST for the fast render) ----------
+const WORDS = [];
+for (const id in LN) for (const w of TM[id].words) WORDS.push([LN[id] + w.start, w.word, id]);
+WORDS.sort((a, b) => a[0] - b[0]);
+const lineEnd = id => LN[id] + TM[id].duration;
+function caption(t) {
+  let cur = '', st = 0, id = '';
+  for (const [wt, w, l] of WORDS) if (t >= wt) { cur = w; st = wt; id = l; }
+  return id && t <= lineEnd(id) + 0.3 ? [cur, st] : ['', 0];
+}
+const HOT = /cent|dollar|penny|pocket|ninety|bell|stealing|first|two|three|you\.?$|clerk/i;
+
+window.DURATION = CUE.duration;
+window.CUTS = (CUE.cuts || []).filter(c => c.kind === 'dissolve');
+window.POST = {
+  grade: GRADE, vignette: { opacity: 0.26, color: '#1a0c10' }, grain: 0.05,
+  captions: {
+    style: { font: 'Inter Black', size: 98, outline: 6.5, y: 1540, pop: 1.2, popTime: 0.09 },
+    words: WORDS.map(([st, w, id], i) => [st, Math.min(i + 1 < WORDS.length ? WORDS[i + 1][0] : 1e9, lineEnd(id) + 0.3), w, HOT.test(w)]),
+  },
+  fades: [{ type: 'in', start: 0, duration: 0.2 }, { type: 'out', start: +(CUE.duration - 0.5).toFixed(3), duration: 0.5 }],
+};
+window.render = function (t, opt) {
+  SEL = opt || null;
+  const s = shot(t), scene = SC[s.sc];
+  for (const k in SC) $('sc-' + k).style.display = k === s.sc ? '' : 'none';
+  for (const l of scene.layers) {
+    const g = $(`L-${s.sc}-${l.id}`);
+    g.setAttribute('transform', Camera.transform(s.c, l.depth, scene.origin));
+    g.setAttribute('filter', l.depth < 0.95 && s.dof ? 'url(#dof)' : '');
+    if (l.id === 'staff') g.innerHTML = s.staff;
+    if (l.id === 'actors') g.innerHTML = s.actors;
+  }
+  $('dofB').setAttribute('stdDeviation', s.dof);
+  scene.update(t, s.o);
+  $('flash').setAttribute('opacity', s.flash);
+  $('fade').setAttribute('opacity', Math.max(t < 0.2 ? 1 - t / 0.2 : 0, sm(t, CUE.duration - 0.5, CUE.duration)));
+  const [cur, st0] = caption(t);
+  $('cap').textContent = cur;
+  $('cap').setAttribute('transform', `translate(540 1540) scale(${1 + 0.2 * Math.max(0, 1 - (t - st0) / 0.09)}) translate(-540 -1540)`);
+  $('cap').style.fill = HOT.test(cur) ? '#ffd84a' : '#fff';
+};
+window.render(0);
+</script>
+</body></html>

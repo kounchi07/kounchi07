@@ -337,7 +337,8 @@ if __name__ == '__main__' and len(sys.argv) > 2 and sys.argv[2] == 'cinematic':
 
 
 # ---------------------------------------------------------------------------
-# Music bed + accent set (Step 5): an always-on bed that sits under the voice, and short
+# Music beds (bed_ancient: pentatonic; bed_shop: bouncy major key) + accent set (Step 5): an always-on bed
+# that sits under the voice, and short
 # accent sounds for the "something every ~1.5 s" rhythm of short-form edits.
 # `python3 tools/sfx.py out_dir bed`
 # ---------------------------------------------------------------------------
@@ -407,9 +408,36 @@ def riser(d=0.8):  # short noise swell into a reveal
     return norm(lowpass(x, 6500) * np.minimum(1, (d - t) / 0.02), 0.5)
 
 
+def bed_shop(bars=16, bpm=112, seed=5):
+    """Bouncy major-key bed: plucked bass on the beat, chord plucks on the off-beats, woodblock; loops seamlessly."""
+    beat = 60 / bpm
+    L = int(bars * 4 * beat * SR)
+    out = np.zeros(L + int(3 * SR))
+    C = 130.81
+    prog = [(0, [0, 4, 7]), (9, [9, 12, 16]), (5, [5, 9, 12]), (7, [7, 11, 14])]     # I - vi - IV - V
+    st = lambda semi, base=C: base * 2 ** (semi / 12)
+    for b in range(bars):
+        root, chord = prog[b % 4]
+        for pos, semi in [(0, root - 12), (1, root - 5), (2, root - 12), (3, root - 5)]:
+            n = guqin_note(st(semi), 0.5, vel=0.9) * 0.7
+            s0 = int((b * 4 + pos) * beat * SR)
+            out[s0:s0 + len(n)] += n[:len(out) - s0]
+        for pos in (0.5, 1.5, 2.5, 3.5):
+            for k, semi in enumerate(chord):
+                n = guqin_note(st(semi + 12), 0.28, vel=0.55) * 0.32
+                s0 = int(((b * 4 + pos) * beat + k * 0.008) * SR)
+                out[s0:s0 + len(n)] += n[:len(out) - s0]
+        for pos, v in [(1, 0.4), (3, 0.4), (3.75, 0.18)]:
+            w = woodblock(1400, v)
+            s0 = int((b * 4 + pos) * beat * SR)
+            out[s0:s0 + len(w)] += w
+    x = _wrap(reverb(out, 1.0, 0.18), L)
+    return norm(lowpass(x, 7000), 0.7)
+
+
 def bed_set(out):
     os.makedirs(out, exist_ok=True)
-    for name, fn in [('bed_ancient', bed_ancient), ('tick', tick), ('ping', ping), ('pop_soft', soft_pop), ('riser', riser)]:
+    for name, fn in [('bed_ancient', bed_ancient), ('bed_shop', bed_shop), ('tick', tick), ('ping', ping), ('pop_soft', soft_pop), ('riser', riser)]:
         x = fn()
         sf.write(os.path.join(out, f'{name}.wav'), x.astype(np.float32), SR)
         print(f'{name}: {len(x) / SR:.2f}s')
