@@ -27,6 +27,7 @@ svg{display:block}
 <script src="../../src/look.js"></script>
 <script src="../../src/light.js"></script>
 <script src="../../characters/store.js"></script>
+<script src="../../src/detail.js"></script>
 <script src="../../scenes/store.js"></script>
 <script src="cues.js"></script>
 <script>
@@ -74,18 +75,18 @@ function shot(t) {
   const cam = keys => Object.assign(r.c, Camera.track(keys)(t));
   if (ts < EV.counter) {                                   // 1. hook: the owner, an almost-empty cash box, the $1.00 tag
     SCN = r.sc = 'os'; r.dof = 3;
-    cam([{ t: 0, x: 540, y: 1000, z: 1.38 }, { t: EV.counter, x: 540, y: 960, z: 1.62, ease: 'linear' }]);
+    cam([{ t: 0, x: 540, y: 930, z: 1.8 }, { t: EV.counter, x: 540, y: 900, z: 2.1, ease: 'linear' }]);
     const fix = wordT('n1', 9) - 0.05, cent = EV.cent;
     const up = sm(t, cent - 0.35, cent);
     const face = t < fix ? { lookY: 0.7, lookX: -0.1, browAngle: -0.7, browRaise: 0.5, mouthShape: 'wavy', sweat: 1 } : EX.smugBar;
     r.staff = draw('owner', { ik: Object.assign({ armR: { x: lerp(120, 170, up), y: lerp(-300, -620, up), weight: up } }, FEET), face }, 540, 1470, 1.05, t, 3);
-    const box = Store.cashbox({ x: 520, y: 1215, s: 1.05, coins: 1 });
+    const box = Store.cashbox({ x: 430, y: 1215, s: 0.75, coins: 1 });
     const pen = up > 0.05 ? (([px, py]) => Store.penny({ x: px, y: py, r: 30, squash: Math.abs(Math.cos(t * 9)) * 0.8 + 0.2 }))(handAt('owner', 'handR', 540, 1470, 1.05, 14, 0)) : '';
     r.o.counterTop = box;
-    r.o.near = Store.tag({ x: 150, y: 1430, text: '$1.00', s: 1.5, rot: -8 }) + pen + (up > 0.5 ? Look.glow(handAt('owner', 'handR', 540, 1470, 1.05)[0], handAt('owner', 'handR', 540, 1470, 1.05)[1], 160, '#fff0b0', 0.5 * up) : '');
+    r.o.near = Store.tag({ x: 640, y: 1230, text: '$1.00', s: 1.0, rot: -8 }) + pen + (up > 0.5 ? Look.glow(handAt('owner', 'handR', 540, 1470, 1.05)[0], handAt('owner', 'handR', 540, 1470, 1.05)[1], 160, '#fff0b0', 0.5 * up) : '');
   } else if (ts < EV.pocket) {                             // 2. the lady pays one dollar, no change needed
     SCN = r.sc = 'os'; r.dof = 2;
-    cam([{ t: EV.counter, x: 480, y: 1120, z: 1.02 }, { t: EV.pocket, x: 470, y: 1100, z: 1.12, ease: 'linear' }]);
+    cam([{ t: EV.counter, x: 460, y: 1180, z: 1.28 }, { t: EV.pocket, x: 450, y: 1160, z: 1.4, ease: 'linear' }]);
     const k = sm(t, EV.counter + 0.4, EV.counter + 1.8), shrug = t > wordT('n2', 11) - 0.1;
     const lady = { view: 'side', facing: 1, ik: Object.assign({ armR: { x: 150, y: -470, weight: 1 - k * 0.3 } }, SFEET), face: { mouthSmile: 0.5, lookX: 1 } };
     r.actors = draw('lady', lady, 170, 1900, 1.0, t, 4);
@@ -120,8 +121,8 @@ function shot(t) {
     cam([{ t: EV.shelf, x: 620, y: 620, z: 1.55 }, { t: EV.penny, x: 680, y: 600, z: 1.8, ease: 'linear' }]);
     const flipK = clamp((t - EV.flip + 0.12) / 0.24, 0, 1), sx = Math.abs(Math.cos(flipK * Math.PI));
     const after = flipK >= 0.5;
-    r.staff = draw('owner', { ik: Object.assign({ armR: { x: 260, y: -560, weight: 1 } }, FEET), face: after ? EX.grin : EX.smugBar }, 470, 1300, 1.0, t, 3);
-    r.o.near = `<g transform="translate(800 640) scale(${(sx * 1.5).toFixed(3)} 1.5)">${Store.tag({ x: 0, y: 0, text: after ? '99¢' : '$1.00', hl: after ? pulse(t, EV.flip, 0.8) : 0, string: true })}</g>`;
+    r.staff = draw('owner', { ik: Object.assign({ armR: { x: 260, y: -560, weight: 1 } }, FEET), face: after ? EX.grin : EX.smugBar }, 560, 1300, 1.0, t, 3);
+    r.o.near = `<g transform="translate(840 640) scale(${(sx * 1.5).toFixed(3)} 1.5)">${Store.tag({ x: 0, y: 0, text: after ? '99¢' : '$1.00', hl: after ? pulse(t, EV.flip, 0.8) : 0, string: true })}</g>`;
   } else if (ts < EV.register) {                           // 6. now the clerk owes you a penny
     SCN = r.sc = 'os'; r.dof = 6;
     cam([{ t: EV.penny, x: 720, y: 880, z: 1.9 }, { t: EV.register, x: 720, y: 860, z: 2.1, ease: 'linear' }]);
@@ -164,7 +165,7 @@ function shot(t) {
     r.o.tag = Store.splitTag({ x: 560, y: 900, s: 1.1, big: 1 + 0.35 * k, small: 1 - 0.4 * k, glow: k, scan: scan < 1 ? scan : -1 });
   } else if (ts < EV.checkout) {                           // 11. 2.99 lands with the twos, not the threes
     SCN = r.sc = 'sc';
-    cam([{ t: EV.scale, x: 540, y: 1050, z: 1.0 }, { t: EV.checkout, x: 540, y: 1030, z: 1.1, ease: 'linear' }]);
+    cam([{ t: EV.scale, x: 540, y: 1150, z: 1.15 }, { t: EV.checkout, x: 540, y: 1130, z: 1.25, ease: 'linear' }]);
     const drop = sm(t, EV.scale + 0.2, EV.scale + 0.7), tilt = 0.7 * EASE.back(clamp((t - EV.scale - 0.6) / 0.5, 0, 1));
     const no = sm(t, EV.three, EV.three + 0.15);
     const label = (txt, col) => `<rect x="-90" y="-120" width="180" height="110" rx="14" fill="${col}" stroke="#2b1d16" stroke-width="7"/><text x="0" y="-40" text-anchor="middle" font-size="72" font-family="Inter,DejaVu Sans" font-weight="900" fill="#fff">${txt}</text>`;

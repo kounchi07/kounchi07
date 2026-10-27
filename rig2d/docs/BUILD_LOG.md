@@ -214,8 +214,49 @@ background sat only ~2 dB under the voice. Treating every looped cue as bed (lev
 - Kit shoes declare a `lightShape` (the left shoe's outline is mirrored to match its drawing).
 - Hair behind the head (buns, long hair at the back) is not lit, to keep light off the face area.
 
+## Step 7 — New story: "Why prices end in .99" (2026-10-27)
+
+Built on the whole system: simple Rick-style bodies, the face kit, scene light, dissolves, a music bed with
+ducking, accents and the fast render.
+- Script: 12 lines, 139 words, 204 wpm, 44.4 s, following the playbook (hook on frame 1, open loop, "You see,"
+  pivot, last line calls back to the hook). The disputed cashier-theft origin is told as "the story goes"; the
+  left-digit effect is well documented.
+- Cast (`characters/store.js`): owner (bowler, mustache, apron), clerk (green visor, vest), 1880s customer,
+  modern shopper (cap, hoodie). New kit pieces: hats `bowler`, `visor`, `cap`; outfit marks `apron`, `bowtie`.
+- Sets and props (`scenes/store.js`): 1880s general store, modern aisle, checkout, giant price tag, balance scale,
+  brass register, bill, penny, tags, cash box, receipt spike, ledger, cart.
+- Sound: new bouncy major-key bed `bed_shop`; voice sits ~14 dB above the background.
+
+## Step 8 — Detail pass (2026-10-27)
+
+**Feedback:** "the reason other channels look better is the details added to everything... every object has to
+be detailed." Correct: the first version of the store sets used flat fills (blank colored blocks for goods, a plain
+gold register, flat counter panels, flat clothes).
+
+**Built:** `src/detail.js`, a toolkit every prop and set uses: contact shadows (`ao`), form shading (`shade`),
+edge highlights, wear and scuffs, screws and nails, glass reflections, product labels with brand words,
+stitching, plank walls with grain, knots and nails, dust, and engraving for metalwork.
+
+**Applied:**
+- Shelf goods: candy jars with candy and sticks, ridged lids and labels; tins with rims and branded labels;
+  burlap sacks with weave, tie and stencil; bottles with liquid, cork and label; cracker boxes; stacked tins.
+  Every item has a contact shadow, shading and highlights.
+- Shelves: trim, brackets with screws, shadow on the wall.
+- Register: engraved brass with side scrolls, keys on stems with denominations, "AMOUNT PURCHASED" plate,
+  crest, glass window, crank with wooden handle, drawer with keyhole and coin trays, highlights and wear.
+- Store: plank wall, ceiling beam with hanging baskets and pans, window with curtains, sill plant and
+  dusty light, clock, "NO CREDIT" sign, calendar, detailed oil lamps, nailed floorboards, patterned rug,
+  beveled counter with brass edging, kick plate and scuffs, counter clutter (candy jars, newspapers, scale,
+  receipt pad), barrels in the foreground.
+- Aisle and checkout: labels and highlights on products, glossy floor reflections, hanging aisle sign, vents,
+  end-cap displays, cart with groceries, store branding, clock, thank-you sign, gum rack, belt groceries and
+  divider, scanner window, bagging area, floor mat.
+- Clothes on simple bodies: fold lines, side seams with stitching, hem band; shirt collars, button plackets,
+  a lace collar, pleats and a waist belt, a hood with drawstrings and a front pocket.
+
+**Rule from now on:** no flat object ships. Every prop gets a contact shadow, shading on one side, a highlight,
+and at least one texture or small secondary element (label, screws, stitching, wear).
+
 ## Next steps
 
-- A new story built on the whole system (simple bodies, face kit, light, edit, sound), following the
-  playbook: ~165 words in 45 s at ~215 wpm.
 - Package the system for sale.

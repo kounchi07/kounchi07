@@ -464,7 +464,42 @@
     // ---------- simple style (study §2): pill torso, stick limbs with straight segments, ball hands, L feet ----------
     const SIMPLE_BODY = { thigh: 135, shin: 130, spine: 72, chest: 96, neck: 8, upperArm: 82, lowerArm: 76, hand: 18, foot: 30, shoulderW: 58, shoulderY: 0.78, hipW: 34 };
     const pillW = O.width || 235, LIMB = cfg.limbs, limbHi = lt(LIMB, 0.35);
-    const pillDetail = (geo, ctx) => shade(geo, ctx, 0.3, 0.35);
+    // cloth detail on the pill (drawn inside its clip): form shading, fold lines, side seams with stitching, hem band,
+    // and per-outfit pieces (outfit.collar: 'shirt' | 'lace' | 'hood'; outfit.buttons: n; outfit.pleats; outfit.waist: belt color)
+    const pillDetail = (geo, ctx) => {
+      const cd = dk(O.color, 0.32), cl = lt(O.color, 0.35);
+      let s = shade(geo, ctx, 0.3, 0.35);
+      s += folds(geo, [[[0.12, -0.55], [0.3, -0.5], [0.46, -0.58]], [[0.1, 0.42], [0.26, 0.5], [0.4, 0.44]], [[0.62, -0.62], [0.72, -0.7]], [[0.2, 0.05], [0.34, 0.1]]], 3.5)
+        .replace(new RegExp(C.clothDark, 'g'), cd);
+      for (const sv of [-0.86, 0.86]) s += `<path d="${geo.line([[0.04, sv], [0.5, sv * 1.02], [0.95, sv * 0.96]])}" stroke="${cd}" stroke-width="3" fill="none" opacity=".55"/>` +
+        `<path d="${geo.line([[0.04, sv * 0.93], [0.5, sv * 0.95], [0.95, sv * 0.89]])}" stroke="${cl}" stroke-width="2.4" fill="none" stroke-dasharray="7 6" opacity=".6"/>`;
+      s += `<path d="${geo.band(0, 0.07, -1.3, 1.3)}" fill="${cd}" opacity=".5"/><path d="${geo.line([[0.075, -1.1], [0.075, 0], [0.075, 1.1]])}" stroke="${cl}" stroke-width="2.4" fill="none" stroke-dasharray="7 6" opacity=".6"/>`;
+      if (O.pleats) for (let sv = -0.75; sv <= 0.76; sv += 0.25) s += `<path d="${geo.line([[0.0, sv * 1.1], [0.2, sv], [0.36, sv * 0.9]])}" stroke="${cd}" stroke-width="3" fill="none" opacity=".6"/>`;
+      if (O.waist) s += `<path d="${geo.band(0.4, 0.48, -1.3, 1.3)}" fill="${O.waist}" stroke="${INK}" stroke-width="3"/><path d="${geo.line([[0.44, -1.2], [0.44, 1.2]])}" stroke="${lt(O.waist, 0.4)}" stroke-width="2" fill="none"/>`;
+      return s;
+    };
+    // collars, plackets and buttons sit on top of the pill (and on top of a tie/apron)
+    const pillOver = sideView => geo => {
+      let s = '';
+      const cx = sideView ? 0.35 : 0, cd = dk(O.color, 0.35);
+      if (O.buttons) for (let i = 0; i < O.buttons; i++) {
+        const q = geo.at(0.78 - i * 0.12, cx + (O.tie ? 0.16 : 0));
+        s += `<circle cx="${n2(q[0])}" cy="${n2(q[1])}" r="7" fill="${O.buttonColor || lt(O.color, 0.55)}" stroke="${INK}" stroke-width="3"/><circle cx="${n2(q[0] - 2)}" cy="${n2(q[1] - 2)}" r="2" fill="#fff" opacity=".7"/>`;
+      }
+      if (O.collar === 'shirt') for (const k of [-1, 1]) s += `<path d="M${pt(geo.at(0.97, cx))} L${pt(geo.at(0.97, cx + k * 0.3))} L${pt(geo.at(0.83, cx + k * 0.12))}Z" fill="#f6f2ea" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`;
+      if (O.collar === 'lace') {
+        const d = geo.line([[0.95, cx - 0.42], [0.86, cx - 0.2], [0.84, cx], [0.86, cx + 0.2], [0.95, cx + 0.42]]);
+        s += `<path d="${d}" stroke="${INK}" stroke-width="22" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#f6f0e6" stroke-width="15" fill="none" stroke-linecap="round"/><path d="${d}" stroke="#d8c8b8" stroke-width="4" fill="none" stroke-dasharray="3 5"/>`;
+      }
+      if (O.collar === 'hood') {
+        const d = geo.line([[0.97, cx - 0.5], [0.84, cx - 0.25], [0.8, cx], [0.84, cx + 0.25], [0.97, cx + 0.5]]);
+        s += `<path d="${d}" stroke="${INK}" stroke-width="30" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${dk(O.color, 0.15)}" stroke-width="22" fill="none" stroke-linecap="round"/>`;
+        for (const k of [-0.12, 0.12]) { const a = geo.at(0.82, cx + k), b = geo.at(0.6, cx + k * 1.2); s += `<path d="M${pt(a)} L${pt(b)}" stroke="#f6f2ea" stroke-width="5" stroke-linecap="round"/><circle cx="${n2(b[0])}" cy="${n2(b[1])}" r="5" fill="#d8d0c0" stroke="${INK}" stroke-width="2"/>`; }
+        if (!sideView) s += `<path d="M${pt(geo.at(0.42, cx - 0.5))} L${pt(geo.at(0.42, cx + 0.5))} L${pt(geo.at(0.22, cx + 0.62))} L${pt(geo.at(0.22, cx - 0.62))}Z" fill="${dk(O.color, 0.12)}" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>` +
+          `<path d="${geo.line([[0.4, cx - 0.44], [0.4, cx + 0.44]])}" stroke="${lt(O.color, 0.3)}" stroke-width="2.4" stroke-dasharray="6 5" fill="none"/>`;
+      }
+      return s;
+    };
     // flat clothing marks on the pill: tie, pocket, pen, badge (outfit.tie / pocket / pen / badge)
     const pillMarks = side => geo => {
       let s = '';
@@ -509,7 +544,7 @@
           Object.assign(limb('legR', ['thighR', 'shinR'], 15, 0), { visible: notSit }),
           { name: 'footL', type: 'shape', visible: notSit, bone: 'footL', z: 1, draw: footL },
           { name: 'footR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: footL },
-          { name: 'torso', type: 'tube', bones: ['hips', 'chest'], extendStart: 34, extendEnd: 18, widths: [pillW * 0.8, pillW, pillW * 0.98, pillW * 0.78], fill: C.cloth, z: 10, line: 7, clipId: 'torso', detail: pillDetail, over: pillMarks(false) },
+          { name: 'torso', type: 'tube', bones: ['hips', 'chest'], extendStart: 34, extendEnd: 18, widths: [pillW * 0.8, pillW, pillW * 0.98, pillW * 0.78], fill: C.cloth, z: 10, line: 7, clipId: 'torso', detail: pillDetail, over: geo => pillMarks(false)(geo) + pillOver(false)(geo) },
           limb('armL', ['upperArmL', 'lowerArmL'], 14, 20), limb('armR', ['upperArmR', 'lowerArmR'], 14, 20),
           { name: 'handL', type: 'shape', bone: 'handL', z: 21, draw: ball, lightShape: ballLight }, { name: 'handR', type: 'shape', bone: 'handR', z: 21, draw: ball, lightShape: ballLight },
           headPart(),
@@ -531,7 +566,7 @@
           limb('armL', ['upperArmL', 'lowerArmL'], 14, 3, far), { name: 'handL', type: 'shape', bone: 'handL', z: 4, draw: ball, lightShape: ballLight },
           Object.assign(limb('legR', ['thighR', 'shinR'], 15, 0), { visible: notSit }),
           { name: 'footR', type: 'shape', visible: notSit, bone: 'footR', z: 1, draw: footL },
-          { name: 'torso', type: 'tube', bones: ['hips', 'chest'], extendStart: 34, extendEnd: 18, widths: [pillW * 0.66, pillW * 0.8, pillW * 0.78, pillW * 0.62], fill: C.cloth, z: 10, line: 7, clipId: 'torso', detail: pillDetail, over: pillMarks(true) },
+          { name: 'torso', type: 'tube', bones: ['hips', 'chest'], extendStart: 34, extendEnd: 18, widths: [pillW * 0.66, pillW * 0.8, pillW * 0.78, pillW * 0.62], fill: C.cloth, z: 10, line: 7, clipId: 'torso', detail: pillDetail, over: geo => pillMarks(true)(geo) + pillOver(true)(geo) },
           limb('armR', ['upperArmR', 'lowerArmR'], 14, 20), { name: 'handR', type: 'shape', bone: 'handR', z: 21, draw: ball, lightShape: ballLight },
           headPart(),
           ...(H.style === 'long' ? [{ name: 'hairLong', type: 'shape', bone: 'head', frame: 90, z: 2, draw: longHair }] : []),
