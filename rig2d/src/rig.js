@@ -183,8 +183,11 @@
     browAngle: 0, browAngleL: 0, browAngleR: 0, // + = inner ends down (angry), - = worried
     browCurve: 0.25,
     mouthOpen: 0, mouthSmile: 0.15, mouthWidth: 1, mouthX: 0,
-    mouthShape: 'auto',                 // auto | o | grit
-    teeth: 0, blush: 0.35, sweat: 0, anger: 0,
+    mouthShape: 'auto',                 // auto | o | grit | wavy (worried) | grin (dark grin + block teeth) | none
+    teeth: 0, blush: 0.35, sweat: 0, sweatDrops: 1, anger: 0,
+    eyeShape: null,                     // null = layout default; 'dot' | 'oval' (solid vertical ovals)
+    eyeShine: null,                     // null = layout default; 0 hides the white shine in the eyes
+    lidBar: 0, lidBarL: 0, lidBarR: 0,  // thick flat bar over the top of the eye (smug / unimpressed), 0..1
     turn: 0,                            // -1..1 fake head turn (features slide, far eye foreshortens)
   };
 
@@ -198,6 +201,13 @@
     angry: { browAngle: 1.1, browRaise: -0.4, lidTop: 0.2, mouthSmile: -0.6, mouthOpen: 0.3, teeth: 1, anger: 1 },
     sad: { browAngle: -1, browRaise: 0.3, mouthSmile: -0.6, lookY: 0.6, lidTop: 0.2 },
     sleepy: { lidTop: 0.6, browRaise: -0.2, mouthSmile: 0 },
+    // Ricks Clips-style set (study §1): swap these in one frame on the word that motivates them
+    smugBar: { lidBar: 0.55, browRaise: -0.1, mouthShape: 'grin', mouthSmile: 0.6, mouthWidth: 1.15 },
+    worried: { mouthShape: 'wavy', browAngle: -0.8, browRaise: 0.5, sweat: 1, sweatDrops: 1 },
+    nervous: { eyeWide: 1, mouthShape: 'wavy', browAngle: -0.6, browRaise: 0.7, sweat: 1, sweatDrops: 1 },
+    crazy: { eyeWide: 1, mouthShape: 'grin', mouthSmile: 1, mouthWidth: 1.35, browRaise: 0.8 },
+    panic: { eyeWide: 1, mouthShape: 'wavy', browAngle: -0.9, browRaise: 1, sweat: 1, sweatDrops: 5 },
+    grin: { mouthShape: 'grin', mouthSmile: 0.8, mouthWidth: 1.2, browRaise: 0.2 },
   };
 
   function drawFace(fs, blob, L, ink, idp) {
@@ -228,6 +238,9 @@
       const blink = clamp(Math.max(fs.blink, fs['blink' + e.nm]), 0, 1);
       const lid = clamp(Math.max(fs.lidTop, fs['lidTop' + e.nm]), 0, 1);
       const lx = clamp(fs.lookX, -1, 1), ly = clamp(fs.lookY, -1, 1);
+      const bar = clamp(Math.max(fs.lidBar || 0, fs['lidBar' + e.nm] || 0), 0, 1);
+      const oval = (fs.eyeShape || L.eyeShape) === 'oval';
+      const shine = (fs.eyeShine == null ? (L.eyeShine == null ? 1 : L.eyeShine) : fs.eyeShine) > 0.5;
       let g = '';
       if (blink >= 0.85) {
         g += fs.eyeSmile > 0.5
@@ -239,13 +252,26 @@
           E = r * lerp(2.0, 2.6, (fs.eyeWide - 0.5) * 2);
           const off = E - r * 1.3;
           g += `<circle r="${n2(E)}" fill="#fff" stroke="${ink}" stroke-width="${n2(r * 0.55)}"/>` +
-            `<circle cx="${n2(lx * off)}" cy="${n2(ly * off)}" r="${n2(r * 0.95)}" fill="${ink}"/>` +
-            `<circle cx="${n2(lx * off - r * 0.3)}" cy="${n2(ly * off - r * 0.35)}" r="${n2(r * 0.3)}" fill="#fff"/>`;
+            `<circle cx="${n2(lx * off)}" cy="${n2(ly * off)}" r="${n2(r * (shine ? 0.95 : 0.75))}" fill="${ink}"/>` +
+            (shine ? `<circle cx="${n2(lx * off - r * 0.3)}" cy="${n2(ly * off - r * 0.35)}" r="${n2(r * 0.3)}" fill="#fff"/>` : '');
+        } else if (oval) {
+          // solid vertical oval, no shine (the Ricks Clips eye)
+          E = r * 1.45;
+          const ox = lx * r * 0.7, oy = ly * r * 0.6;
+          g += `<ellipse cx="${n2(ox)}" cy="${n2(oy)}" rx="${n2(r * 0.95)}" ry="${n2(r * 1.4)}" fill="${ink}"/>` +
+            (shine ? `<circle cx="${n2(ox - r * 0.3)}" cy="${n2(oy - r * 0.6)}" r="${n2(r * 0.28)}" fill="#fff"/>` : '');
         } else {
           E = r * 1.25;
           const ox = lx * r * 0.9, oy = ly * r * 0.9;
           g += `<circle cx="${n2(ox)}" cy="${n2(oy)}" r="${n2(r)}" fill="${ink}"/>` +
-            `<circle cx="${n2(ox - r * 0.32)}" cy="${n2(oy - r * 0.36)}" r="${n2(r * 0.32)}" fill="#fff"/>`;
+            (shine ? `<circle cx="${n2(ox - r * 0.32)}" cy="${n2(oy - r * 0.36)}" r="${n2(r * 0.32)}" fill="#fff"/>` : '');
+        }
+        if (bar > 0) {
+          // thick flat bar laid over the top of the eye; the eye shows only below it
+          const barY = -E + bar * E * 1.1, id = `${idp}-bar${e.nm}`, bt = r * 1.05;
+          defs += `<clipPath id="${id}"><rect x="${n2(-E * 3)}" y="${n2(barY)}" width="${n2(E * 6)}" height="${n2(E * 6)}"/></clipPath>`;
+          g = `<g clip-path="url(#${id})">${g}</g>` +
+            `<path d="M${n2(-E * 1.45)},${n2(barY + e.side * E * 0.05)} L${n2(E * 1.45)},${n2(barY - e.side * E * 0.05)}" stroke="${ink}" stroke-width="${n2(bt)}" stroke-linecap="round"/>`;
         }
         if (lid > 0) {
           const lidY = -E + lid * E * 1.5, id = `${idp}-lid${e.nm}`;
@@ -286,6 +312,26 @@
         `<path d="M${n2(mx - gw)},${n2(my)} H${n2(mx + gw)}` +
         [-0.5, 0, 0.5].map(k => ` M${n2(mx + gw * k)},${n2(my - gh / 2)} V${n2(my + gh / 2)}`).join('') +
         `" stroke="${ink}" stroke-width="${n2(lw * 0.6)}"/>`;
+    } else if (fs.mouthShape === 'wavy') {
+      // worried squiggle
+      const ww = w * 1.5, n = 3, amp = h * 0.38;
+      let d = `M${n2(mx - ww)},${n2(my)}`;
+      for (let i = 0; i < n * 2; i++) {
+        const x0 = mx - ww + (i + 0.5) * ww / n, x1 = mx - ww + (i + 1) * ww / n;
+        d += ` Q${n2(x0)},${n2(my + (i % 2 ? amp : -amp))} ${n2(x1)},${n2(my)}`;
+      }
+      s += `<path d="${d}" stroke="${ink}" stroke-width="${n2(lw * 1.15)}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+    } else if (fs.mouthShape === 'grin') {
+      // wide dark crescent grin with a row of white block teeth along the top
+      const gw = w * 1.9, lift = sm * gw * 0.12, top = my - h * 0.3, bot = top + gw * (0.42 + 0.22 * sm + 0.35 * op);
+      const cl = [mx - gw, top - lift], cr = [mx + gw, top - lift];
+      const d = `M${pt(cl)} Q${n2(mx)},${n2(top + lift * 0.5)} ${pt(cr)} C${n2(mx + gw * 0.75)},${n2(bot)} ${n2(mx - gw * 0.75)},${n2(bot)} ${pt(cl)}Z`;
+      const id = `${idp}-grin`, th = (bot - top) * 0.36, nt = 5;
+      defs += `<clipPath id="${id}"><path d="${d}"/></clipPath>`;
+      let teeth = `<path d="M${n2(mx - gw)},${n2(top - h * 2)} V${n2(top + th - lift * 0.3)} Q${n2(mx)},${n2(top + th + lift * 0.4)} ${n2(mx + gw)},${n2(top + th - lift * 0.3)} V${n2(top - h * 2)}Z" fill="#fff"/>`;
+      for (let i = 1; i < nt; i++) teeth += `<path d="M${n2(mx - gw + i * gw * 2 / nt)},${n2(top - h * 2)} V${n2(top + th + lift)}" stroke="${ink}" stroke-width="${n2(lw * 0.5)}"/>`;
+      s += `<path d="${d}" fill="${ink}"/><g clip-path="url(#${id})">${teeth}</g>` +
+        `<path d="${d}" fill="none" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`;
     } else if (op < 0.06) {
       s += `<path d="M${n2(mx - w)},${n2(my - sm * h)} Q${n2(mx)},${n2(my + sm * h * 1.3)} ${n2(mx + w)},${n2(my - sm * h)}" stroke="${ink}" stroke-width="${lw}" fill="none" stroke-linecap="round"/>`;
     } else {
@@ -300,8 +346,14 @@
     }
 
     if (fs.sweat > 0) {
-      const x = cx + R * 0.78, y = cy - RY * 0.42, k = R * 0.085;
-      s += `<path d="M${n2(x)},${n2(y - k * 1.6)} Q${n2(x - k)},${n2(y)} ${n2(x)},${n2(y + k * 0.8)} Q${n2(x + k)},${n2(y)} ${n2(x)},${n2(y - k * 1.6)}Z" fill="#7fc4ff" stroke="${ink}" stroke-width="${n2(k * 0.35)}" opacity="${n2(fs.sweat)}"/>`;
+      // drop 1 at the temple, then around the head (panic = 4-6 drops)
+      const SPOTS = [[0.78, -0.42, 1], [-0.8, -0.3, 0.85], [0.9, 0.05, 0.75], [-0.62, -0.68, 0.7], [0.55, -0.78, 0.65], [-0.92, 0.12, 0.7]];
+      const nd = clamp(Math.round(fs.sweatDrops || 1), 1, SPOTS.length);
+      for (let i = 0; i < nd; i++) {
+        const [ax, ay, sc] = SPOTS[i], x = cx + R * ax, y = cy + RY * ay, k = R * 0.085 * sc;
+        s += `<path d="M${n2(x)},${n2(y - k * 1.6)} Q${n2(x - k)},${n2(y)} ${n2(x)},${n2(y + k * 0.8)} Q${n2(x + k)},${n2(y)} ${n2(x)},${n2(y - k * 1.6)}Z" fill="#7fc4ff" stroke="${ink}" stroke-width="${n2(k * 0.35)}" opacity="${n2(fs.sweat)}"/>` +
+          `<ellipse cx="${n2(x - k * 0.3)}" cy="${n2(y - k * 0.1)}" rx="${n2(k * 0.18)}" ry="${n2(k * 0.4)}" fill="#fff" opacity="${n2(0.8 * fs.sweat)}"/>`;
+      }
     }
     if (fs.anger > 0) {
       const x = cx - R * 0.55, y = cy - RY * 0.55, k = R * 0.09;
@@ -352,10 +404,11 @@
       const m = M.mul(ch.bones[p.bone].world, M.rot(p.frame == null ? 90 : p.frame));
       const H = p.head;
       const blob = p._blob || (p._blob = Blob(Object.assign({ cx: 0, cy: -H.ry * 0.85 }, H)));
-      const idp = `${ch.id}-${p.name}`, fs = ctx.face, lx = ctx.light;
+      const idp = `${ch.id}-${p.name}${ctx.uid || ''}`, fs = ctx.face, lx = ctx.light;
       const L = Object.assign({}, FACE_LAYOUT, p.face);
       let defs = `<clipPath id="${idp}-clip"><path d="${blob.path}"/></clipPath>` +
         `<filter id="${idp}-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${n2(H.rx * 0.09)}"/></filter>`;
+      if (ctx.mask === 'hands') return { svg: `<g transform="${M.str(m)}" class="rig-blk"><path d="${blob.path}" fill="#000" stroke="#000" stroke-width="${H.line || 8}"/>${p.hair ? p.hair(ctx, blob, fs) : ''}${p.front ? p.front(ctx, blob, fs) : ''}</g>`, defs };
       if (ctx.mask === 'skin') {   // skin mask: blob white; hair, face features and outline black
         const blk = x => x ? `<g class="rig-blk">${x}</g>` : '';
         const ms = blk(p.back ? p.back(ctx, blob, fs) : '') + `<path d="${blob.path}" fill="#fff"/>` +
@@ -365,18 +418,32 @@
       }
       let s = p.back ? p.back(ctx, blob, fs) : '';
       s += `<path d="${blob.path}" fill="${H.skin}"/>`;
-      s += `<g clip-path="url(#${idp}-clip)">` +
-        `<ellipse cx="${n2(blob.cx - lx * H.rx * 0.95)}" cy="${n2(blob.cy + H.ry * 0.15)}" rx="${n2(H.rx * 0.7)}" ry="${n2(H.ry * 1.25)}" fill="${H.shade}" opacity=".6" filter="url(#${idp}-soft)"/>` +
-        `<ellipse cx="${n2(blob.cx + lx * H.rx * 1.02)}" cy="${n2(blob.cy)}" rx="${n2(H.rx * 0.22)}" ry="${n2(H.ry * 0.8)}" fill="${H.rim}" opacity=".35" filter="url(#${idp}-soft)"/></g>`;
-      // scene rim light (from Light): a gradient stroke just inside the outline, strongest toward the light
-      if (ctx.rim) {
-        const R = ctx.rim, vx = R.dx, vy = R.dy, det = m[0] * m[3] - m[1] * m[2] || 1;
-        let lx2 = (m[3] * vx - m[2] * vy) / det, ly2 = (-m[1] * vx + m[0] * vy) / det;
-        const ln = Math.hypot(lx2, ly2) || 1; lx2 /= ln; ly2 /= ln;
-        const rr = Math.max(H.rx, H.ry);
-        defs += `<linearGradient id="${idp}-rg" gradientUnits="userSpaceOnUse" x1="${n2(blob.cx + lx2 * rr)}" y1="${n2(blob.cy + ly2 * rr)}" x2="${n2(blob.cx)}" y2="${n2(blob.cy)}">` +
-          `<stop offset="0" stop-color="${R.color}" stop-opacity="${n2(R.op)}"/><stop offset=".55" stop-color="${R.color}" stop-opacity="0"/></linearGradient>`;
-        s += `<path d="${blob.path}" fill="none" stroke="url(#${idp}-rg)" stroke-width="${n2((H.line || 8) + 2 * (R.width || 8))}" clip-path="url(#${idp}-clip)"/>`;
+      if (ctx.lit) {
+        // Scene light falling on the face (from Light): the side toward the light reflects the light's
+        // color and glows at the edge, a soft shine sits near the lit edge, a rim runs along it, and the far
+        // side falls into shadow. Directional: the face is not tinted evenly.
+        const Lt = ctx.lit, det = m[0] * m[3] - m[1] * m[2] || 1;
+        let dx = (m[3] * Lt.dx - m[2] * Lt.dy) / det, dy = (-m[1] * Lt.dx + m[0] * Lt.dy) / det;
+        const ln = Math.hypot(dx, dy) || 1; dx /= ln; dy /= ln;
+        const rr = Math.max(H.rx, H.ry), ex = blob.cx + dx * rr, ey = blob.cy + dy * rr, fx = blob.cx - dx * rr, fy = blob.cy - dy * rr;
+        const grad = (id, x1, y1, x2, y2, col, op, end) => `<linearGradient id="${idp}-${id}" gradientUnits="userSpaceOnUse" x1="${n2(x1)}" y1="${n2(y1)}" x2="${n2(x2)}" y2="${n2(y2)}">` +
+          `<stop offset="0" stop-color="${col}" stop-opacity="${n2(op)}"/><stop offset="${end}" stop-color="${col}" stop-opacity="0"/></linearGradient>`;
+        const sx = blob.cx + dx * rr * 0.5, sy = blob.cy + dy * rr * 0.5 - rr * 0.18;
+        // lk: the light's color reflected off the lit side (multiply = colored light on a pale surface),
+        // lg: a brighter glow hugging the lit edge (screen)
+        defs += grad('lk', ex, ey, fx, fy, Lt.color, Lt.key, 0.85) + grad('lg', ex, ey, fx, fy, Lt.color, Lt.key, 0.45) + grad('ls', fx, fy, ex, ey, Lt.shade, Lt.shadeOp, 0.6) +
+          grad('lr', ex, ey, blob.cx, blob.cy, Lt.rim, Lt.rimOp, 0.6) +
+          `<radialGradient id="${idp}-lh"><stop offset="0" stop-color="${Lt.color}" stop-opacity="${n2(Lt.spec)}"/><stop offset="1" stop-color="${Lt.color}" stop-opacity="0"/></radialGradient>`;
+        if (Lt.ambTint > 0) s += `<path d="${blob.path}" fill="${Lt.amb}" opacity="${n2(Lt.ambTint)}" style="mix-blend-mode:multiply"/>`;
+        s += `<path d="${blob.path}" fill="url(#${idp}-ls)" style="mix-blend-mode:multiply"/>` +
+          `<path d="${blob.path}" fill="url(#${idp}-lk)" style="mix-blend-mode:multiply"/>` +
+          `<path d="${blob.path}" fill="url(#${idp}-lg)" style="mix-blend-mode:screen"/>` +
+          `<ellipse cx="${n2(sx)}" cy="${n2(sy)}" rx="${n2(rr * 0.42)}" ry="${n2(rr * 0.3)}" fill="url(#${idp}-lh)" clip-path="url(#${idp}-clip)" style="mix-blend-mode:screen"/>` +
+          `<path d="${blob.path}" fill="none" stroke="url(#${idp}-lr)" stroke-width="${n2((H.line || 8) + 2 * Lt.rimWidth)}" clip-path="url(#${idp}-clip)" style="mix-blend-mode:screen"/>`;
+      } else {
+        s += `<g clip-path="url(#${idp}-clip)">` +
+          `<ellipse cx="${n2(blob.cx - lx * H.rx * 0.95)}" cy="${n2(blob.cy + H.ry * 0.15)}" rx="${n2(H.rx * 0.7)}" ry="${n2(H.ry * 1.25)}" fill="${H.shade}" opacity=".6" filter="url(#${idp}-soft)"/>` +
+          `<ellipse cx="${n2(blob.cx + lx * H.rx * 1.02)}" cy="${n2(blob.cy)}" rx="${n2(H.rx * 0.22)}" ry="${n2(H.ry * 0.8)}" fill="${H.rim}" opacity=".35" filter="url(#${idp}-soft)"/></g>`;
       }
       s += `<path d="${blob.path}" fill="none" stroke="${ctx.ink}" stroke-width="${H.line || 8}" stroke-linejoin="round"/>`;
       if (p.hair) s += p.hair(ctx, blob, fs);
@@ -481,7 +548,8 @@
         .sort((a, b) => a.z - b.z || a.i - b.i);
       let defs = '', body = '';
       // mask: 'skin' draws skin white and everything else black, in the same draw order, so hats, hair and
-      // sleeves in front of skin hide it; 'silhouette' draws everything black (cast shadows). Used by Light.
+      // sleeves in front of skin hide it; 'hands' is the same without heads (heads light themselves);
+      // 'silhouette' draws everything black (cast shadows). Used by Light.
       // Colors are forced with a CSS rule (cheaper than a filter per part).
       const mask = opts.mask;
       if (mask) {
@@ -489,7 +557,8 @@
         defs += '<style>.rig-blk [fill]:not([fill="none"]){fill:#000!important}.rig-blk [stroke]:not([stroke="none"]){stroke:#000!important}' +
           '.rig-wht [fill]:not([fill="none"]){fill:#fff!important}.rig-wht [stroke]:not([stroke="none"]){stroke:#fff!important}</style>';
       }
-      if (opts.rim) ctx.rim = { color: opts.rim.color, op: opts.rim.op, width: opts.rim.width, dx: opts.rim.dx * (opts.flip ? -1 : 1), dy: opts.rim.dy };
+      if (opts.lit) ctx.lit = Object.assign({}, opts.lit, { dx: opts.lit.dx * (opts.flip ? -1 : 1) });
+      if (opts.uid) ctx.uid = opts.uid;   // unique ids when the same actor is drawn more than once per frame
       for (const { p } of list) {
         if (p.visible && !p.visible(ctx)) continue;
         const r = RENDER[p.type](p, ctx, this);

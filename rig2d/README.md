@@ -15,7 +15,10 @@ part hangs off a bone, so moving a bone moves everything attached to it.
   (collars, sashes, patterns, folds) bend with the body.
 - **Face rig:** look direction, blinks, eye size (dot → ring eyes), upper lids, each brow's
   raise/angle, mouth open/smile/width/shape (`o`, `grit`), teeth, blush, sweat, anger mark,
-  and a fake head turn. Presets: `neutral happy laugh shock scared smug angry sad sleepy`.
+  and a fake head turn. Ricks Clips-style options: oval eyes without shine (`eyeShape: 'oval'`, `eyeShine: 0`),
+  the smug lid bar (`lidBar`), a wavy worried mouth and a dark block-tooth grin (`mouthShape: 'wavy' | 'grin'`),
+  several sweat drops (`sweatDrops`). Presets: `neutral happy laugh shock scared smug angry sad sleepy` and
+  `smugBar grin worried nervous panic crazy` (see `tools/face_sheet.html`).
 - **Timeline:** keyframes with easing (`inOut out in back elastic linear step`). Anything in a
   pose can be animated. Use `step` for snappy expression swaps.
 - **Alive layer:** automatic breathing, random blinks and slight head sway.
@@ -80,24 +83,27 @@ const LIT = Light.preset('golden', { source: { x: 1650, y: 1050 }, back: true })
 svg += Light.render(actor, { x, y, scale, t, light: LIT });
 ```
 
-It works from the character's silhouette, so it needs nothing from the character file:
+Light is directional, like real light falling on someone: the side of the face toward the source reflects
+the light's color and glows at the edge, a soft shine and a rim sit on the lit side, and the far side falls into
+shadow. It needs nothing from the character file:
 
 | Layer | What it does |
 |---|---|
-| Tint | Face, clothes and outline are multiplied by the light color; blacks lift toward the ambient color |
-| Shading | Soft gradient: brighter on the side facing the light, darker on the far side |
-| Rim | Thin bright line just inside the outline on the lit side |
-| Pattern | Optional set light projected on the body (`pattern: { svg: Light.blinds(...), blend: 'screen' }`) |
+| Key | Lit side reflects the light's color (+ edge glow), fading across the face |
+| Shine, rim | Soft bright spot and bright edge on the lit side |
+| Shadow | Far side falls into the scene's shadow color |
+| Ambient | Faint cast of surrounding light (moonlight at night; 0 in daylight) |
+| Pattern | Optional set light on the skin (`pattern: { svg: Light.blinds(...), blend: 'screen' }`) |
 | Cast shadow | On the ground, away from the light (toward the camera when `back: true`) |
 
 By default only the **skin** is lit (face, hands; parts marked `skin: true`); clothes keep their colors.
 `affect: 'all'` lights the whole character.
 
 Presets: `day`, `golden`, `overcast`, `interior`, `night`, `candle`, `forge`. Override any field
-(`color`, `tint`, `exposure`, `ambient`, `lift`, `rim`, `rimOp`, `rimWidth`, `shade`, `shadeOp`, `key`,
-`dir`, `source`, `back`, `shadow`, `shadowLen`). `dir` is where the light comes from in screen degrees
+(`color`, `key`, `spec`, `rim`, `rimOp`, `rimWidth`, `shade`, `shadeOp`, `amb`, `ambTint`, `dir`, `source`,
+`back`, `shadow`, `shadowLen`, `affect`). `dir` is where the light comes from in screen degrees
 (0 = right, 180 = left, -90 = above); `source` is a point in the scene (candle, window, sun) and each
-character works out its own direction from it. Test sheet: `tools/light_test.html`.
+character works out its own direction from it. Test sheets: `tools/light_test.html`, `tools/light_face.html`.
 
 ## Voice, sound effects, mixing
 
@@ -141,6 +147,8 @@ See `stories/library/`:
 | `src/look.js` | Polish pass: grade, bloom, soft lines, glows, rays, haze, grain |
 | `src/light.js` | Scene lighting on characters: tint, shading, rim, projected patterns, cast shadows |
 | `tools/light_test.html` | Every light preset on the same character, unlit vs lit |
+| `tools/light_face.html` | Face close-ups per light preset |
+| `tools/face_sheet.html` | Every expression on a Rick-style face (`?lit=night` adds light) |
 | `scenes/city.js` | Xicheng: city wall + gate tower, street, wall top (layered) |
 | `characters/threekingdoms.js` | Zhuge Liang, Sima Yi, page boys, soldiers, sweepers |
 | `stories/emptycity/` | "The Empty City" legend short (45 s) |

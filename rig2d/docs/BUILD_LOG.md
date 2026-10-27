@@ -87,11 +87,53 @@ Quality check: fast frames match the exact in-browser stills (colors, bloom, cap
 4/6/8 workers, single raster thread, GPU off). Speed scales with cores, so a bigger machine is faster.
 The next software win would be caching static background layers as bitmaps (~1/3 of drawing time).
 
+## Step 1c — Light as reflected light, not a color change (2026-10-27)
+
+**Feedback:** "the lighting is not color, it is like actual light reflecting on characters... light coming on
+somebody." The previous version tinted the whole skin evenly, which reads as a color filter.
+
+**Change:** light is now directional and drawn by the head itself, so it follows the head's shape:
+- **Key:** the side facing the source reflects the light's color (a pale face under firelight turns
+  orange there), fading across the face, plus a brighter glow hugging the lit edge.
+- **Shine:** a soft bright spot near the lit edge. **Rim:** a bright band just inside the outline.
+- **Far side:** falls softly into the scene's shadow color.
+- **Ambient:** only a faint cast of the surrounding light where it makes sense (moonlight at night),
+  0 in daylight.
+- Hands get the same key and shadow through a hands-only mask.
+- Presets were retuned around light strength (`key`, `spec`, `rimOp`, `shadeOp`, `ambTint`).
+
+**Bugs found:**
+- Screening light onto an almost-white face can't brighten it, so the glow was invisible. The lit side
+  has to reflect the light's color (multiply) with a screen glow only at the edge.
+- When the same actor is drawn more than once per frame, its gradient IDs collided, so every copy used
+  the first copy's light. Each lit render now gets unique IDs (`uid`).
+
+**Check it:** `tools/light_face.html` (face close-ups per preset); `tools/face_sheet.html?lit=night`.
+
+## Step 3 — Face kit (2026-10-27)
+
+From the Ricks Clips face study (`docs/RICKS_STUDY.md` §1). New face controls (old faces unchanged):
+
+| Control | What it does |
+|---|---|
+| `eyeShape: 'oval'` (or layout `eyeShape`) | Solid vertical oval eyes |
+| `eyeShine: 0` (or layout) | No white shine in the eyes (also gives ring eyes a smaller pupil) |
+| `lidBar`, `lidBarL`, `lidBarR` (0..1) | Thick flat bar over the top of the eye: the smug, unimpressed look |
+| `mouthShape: 'wavy'` | Worried squiggle |
+| `mouthShape: 'grin'` | Wide dark crescent with a row of white block teeth (`mouthSmile`, `mouthOpen` shape it) |
+| `sweatDrops: 1..6` | Several sweat drops around the head (with highlights) |
+
+New expressions: `smugBar`, `grin`, `worried`, `nervous`, `panic`, `crazy`. As in Rick's videos, swap them in
+one frame on the word that motivates them (Timeline `ease: 'step'`).
+
+**Tuning:** the first grin and wavy mouth were about a sixth of the face wide; Rick's span about half.
+They were widened, and the grin became a deep crescent instead of a V.
+
+**Check it:** `tools/face_sheet.html` renders every expression on a Rick-style test face (oval eyes, no shine).
+
 ## Next steps
 
-- **Step 2 — Face kit:** smug lid bar, wavy "worried" mouth, white block teeth, multiple sweat drops,
-  one-frame expression swaps (study §1).
-- **Step 3 — Body style option:** an optional "simple" body style (pill torso, stick limbs with straight
+- **Step 4 — Body:** light on clothes, and an optional "simple" body style (pill torso, stick limbs with straight
   segments, ball hands, L feet) next to our detailed outfits (study §2).
-- **Step 4 — Edit and sound:** dissolve + push-in transitions, an accent about every 1.5 s, always-on bed
+- **Step 5 — Edit and sound:** dissolve + push-in transitions, an accent about every 1.5 s, always-on bed
   12–15 dB under the voice (study §4, §6).

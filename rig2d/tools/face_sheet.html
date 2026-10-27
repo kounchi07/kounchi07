@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}svg{display:block}
+text{font-family:'DejaVu Sans',sans-serif;font-weight:700;font-size:30px;fill:#fff;stroke:#000;stroke-width:6px;paint-order:stroke;text-anchor:middle}</style></head>
+<body>
+<!-- Face sheet: every expression on a Ricks-style face (oval eyes, no shine). ?lit=night adds scene light. -->
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><g id="stage"></g></svg>
+<script src="../src/rig.js"></script>
+<script src="../src/kit.js"></script>
+<script src="../src/light.js"></script>
+<script>
+const Guy = Kit.character({
+  name: 'guy', skin: '#f6efea', head: { rx: 150, ry: 140, wobble: 0.06, seed: 3 },
+  hair: { style: 'short', color: '#2a1d18' }, outfit: { type: 'tunic', color: '#e8a83a', pattern: 'none', sash: '#7a3a1a' },
+  face: { layout: { eyeShape: 'oval', eyeShine: 0, eyeR: 0.075, mouthW: 0.17, mouthY: 0.38 } }, faceDefaults: { blush: 0 },
+});
+const A = new Rig2D.Actor(Guy, { id: 'g' });
+const FEET = { legL: { x: -32, y: -14 }, legR: { x: 32, y: -14 } };
+const EX = Rig2D.EXPRESSIONS;
+const cells = ['neutral', 'smugBar', 'grin', 'worried', 'nervous', 'panic', 'crazy', 'shock', 'scared', 'happy', 'angry', 'sad'];
+const lit = (location.search.match(/lit=(\w+)/) || [])[1];
+window.DURATION = 1;
+window.render = function () {
+  let s = '', defs = '';
+  cells.forEach((n, i) => {
+    const x0 = (i % 3) * 360, y0 = Math.floor(i / 3) * 480;
+    defs += `<clipPath id="c${i}"><rect x="${x0}" y="${y0}" width="360" height="480"/></clipPath>`;
+    A.pose({ view: 'front', ik: FEET, face: Object.assign({}, EX[n]) });
+    const o = { x: x0 + 180, y: y0 + 770, scale: 0.95, id: 'c' + i };
+    s += `<g clip-path="url(#c${i})"><rect x="${x0}" y="${y0}" width="360" height="480" fill="${lit ? '#1a1636' : i % 2 ? '#bfe0ff' : '#cfe8ff'}"/>` +
+      (lit ? Light.render(A, Object.assign(o, { light: Light.preset(lit, { source: { x: x0 + 360, y: y0 + 60 } }), castShadow: false })) : A.render(o)) +
+      `<text x="${x0 + 180}" y="${y0 + 455}">${n}</text></g>`;
+  });
+  document.getElementById('stage').innerHTML = `<defs>${defs}</defs>` + s;
+};
+window.render(0);
+</script></body></html>

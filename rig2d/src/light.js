@@ -1,39 +1,40 @@
 /*
- * Rig2D Light — makes any character match the light of the scene it stands in.
+ * Rig2D Light — scene light falling on characters (the Ricks Clips look: light reflects off the side of a
+ * face that faces the window, the fire or the sun; the other side falls into shadow).
  *
  *   Light.render(actor, { x, y, scale, t, light })   drop-in for actor.render(...)
- *   Light.PRESETS                                     day, golden, night, candle, forge, interior, overcast
+ *   Light.PRESETS                                     day, golden, overcast, interior, night, candle, forge
  *   Light.preset('night', { source: { x, y } })       a preset with overrides
  *
- * By default only the SKIN is lit (face, neck, hands: `affect: 'skin'`); clothes, hair and props keep
- * their own colors. `affect: 'all'` lights the whole character. Everything works from masks rendered by
- * the rig itself, so it applies to any character:
- *   1. Tint      skin (or everything) is multiplied by the light color, and the blacks are lifted
- *                toward the ambient color (night = lavender faces, candle = warm cream, ...).
- *   2. Shading   a soft gradient across the body: brighter on the side facing the light, darker on the far side.
- *   3. Rim       a thin bright line just inside the outline on the lit side of the skin.
- *   4. Pattern   optional light/shadow shapes from the set (window blinds, leaves) projected onto the body.
- *   5. Shadow    a cast shadow on the ground, pointing away from the light.
+ * The light is DIRECTIONAL, not an even tint: the skin keeps its own color where the light doesn't reach, and gets
+ *   1. Key        the side facing the source reflects the light's color (and glows at the edge), fading across the face
+ *   2. Shine      a soft bright spot near the lit edge
+ *   3. Rim        a bright edge just inside the outline on the lit side
+ *   4. Shadow     the far side falls softly into the scene's shadow color
+ *   5. Ambient    optional faint cast of the surrounding light (e.g. moonlight at night; 0 in daylight)
+ *   6. Pattern    optional light shapes from the set (window blinds, leaves) falling on the skin
+ *   7. Cast       a shadow on the ground, pointing away from the light
+ * Heads draw 1-5 themselves (so the glow follows the head's shape); hands get them through a mask.
+ * `affect: 'all'` also lays the glow and shadow over clothes and props (default: 'skin').
  *
- * Light direction: `dir` is where the light comes FROM, in screen degrees (0 = from the right,
- * 180 = from the left, -90 = from above). Or give `source: {x, y}` (world point, e.g. a candle or a
- * window) and every character works out its own direction. `back: true` = the light is behind the
- * characters (sunset behind them): the shadow falls toward the camera and the rim gets stronger.
+ * Direction: `dir` is where the light comes FROM, in screen degrees (0 = from the right, 180 = from the
+ * left, -90 = from above), or `source: {x, y}` (a candle, window or sun in the scene) and every
+ * character works out its own direction. `back: true` = light behind the characters (sunset): stronger
+ * rim, shadow toward the camera.
  */
 (function (root) {
   'use strict';
   const n2 = v => +(+v).toFixed(2);
-  const hex = c => { const h = c.replace('#', ''); const f = h.length === 3 ? h.split('').map(x => x + x).join('') : h; return [0, 2, 4].map(i => parseInt(f.substr(i, 2), 16) / 255); };
 
   const PRESETS = {
-    //            light color   tint  exposure ambient     lift  rim color  rim  shade color  shade key   dir
-    day:      { color: '#fff3e2', tint: 0.08, exposure: 1.02, ambient: '#8fa8ff', lift: 0.02, rim: '#fff6dc', rimOp: 0.55, shade: '#3c4380', shadeOp: 0.13, key: 0.08, dir: -55, shadow: 0.32 },
-    golden:   { color: '#ffd29e', tint: 0.32, exposure: 1.0, ambient: '#7a3e52', lift: 0.05, rim: '#ffd27e', rimOp: 0.62, shade: '#4a2650', shadeOp: 0.32, key: 0.16, dir: -20, shadow: 0.38 },
-    overcast: { color: '#e8ecf4', tint: 0.18, exposure: 0.97, ambient: '#6a7890', lift: 0.04, rim: '#ffffff', rimOp: 0.3, shade: '#2c3550', shadeOp: 0.2, key: 0.05, dir: -80, shadow: 0.18 },
-    interior: { color: '#ffe6c4', tint: 0.22, exposure: 1.0, ambient: '#5a3a30', lift: 0.04, rim: '#fff0cc', rimOp: 0.5, shade: '#3a2030', shadeOp: 0.26, key: 0.12, dir: -60, shadow: 0.3 },
-    night:    { color: '#aaa2e8', tint: 0.5, exposure: 0.86, ambient: '#2a1c5c', lift: 0.07, rim: '#ffc27a', rimOp: 0.75, shade: '#140c34', shadeOp: 0.42, key: 0.14, dir: 0, shadow: 0.4 },
-    candle:   { color: '#ffc48a', tint: 0.45, exposure: 0.95, ambient: '#3a1608', lift: 0.05, rim: '#ffb24a', rimOp: 0.9, shade: '#2a0c18', shadeOp: 0.45, key: 0.22, dir: 0, shadow: 0.45 },
-    forge:    { color: '#ffbe70', tint: 0.5, exposure: 1.05, ambient: '#4a1606', lift: 0.06, rim: '#ff9a2a', rimOp: 1.0, shade: '#2a0812', shadeOp: 0.42, key: 0.28, dir: 0, shadow: 0.45 },
+    //          light color      glow       shine       rim color + strength           far-side shadow                ambient cast (0 = none)            dir      ground shadow
+    day:      { color: '#ffeccc', key: 0.25, spec: 0.3, rim: '#ffffff', rimOp: 0.55, shade: '#4a5290', shadeOp: 0.16, amb: '#9fb4ff', ambTint: 0, dir: -55, shadow: 0.32 },
+    golden:   { color: '#ffbe6a', key: 0.6, spec: 0.45, rim: '#ffd486', rimOp: 0.9, shade: '#5a2a50', shadeOp: 0.3, amb: '#c08aa0', ambTint: 0.05, dir: -20, shadow: 0.38 },
+    overcast: { color: '#eef2fa', key: 0.15, spec: 0.12, rim: '#ffffff', rimOp: 0.3, shade: '#2c3550', shadeOp: 0.16, amb: '#b8c2d4', ambTint: 0.06, dir: -80, shadow: 0.18 },
+    interior: { color: '#ffdcaa', key: 0.38, spec: 0.3, rim: '#fff0cc', rimOp: 0.55, shade: '#3a2030', shadeOp: 0.24, amb: '#d8b8a0', ambTint: 0.04, dir: -60, shadow: 0.3 },
+    night:    { color: '#ffb45a', key: 0.6, spec: 0.4, rim: '#ffc27a', rimOp: 0.95, shade: '#140c34', shadeOp: 0.45, amb: '#8a7ad8', ambTint: 0.22, dir: 0, shadow: 0.4 },
+    candle:   { color: '#ffa040', key: 0.7, spec: 0.5, rim: '#ffb24a', rimOp: 1.0, shade: '#2a0c18', shadeOp: 0.5, amb: '#a07060', ambTint: 0.12, dir: 0, shadow: 0.45 },
+    forge:    { color: '#ff9a30', key: 0.8, spec: 0.6, rim: '#ffb040', rimOp: 1.0, shade: '#2a0812', shadeOp: 0.45, amb: '#c08060', ambTint: 0.08, dir: 0, shadow: 0.45 },
   };
   const preset = (name, over = {}) => Object.assign({ name }, PRESETS[name], over);
 
@@ -66,64 +67,50 @@
     const ch = actor.current || actor;
     ch._flip = actor.state && actor.state.facing < 0;
     const [bx0, by0, bx1, by1] = box(ch, x, y, s);
-    const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2;
+    const cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2, W = bx1 - bx0, H = by1 - by0;
     const [ux, uy] = toward(L, cx, cy);
-    // the rig's own head shading follows the scene light (+1 = light from screen right)
-    const rimOp0 = Math.min(1, (L.rimOp == null ? 0.6 : L.rimOp) * (L.back ? 1.1 : 1));
-    const rimInfo = { color: L.rim || '#fff', op: rimOp0, width: (L.rimWidth || 6) * (L.back ? 1.3 : 1), dx: ux, dy: uy };
-    const inner = actor.render(Object.assign({}, o, { light: ux >= 0 ? 1 : -1, rim: rimInfo }));
-    const id = `lt${o.id || ''}${uid++}`, W = bx1 - bx0, H = by1 - by0;
-    const reg = `filterUnits="userSpaceOnUse" x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}"`;
-
-    // 1. tint: out = in * k (+ ambient lift). Done with blend layers over the mask, not a filtered copy
-    //    of the character, because every extra copy means drawing the whole character again (slow).
-    const c = hex(L.color || '#ffffff'), tint = L.tint == null ? 0.2 : L.tint, ex = L.exposure || 1, lift = L.lift || 0;
-    const k = c.map(v => Math.round(255 * Math.min(1, (1 - tint + tint * v) * Math.min(1, ex))));
-    // multiply color = tint x (white blended toward the shade color); one gradient layer = one mask pass
-    const sh = hex(L.shade || '#000000');
-    const shadeMul = f => `rgb(${k.map((v, i) => Math.round(v * (1 - f + f * sh[i]))).join(',')})`;
-
-    // 3. rim: band just inside the silhouette (erode past the outline), on the side facing the light
-    const line = (L.line || 7) * s, rw = (L.rimWidth || 6) * Math.min(1, s) * (L.back ? 1.2 : 1);
-    const rimOp = (L.rimOp == null ? 0.6 : L.rimOp) * (L.back ? 1.1 : 1);
-
-    // 2. shading gradient across the box, along the light direction
-    const g1 = [cx + ux * W / 2, cy + uy * H / 2], g0 = [cx - ux * W / 2, cy - uy * H / 2];
-
-    // 5. cast shadow: skew away from the light, squash onto the ground (toward camera when backlit)
-    const shOp = L.shadow == null ? 0.3 : L.shadow;
-    const skew = n2(ux * (L.shadowLen || 0.9)), squash = n2(L.back ? -0.32 : 0.22);
-
-    // What the light touches: 'skin' (default: face, neck, hands) or 'all' (the whole character).
+    const back = L.back ? 1 : 0;
+    const lit = {
+      color: L.color || '#fff', key: L.key == null ? 0.3 : L.key, spec: L.spec == null ? 0.3 : L.spec,
+      rim: L.rim || '#fff', rimOp: Math.min(1, (L.rimOp == null ? 0.6 : L.rimOp) * (back ? 1.1 : 1)), rimWidth: (L.rimWidth || 7) * (back ? 1.3 : 1),
+      shade: L.shade || '#000', shadeOp: L.shadeOp == null ? 0.25 : L.shadeOp, amb: L.amb || '#fff', ambTint: L.ambTint || 0, dx: ux, dy: uy,
+    };
+    const base = Object.assign({}, o, { light: ux >= 0 ? 1 : -1 });
+    const id = `lt${o.id || ''}${uid++}`;
+    const inner = actor.render(Object.assign({}, base, { lit, uid: id }));
+    const reg = `x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}"`;
     const all = L.affect === 'all';
-    const skin = all ? '' : actor.render(Object.assign({}, o, { light: ux >= 0 ? 1 : -1, mask: 'skin' }));
-    const maskBody = all ? `<use href="#${id}-c" filter="url(#${id}-white)"/>` : skin;
-    // rim source: the lit region as alpha (whole silhouette, or the skin mask's white areas)
-    const rimSrc = all ? `<feMorphology in="SourceAlpha" operator="erode" radius="${n2(line)}" result="in"/>`
-      : `<feColorMatrix in="SourceGraphic" type="luminanceToAlpha"/><feComponentTransfer result="in"><feFuncA type="linear" slope="3" intercept="-1.5"/></feComponentTransfer>`;
 
-    let defs = `<g id="${id}-c">${inner}</g>` +
-      `<filter id="${id}-white" ${reg}><feFlood flood-color="#fff"/><feComposite in2="SourceAlpha" operator="in"/></filter>` +
-      `<mask id="${id}-m" maskUnits="userSpaceOnUse" x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}">${maskBody}</mask>` +
-      `<filter id="${id}-rim" ${reg} color-interpolation-filters="sRGB">${rimSrc}` +
-      `<feOffset in="in" dx="${n2(-ux * rw)}" dy="${n2(-uy * rw)}" result="sh"/><feComposite in="in" in2="sh" operator="out" result="band"/>` +
-      `<feGaussianBlur in="band" stdDeviation="${n2(0.6 * s)}" result="bb"/><feFlood flood-color="${L.rim || '#fff'}"/><feComposite in2="bb" operator="in"/></filter>` +
-      `<linearGradient id="${id}-g" gradientUnits="userSpaceOnUse" x1="${n2(g1[0])}" y1="${n2(g1[1])}" x2="${n2(g0[0])}" y2="${n2(g0[1])}">` +
-      [[0, 0], [0.45, 0.35], [1, 1]].map(([at, f]) => `<stop offset="${at}" stop-color="${shadeMul(f * (L.shadeOp || 0.25))}"/>`).join('') + `</linearGradient>` +
-      `<filter id="${id}-sh" ${reg.replace(/y="[^"]+"/, `y="${n2(by0 - H)}"`).replace(/height="[^"]+"/, `height="${n2(H * 3)}"`)} x="-50%"><feGaussianBlur stdDeviation="${n2(Math.min(3, 2 * s))}"/></filter>`;
+    // gradients across the character box along the light direction (for hands / clothes)
+    const g1 = [cx + ux * W / 2, cy + uy * H / 2], g0 = [cx - ux * W / 2, cy - uy * H / 2];
+    const lin = (gid, a, b, col, op, end) => `<linearGradient id="${id}-${gid}" gradientUnits="userSpaceOnUse" x1="${n2(a[0])}" y1="${n2(a[1])}" x2="${n2(b[0])}" y2="${n2(b[1])}">` +
+      `<stop offset="0" stop-color="${col}" stop-opacity="${n2(op)}"/><stop offset="${end}" stop-color="${col}" stop-opacity="0"/></linearGradient>`;
+    // masked layers: the mask goes on each blended element (a masked group would blend against nothing)
+    const rect = (fill, blend, mask) => `<rect ${reg} fill="${fill}" mask="url(#${id}-${mask})" style="mix-blend-mode:${blend}"/>`;
 
+    let defs = lin('k', g1, g0, lit.color, lit.key, 0.85) + lin('g', g1, g0, lit.color, lit.key * 0.8, 0.4) + lin('s', g0, g1, lit.shade, lit.shadeOp, 0.6);
     let out = '';
+
+    // 7. cast shadow on the ground: skew away from the light, squash (toward the camera when backlit)
+    const shOp = L.shadow == null ? 0.3 : L.shadow;
     if (shOp > 0 && o.castShadow !== false) {
       const gy = o.ground == null ? y : o.ground;
-      const sil = actor.render(Object.assign({}, o, { mask: 'silhouette' }));
-      out += `<g opacity="${n2(shOp)}" filter="url(#${id}-sh)" transform="translate(${n2(x)} ${n2(gy)}) matrix(1 0 ${skew} ${squash} 0 0) translate(${n2(-x)} ${n2(-gy)})">${sil}</g>`;
+      const skew = n2(ux * (L.shadowLen || 0.9)), squash = n2(back ? -0.32 : 0.22);
+      defs += `<filter id="${id}-sh" filterUnits="userSpaceOnUse" x="${n2(bx0 - W)}" y="${n2(by0 - H)}" width="${n2(W * 3)}" height="${n2(H * 3)}"><feGaussianBlur stdDeviation="${n2(Math.min(3, 2 * s))}"/></filter>`;
+      out += `<g opacity="${n2(shOp)}" filter="url(#${id}-sh)" transform="translate(${n2(x)} ${n2(gy)}) matrix(1 0 ${skew} ${squash} 0 0) translate(${n2(-x)} ${n2(-gy)})">${actor.render(Object.assign({}, base, { mask: 'silhouette' }))}</g>`;
     }
-    // the character as drawn, then light layers on top, shown only through the mask
-    // (the mask goes on each layer: a masked GROUP would blend its layers against nothing)
-    const rect = (fill, blend, op = 1) => `<rect x="${n2(bx0)}" y="${n2(by0)}" width="${n2(W)}" height="${n2(H)}" fill="${fill}" opacity="${n2(op)}" mask="url(#${id}-m)" style="mix-blend-mode:${blend}"/>`;
-    out += `<use href="#${id}-c"/>` + rect(`url(#${id}-g)`, 'multiply') + (ex > 1 ? rect('#fff', 'screen', ex - 1) : '') +
-      (L.pattern ? `<g mask="url(#${id}-m)" style="mix-blend-mode:${L.pattern.blend || 'screen'}" opacity="${n2(L.pattern.opacity == null ? 0.5 : L.pattern.opacity)}">${L.pattern.svg}</g>` : '') +
-      (all ? `<use href="#${id}-c" filter="url(#${id}-rim)" opacity="${n2(Math.min(1, rimOp))}" style="mix-blend-mode:screen"/>` : '');
+    out += inner;
+
+    // hands (or the whole body with affect: 'all'): the same glow + shadow through a mask
+    const maskSvg = all ? `<g class="rig-wht">${actor.render(Object.assign({}, base, { mask: 'silhouette' }))}</g>` : actor.render(Object.assign({}, base, { mask: 'hands' }));
+    defs += `<mask id="${id}-m" maskUnits="userSpaceOnUse" ${reg}>${maskSvg}</mask>`;
+    out += rect(`url(#${id}-s)`, 'multiply', 'm') + rect(`url(#${id}-k)`, 'multiply', 'm') + rect(`url(#${id}-g)`, 'screen', 'm');
+
+    // 6. set light pattern (e.g. blinds) on all skin, heads included
+    if (L.pattern) {
+      defs += `<mask id="${id}-p" maskUnits="userSpaceOnUse" ${reg}>${actor.render(Object.assign({}, base, { mask: all ? 'silhouette' : 'skin' }))}</mask>`;
+      out += `<g mask="url(#${id}-p)" style="mix-blend-mode:${L.pattern.blend || 'screen'}" opacity="${n2(L.pattern.opacity == null ? 0.5 : L.pattern.opacity)}">${L.pattern.svg}</g>`;
+    }
     return `<g class="lit"><defs>${defs}</defs>${out}</g>`;
   }
 

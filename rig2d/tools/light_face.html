@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}svg{display:block}
+text{font-family:'DejaVu Sans',sans-serif;font-weight:700;font-size:30px;fill:#fff;stroke:#000;stroke-width:6px;paint-order:stroke;text-anchor:middle}</style></head>
+<body>
+<!-- Face close-up light test: unlit on the left, lit on the right, one preset per row (?affect=all lights clothes too) -->
+<svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><g id="stage"></g></svg>
+<script src="../src/rig.js"></script>
+<script src="../src/kit.js"></script>
+<script src="../src/light.js"></script>
+<script src="../characters/threekingdoms.js"></script>
+<script>
+const rows = [['day', '#a8d4ff'], ['golden', '#c07048'], ['night', '#1a1636'], ['candle', '#2a120a'], ['forge', '#3a1206']];
+const A = new Rig2D.Actor(TK.zhuge, { id: 'z' });
+const FEET = { legL: { x: -32, y: -14 }, legR: { x: 32, y: -14 } };
+const all = location.search.includes('affect=all');
+window.DURATION = 1;
+window.render = function () {
+  let s = '', defs = '';
+  rows.forEach(([n, bg], i) => {
+    const y0 = i * 384, src = { x: 1040, y: y0 + 60 };
+    defs += `<clipPath id="row${i}"><rect x="0" y="${y0}" width="1080" height="384"/></clipPath>`;
+    s += `<g clip-path="url(#row${i})">`;
+    s += `<rect x="0" y="${y0}" width="1080" height="384" fill="${bg}"/>`;
+    if (n !== 'day' && n !== 'golden') s += `<circle cx="${src.x}" cy="${src.y}" r="30" fill="#ffd27a"/>`;
+    A.pose({ view: 'front', ik: FEET, props: { fan: false }, face: { lidTop: 0.3, mouthSmile: 0.3 } });
+    s += A.render({ x: 270, y: y0 + 840, scale: 1.0 });
+    A.pose({ view: 'front', ik: FEET, props: { fan: false }, face: { lidTop: 0.3, mouthSmile: 0.3 } });
+    s += Light.render(A, { x: 790, y: y0 + 840, scale: 1.0, light: Light.preset(n, ['day', 'golden'].includes(n) ? { dir: -30, affect: all ? 'all' : 'skin' } : { source: src, affect: all ? 'all' : 'skin' }), id: 'r' + i, castShadow: false });
+    s += `<text x="540" y="${y0 + 40}">${n}</text></g>`;
+  });
+  document.getElementById('stage').innerHTML = `<defs>${defs}</defs>` + s;
+};
+window.render(0);
+</script></body></html>
