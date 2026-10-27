@@ -67,11 +67,11 @@ async function worker(b, pageUrl, times, ids, ext) {
         img.style.cssText = `position:fixed;left:0;top:0;width:1080px;height:1920px;z-index:99;opacity:${1 - e};transform:scale(${1 + z * e});transform-origin:50% 50%`;
         document.body.appendChild(img);
         await img.decode();
-        const svg = document.querySelector('svg');
+        const svg = document.querySelector('canvas') || document.querySelector('svg');   // 3D pages draw to a canvas
         svg.style.transformOrigin = '50% 50%'; svg.style.transform = `scale(${1 + z * 0.5 * (1 - e)})`;
       }, [`data:image/${ext === 'jpg' ? 'jpeg' : 'png'};base64,${before}`, e, cut.zoom == null ? 0.08 : cut.zoom]);
       shot = await grab();
-      await p.evaluate(() => { document.getElementById('__xf').remove(); document.querySelector('svg').style.transform = ''; });
+      await p.evaluate(() => { document.getElementById('__xf').remove(); (document.querySelector('canvas') || document.querySelector('svg')).style.transform = ''; });
     } else {
       await p.evaluate(t => window.render(t), t);
       shot = await grab();
