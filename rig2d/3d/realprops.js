@@ -355,5 +355,88 @@ export function RealProps(THREE, { RoundedBoxGeometry, rnd = Math.random }) {
     return printMat(c, { bump: 3, invert: false, mat: { roughness: 0.55 } });
   }
 
-  return { label, priceTag, dollarNote, cent, ledger, signBoard, paper, canvas, printMat };
+
+  // ---------- 7. newspaper front page (1932) ----------
+  // Anatomy: masthead nameplate with "ears" each side (weather / price), a dateline bar (city, day, date, volume,
+  // number), a banner headline across all columns, smaller decks under it, a halftone photograph with a caption,
+  // six columns of body type with bold lead lines and column rules, a fold crease; yellowed newsprint.
+  function newspaper(o = {}) {
+    const W = 1024, H = 1400, c = canvas(W, H), g = c.getContext('2d'), ink = '#1a1a1a';
+    paper(g, W, H, '#ebe2c8', 0.55);
+    // ears + masthead
+    for (const [x, lines] of [[90, ['WEATHER', 'Fine and', 'Warm']], [W - 90, ['PRICE', 'TWO', 'PENCE']]]) {
+      g.strokeStyle = ink; g.lineWidth = 2; g.strokeRect(x - 70, 40, 140, 110); lines.forEach((l, i) => text(g, l, x, 72 + i * 32, font(i ? '' : 'bold', i ? 26 : 20, BOOK), ink));
+    }
+    text(g, o.name || 'The Western Courier', W / 2, 128, font('bold', 92, 'FreeSerif'), ink, 'center', W - 360);
+    g.fillStyle = ink; g.fillRect(30, 168, W - 60, 4); g.fillRect(30, 210, W - 60, 2);
+    text(g, o.dateline || 'PERTH, WEDNESDAY, NOVEMBER 2, 1932', 40, 198, font('bold', 22, BOOK), ink, 'left');
+    text(g, 'VOL. XLI.—No. 12,402', W - 40, 198, font('bold', 22, BOOK), ink, 'right');
+    // banner + decks
+    text(g, o.headline || 'ARMY GOES TO WAR — WITH EMUS', W / 2, 300, font('bold', 76, BOOK), ink, 'center', W - 70);
+    g.fillRect(200, 324, W - 400, 2);
+    text(g, o.deck1 || 'MACHINE GUNS SENT TO THE WHEAT BELT', W / 2, 372, font('bold', 38, BOOK), ink, 'center', W - 120);
+    text(g, o.deck2 || 'Farmers Plead for Help as 20,000 Birds Raid Crops', W / 2, 414, font('italic', 30), ink, 'center', W - 160);
+    g.fillRect(30, 438, W - 60, 3);
+    // halftone photo (dot screen) of birds on a field + caption
+    const px = 360, py = 460, pw = 620, ph = 400; g.save(); g.beginPath(); g.rect(px, py, pw, ph); g.clip();
+    for (let y = py; y < py + ph; y += 7) for (let x = px; x < px + pw; x += 7) {
+      const u = (x - px) / pw, v = (y - py) / ph; let d = 0.25 + v * 0.35;                       // sky light, field darker
+      for (const [bx, by, br] of [[0.25, 0.62, 0.08], [0.45, 0.58, 0.06], [0.62, 0.66, 0.09], [0.8, 0.6, 0.05], [0.35, 0.75, 0.07]]) { const dx = (u - bx) / br, dy = (v - by) / (br * 1.8); if (dx * dx + dy * dy < 1) d = 0.9; }
+      g.fillStyle = ink; g.beginPath(); g.arc(x, y, 3.4 * Math.sqrt(d), 0, 7); g.fill();
+    }
+    g.restore(); g.strokeStyle = ink; g.lineWidth = 2; g.strokeRect(px, py, pw, ph);
+    text(g, 'EMUS ON A WHEAT FARM NEAR CAMPION.—Photo by Staff.', px + pw / 2, py + ph + 30, font('italic', 20), ink, 'center', pw);
+    // columns of body type with bold lead lines and rules
+    const cols = 6, cw = (W - 60) / cols;
+    for (let k = 0; k < cols; k++) {
+      const x0 = 30 + k * cw + 8, top = k < 2 ? 460 : 900, w = cw - 16;
+      if (k) { g.fillStyle = ink; g.fillRect(30 + k * cw, k < 2 ? 450 : 892, 1.5, H - (k < 2 ? 500 : 940)); }
+      text(g, ['WAR ON PESTS', 'GUNNERS LEAVE', 'BIRDS SCATTER', 'CROPS RUINED', 'COST OF AMMO', 'MAJOR SPEAKS'][k], x0 + w / 2, top + 22, font('bold', 20, BOOK), ink, 'center', w);
+      g.fillStyle = 'rgba(26,26,26,.72)';
+      for (let y = top + 44, i = 0; y < H - 50; y += 15, i++) { if (i % 9 === 8) continue; g.fillRect(x0 + (i % 9 === 0 ? 14 : 0), y, w * (i % 9 === 7 ? rr(0.4, 0.8) : 1) - (i % 9 === 0 ? 14 : 0), 6); }
+    }
+    g.fillStyle = 'rgba(80,60,30,.12)'; g.fillRect(0, H / 2 - 2, W, 4); g.fillStyle = 'rgba(255,255,255,.15)'; g.fillRect(0, H / 2 + 2, W, 3);   // fold
+    const geo = new THREE.PlaneGeometry(0.58, 0.79, 10, 10), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 4) * 0.006 + Math.abs(p.getY(i)) * -0.01);
+    geo.computeVertexNormals();
+    const back = canvas(512, 700), gb = back.getContext('2d'); paper(gb, 512, 700, '#e6dcc0', 0.5); gb.fillStyle = 'rgba(26,26,26,.55)'; for (let y = 40; y < 680; y += 9) for (let k = 0; k < 4; k++) gb.fillRect(16 + k * 124, y, 112, 3);
+    const grp = new THREE.Group();
+    grp.add(new THREE.Mesh(geo, printMat(c, { bump: 0.6, mat: { side: THREE.FrontSide, roughness: 0.95 } })), new THREE.Mesh(geo, printMat(back, { bump: 0.4, mat: { side: THREE.BackSide, roughness: 0.95 } })));
+    return grp;
+  }
+
+  // ---------- 8. mechanical tally counter ----------
+  // Anatomy: pressed-steel housing with four screws, a name plate, a row of number drums seen through a glass
+  // window (each drum shows the digits above and below, curving away), a reset knob, mounting flange.
+  function tallyCounter(label = 'ROUNDS FIRED') {
+    const grp = new THREE.Group(), steel = new THREE.MeshStandardMaterial({ color: '#4a5a4a', metalness: 0.6, roughness: 0.4 });
+    const body = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.16, 0.08, 4, 0.02), steel); grp.add(body); body.castShadow = true;
+    const plate = canvas(512, 96), gp = plate.getContext('2d'); gp.fillStyle = '#d8c890'; gp.fillRect(0, 0, 512, 96); gp.strokeStyle = '#3a3020'; gp.lineWidth = 4; gp.strokeRect(6, 6, 500, 84); text(gp, label, 256, 62, font('bold', 44, BOOK), '#2a2010');
+    const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.04), printMat(plate, { bump: 1.5, mat: { metalness: 0.5, roughness: 0.35 } })); pm.position.set(0, 0.052, 0.041); grp.add(pm);
+    for (const [x, y] of [[-0.145, 0.055], [0.145, 0.055], [-0.145, -0.055], [0.145, -0.055]]) { const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.004, 12), new THREE.MeshStandardMaterial({ color: '#b8b8b8', metalness: 0.9, roughness: 0.3 })); sc.rotation.x = Math.PI / 2; sc.position.set(x, y, 0.041); grp.add(sc); }
+    const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 16), new THREE.MeshStandardMaterial({ color: '#2a2a2a', metalness: 0.6, roughness: 0.35 })); knob.position.set(0.19, 0, 0); knob.rotation.z = Math.PI / 2; grp.add(knob);
+    const dc = canvas(640, 180), dg = dc.getContext('2d'), dtex = texture(dc);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.073), new THREE.MeshStandardMaterial({ map: dtex, roughness: 0.6 })); win.position.set(0, -0.012, 0.0415); grp.add(win);
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.08), new THREE.MeshPhysicalMaterial({ color: '#ffffff', transparent: true, opacity: 0.12, roughness: 0.05, clearcoat: 1 })); glass.position.set(0, -0.012, 0.044); grp.add(glass);
+    // value can be fractional: each drum rolls when the one to its right passes 9 -> 0 (like the real mechanism)
+    grp.userData.set = v => {
+      dg.fillStyle = '#111'; dg.fillRect(0, 0, 640, 180);
+      for (let k = 0; k < 5; k++) {
+        const place = Math.pow(10, 4 - k), q = v / place, whole = Math.floor(q) % 10, f = q - Math.floor(q);
+        // a drum turns only while every drum to its right rolls from 9 to 0 (the last unit before it carries)
+        const off = place === 1 ? f : Math.max(0, (f - (1 - 1 / place)) * place);
+        const x = 10 + k * 126, cx = x + 56;
+        const gr = dg.createLinearGradient(0, 0, 0, 180); gr.addColorStop(0, '#5a5a5a'); gr.addColorStop(0.5, '#f4f0e6'); gr.addColorStop(1, '#5a5a5a');
+        dg.fillStyle = gr; dg.fillRect(x, 0, 112, 180);
+        dg.save(); dg.beginPath(); dg.rect(x, 0, 112, 180); dg.clip(); dg.font = font('bold', 120, BOOK); dg.fillStyle = '#1a1a1a'; dg.textAlign = 'center';
+        for (let j = -1; j <= 2; j++) dg.fillText(String((whole + j + 10) % 10), cx, 132 + (j - off) * 120);
+        dg.restore(); dg.fillStyle = 'rgba(0,0,0,.35)'; dg.fillRect(x, 0, 112, 30); dg.fillRect(x, 150, 112, 30);
+      }
+      dtex.needsUpdate = true;
+    };
+    grp.userData.set(0);
+    return grp;
+  }
+
+  return { label, priceTag, dollarNote, cent, ledger, signBoard, newspaper, tallyCounter, paper, canvas, printMat };
 }

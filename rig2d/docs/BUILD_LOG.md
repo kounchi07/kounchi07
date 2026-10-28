@@ -343,10 +343,33 @@ props must follow real life, drawn in our cartoon-3D style.
   (fast start, then settles), a small kick after each punch-in, and a shake on the "$1" stamp. One dissolve.
 - Sound: a whoosh on every cut and a glass swish when the magnifier slides in.
 
+## Step 13: "The Great Emu War" fast test (`3d/emu10.html`, `stories/emu10/`, `characters/emu.js`)
+
+**Feedback on the beat test:** still too slow, didn't look like the reference channel, wrong story, needs more
+detail and vibrant colour. The user asked me to pick a fast, funny story: the 1932 Emu War (original script).
+
+- Script: 6 lines, ~32 words, 11.9 s, Kokoro voice from frame 1; 12 shots (about one per second).
+- Vibrant palette: cobalt sky with cartoon clouds, red earth, gold wheat, violet hills, olive truck, blue-necked
+  emus; saturation and contrast lifted in the grade; haze pushed far so colours stay strong.
+- New real-life props: 1932 newspaper front page (masthead, ears, dateline, banner, decks, halftone photo, six
+  columns, fold) and a mechanical tally counter (housing, plate, screws, rolling number drums, reset knob).
+- 3D models from real anatomy: 1930s army truck (cab, split windscreen, louvred bonnet, slat grille, lamps on
+  curved mudguards, running boards, timber tray, wheels with hubs and nuts, spare, number plate), Lewis gun on a
+  pillar mount (finned shroud, pan magazine, stock, grip), cartoon emus (shaggy body + ragged skirt, neck feathered
+  low and blue bare skin high, big-eyed head, flat beak, backward ankle, three toes; run cycle), gum trees,
+  windpump, fence, a 3D slouch hat.
+- Cast: two soldiers with a new Kit hat `slouch` (dented crown, pleated band, brim pinned up, badge) + a bare-headed
+  variant for the gag where an emu wears his hat.
+- Camera: spinning-newspaper open, truck charge, heads popping out of the wheat on the beat, crane reveal of the
+  herd, side tracking shot, top-down scatter with a slow roll, chase over the gunner, gun firing (flash, casings),
+  counter insert, the gag, a three-quarter close-up on "But how?". Whips get a directional motion blur from the
+  camera's rotation only.
+
 ## Style rules (from the user)
 
 - Fast paced, never slow: a new shot about every 1 s, hard ease-out moves that cover real distance, sound on every cut.
 - Push in or use a magnifier whenever a detail matters (prices, serials, writing).
+- Vibrant colour: saturated sky, ground and props; each scene has its own strong palette.
 - Clean and premium, light that looks real but never overdone.
 - No visible repetition in a set: vary kind, size, label and color of everything.
 - This look is the baseline, not the ceiling: keep raising detail in later videos.

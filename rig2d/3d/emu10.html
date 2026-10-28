@@ -1,0 +1,449 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+<script src="../src/rig.js"></script>
+<script src="../src/kit.js"></script>
+<script src="../src/light.js"></script>
+<script src="../characters/emu.js"></script>
+</head><body>
+<!-- "The Great Emu War" fast test (~12 s): original script (stories/emu10), our own soldiers (Rig2D cards) and
+     3D cartoon emus, truck, Lewis gun, newspaper and tally counter built from the real objects' anatomy.
+     Vibrant outback palette; a new shot about every second; whip pans get a directional motion blur.
+     Render from rig2d/: node tools/render.js 3d/emu10.html out/emu --serve --mp4 out/emu10.mp4 --audio out/emu_audio.wav -->
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RealProps } from './realprops.js';
+
+const W = 1080, H = 1920;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.9; renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+let seed = 21; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const rr = (a, b) => a + (b - a) * rnd(), pick = a => a[Math.floor(rnd() * a.length)];
+const RP = RealProps(THREE, { RoundedBoxGeometry, rnd });
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.4;
+scene.fog = new THREE.Fog('#a8d8ff', 140, 320);
+const camera = new THREE.PerspectiveCamera(42, W / H, 0.05, 600);
+
+// ---------- helpers ----------
+const INK = new THREE.MeshBasicMaterial({ color: '#2a1a14', side: THREE.BackSide });
+INK.onBeforeCompile = sh => { sh.uniforms.thick = { value: 0.02 }; sh.vertexShader = 'uniform float thick;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize(objectNormal) * thick;'); };
+function outlined(mesh, parent, o = {}) {
+  mesh.castShadow = o.cast !== false; mesh.receiveShadow = true; parent.add(mesh);
+  if (o.ink !== false) { const hull = new THREE.Mesh(mesh.geometry, o.inkMat || INK); hull.position.copy(mesh.position); hull.rotation.copy(mesh.rotation); hull.scale.copy(mesh.scale); parent.add(hull); mesh.userData.hull = hull; }
+  return mesh;
+}
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
+  return t;
+}
+const std = (color, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.75 }, o));
+
+// ---------- sky, sun, clouds, hills ----------
+const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false, map: canvasTex(16, 512, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0a58d0'); gr.addColorStop(0.42, '#2a8af0'); gr.addColorStop(0.5, '#9ad8ff'); gr.addColorStop(0.52, '#e8c890'); gr.addColorStop(1, '#e8c890'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }) }));
+scene.add(sky);
+const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(14, 32), new THREE.MeshBasicMaterial({ color: '#fff6c8', fog: false })); sunDisc.position.set(-120, 150, -260); sunDisc.lookAt(0, 0, 0); scene.add(sunDisc);
+const cloudTex = canvasTex(512, 256, (g, w, h) => {
+  const puffs = [[0.3, 0.6, 0.22], [0.5, 0.45, 0.28], [0.7, 0.6, 0.2], [0.42, 0.68, 0.2], [0.6, 0.7, 0.2]];
+  for (const [x, y, r] of puffs) { const gr = g.createRadialGradient(x * w, y * h - r * h * 0.3, 2, x * w, y * h, r * w); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.75, '#f4faff'); gr.addColorStop(0.92, '#cfe6ff'); gr.addColorStop(1, 'rgba(207,230,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x * w, y * h, r * w, 0, 7); g.fill(); }
+});
+for (let i = 0; i < 16; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, fog: false, transparent: true })); const a = rr(-1.2, 1.2) - Math.PI / 2, d = rr(160, 300); s.position.set(Math.cos(a) * d, rr(45, 110), Math.sin(a) * d); s.scale.set(rr(60, 110), rr(28, 45), 1); scene.add(s); }
+for (let i = 0; i < 9; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), std(pick(['#7a6ab8', '#6a7ac8', '#8a78c0']), { roughness: 1 })); const a = -Math.PI / 2 + (i - 4) * 0.28; m.position.set(Math.cos(a) * 190, -2, Math.sin(a) * 190); m.scale.set(rr(30, 55), rr(10, 22), rr(20, 30)); scene.add(m); }
+
+// ---------- ground: red earth, wheat field, tracks ----------
+const earthTex = canvasTex(1024, 1024, (g, w, h) => {
+  g.fillStyle = '#d4582a'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(${pick(['255,140,80', '150,50,20', '230,110,50', '120,40,15'])},${rr(0.08, 0.25)})`; g.beginPath(); g.ellipse(rr(0, w), rr(0, h), rr(4, 40), rr(3, 20), rr(0, 3), 0, 7); g.fill(); }
+  for (let i = 0; i < 900; i++) { g.fillStyle = pick(['#8a3a1a', '#f0a070', '#6a2a10']); g.fillRect(rr(0, w), rr(0, h), rr(2, 5), rr(2, 4)); }
+  g.strokeStyle = 'rgba(110,40,15,.35)'; g.lineWidth = 1.5; for (let i = 0; i < 60; i++) { g.beginPath(); let x = rr(0, w), y = rr(0, h); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += rr(-20, 20); y += rr(-20, 20); g.lineTo(x, y); } g.stroke(); }
+}, [40, 40]);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), std('#ffffff', { map: earthTex, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+// wheat field: golden ground + instanced stalks (each a thin tapered blade with an ear)
+const FIELD = { x0: -40, x1: 40, z0: -90, z1: -12 };
+{ const f = new THREE.Mesh(new THREE.PlaneGeometry(FIELD.x1 - FIELD.x0, FIELD.z1 - FIELD.z0), std('#e8b030', { roughness: 1 })); f.rotation.x = -Math.PI / 2; f.position.set((FIELD.x0 + FIELD.x1) / 2, 0.01, (FIELD.z0 + FIELD.z1) / 2); f.receiveShadow = true; scene.add(f);
+  const blade = new THREE.ConeGeometry(0.035, 0.95, 4, 1); blade.translate(0, 0.475, 0);
+  const N = 14000, wheat = new THREE.InstancedMesh(blade, std('#ffffff', { roughness: 0.9 }), N), m = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
+  for (let i = 0; i < N; i++) { const x = rr(FIELD.x0, FIELD.x1), z = rr(FIELD.z0, FIELD.z1); q.setFromEuler(new THREE.Euler(rr(-0.15, 0.15), rr(0, 6), rr(-0.15, 0.15))); m.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(1, rr(0.75, 1.15), 1)); wheat.setMatrixAt(i, m); wheat.setColorAt(i, col.set(pick(['#f2c43a', '#e8a828', '#f8d860', '#d89a20']))); }
+  wheat.receiveShadow = true; scene.add(wheat); }
+// track through the paddock (lighter dirt ruts)
+{ const t = new THREE.Mesh(new THREE.PlaneGeometry(5, 300), std('#e8885a', { roughness: 1 })); t.rotation.x = -Math.PI / 2; t.position.set(18, 0.012, 0); t.receiveShadow = true; scene.add(t);
+  for (const x of [-1.2, 1.2]) { const r = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 300), std('#b8502a', { roughness: 1 })); r.rotation.x = -Math.PI / 2; r.position.set(18 + x, 0.014, 0); scene.add(r); } }
+
+// ---------- fence, gum trees, windpump ----------
+const woodM = std('#8a5a30', { roughness: 0.9 }), wireM = std('#5a5a5a', { metalness: 0.6, roughness: 0.4 });
+for (let z = 10; z > -95; z -= 3.2) { const p = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.3, 7), woodM), scene); p.position.set(FIELD.x1 + 1, 0.65, z); p.rotation.z = rr(-0.06, 0.06); }
+for (const y of [0.45, 0.8, 1.15]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 105, 4), wireM); w.rotation.x = Math.PI / 2; w.position.set(FIELD.x1 + 1, y, -42); scene.add(w); }
+const barkTex = canvasTex(128, 512, (g, w, h) => { g.fillStyle = '#e8e0d0'; g.fillRect(0, 0, w, h); for (let i = 0; i < 90; i++) { g.fillStyle = pick(['rgba(160,140,120,.5)', 'rgba(200,170,130,.5)', 'rgba(120,110,100,.4)']); g.beginPath(); g.ellipse(rr(0, w), rr(0, h), rr(4, 14), rr(10, 40), 0, 0, 7); g.fill(); } });
+function gumTree(x, z, s = 1) {   // eucalyptus: pale peeling trunk that forks, open clumps of grey-green leaves
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s); scene.add(g);
+  const trunk = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.4, 5, 10), std('#ffffff', { map: barkTex })), g); trunk.position.y = 2.5; trunk.rotation.z = 0.05;
+  for (const [a, l] of [[0.5, 3.2], [-0.6, 3.0], [0.1, 2.6]]) { const b = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.16, l, 8), std('#ffffff', { map: barkTex })), g); b.position.set(Math.sin(a) * l * 0.5, 4.6 + Math.cos(a) * l * 0.4, 0); b.rotation.z = -a; }
+  for (let i = 0; i < 9; i++) { const c = outlined(new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), std(pick(['#6a9a3a', '#7aa84a', '#5a8a3a']), { flatShading: true, roughness: 0.9 })), g); c.position.set(rr(-2.6, 2.6), rr(5.5, 8), rr(-1.5, 1.5)); c.scale.set(rr(1.0, 1.8), rr(0.7, 1.1), rr(1.0, 1.6)); }
+}
+gumTree(30, -20, 1.1); gumTree(-26, -8, 0.9); gumTree(44, -60, 1.3); gumTree(-50, -40, 1.2); gumTree(8, 22, 1.0); gumTree(60, 10, 1.2);
+const pump = new THREE.Group(); pump.position.set(46, 0, -26); scene.add(pump);
+{ const steel = std('#c8ccd0', { metalness: 0.7, roughness: 0.35 });
+  for (const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const l = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 9.2, 6), steel), pump); l.position.set(x * 0.6, 4.5, z * 0.6); l.rotation.set(-z * 0.065, 0, x * 0.065); }
+  for (let y = 1.5; y < 9; y += 1.6) for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.4 - y * 0.09, 0.04, 0.04), steel); b.position.set(Math.sin(k * Math.PI / 2) * (0.6 - y * 0.045), y, Math.cos(k * Math.PI / 2) * (0.6 - y * 0.045)); b.rotation.y = k * Math.PI / 2; pump.add(b); }
+  const head = new THREE.Group(); head.position.set(0, 9.3, 0.3); pump.add(head); pump.userData.wheel = new THREE.Group(); head.add(pump.userData.wheel);
+  for (let i = 0; i < 18; i++) { const bl = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.5, 0.02), std('#e8ecf0', { metalness: 0.5, roughness: 0.4 })), pump.userData.wheel); const a = i / 18 * Math.PI * 2; bl.position.set(Math.sin(a) * 0.9, Math.cos(a) * 0.9, 0); bl.rotation.set(0, 0.35, -a); }
+  outlined(new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.03, 6, 40), steel), pump.userData.wheel);
+  const vane = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.0, 1.8), std('#d8302a')), head); vane.position.set(0, 0, -1.6);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.18, 1.6), std('#ffffff')); stripe.position.set(0, 0, -1.6); head.add(stripe);
+  const tank = outlined(new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.4, 24, 1, true), std('#a8b0b8', { metalness: 0.6, roughness: 0.4, side: THREE.DoubleSide })), pump); tank.position.set(3.2, 0.7, 0.5); }
+
+// ---------- 1930s army truck ----------
+// Anatomy: cab with flat split windscreen and rounded roof, long bonnet with side louvres, vertical-slat radiator
+// grille with a bright surround, round headlamps on the curved front mudguards, running boards, a timber-sided
+// flat tray, spoked steel wheels with fat tyres and hubs, a spare wheel, a number plate; olive-drab paint.
+const truck = new THREE.Group(); scene.add(truck);
+const olive = std('#6a8a2a', { roughness: 0.55 }), oliveDk = std('#4a6a1a', { roughness: 0.6 }), chrome = std('#e8e8e8', { metalness: 1, roughness: 0.2 }), blackM = std('#1a1a1a', { roughness: 0.7 });
+const louvre = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#6a8a2a'; g.fillRect(0, 0, w, h); g.fillStyle = '#2a3a10'; for (let i = 0; i < 8; i++) g.fillRect(30 + i * 26, 30, 8, 70); });
+const grille = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#1a1a1a'; g.fillRect(0, 0, w, h); g.fillStyle = '#9aa0a0'; for (let i = 0; i < 14; i++) g.fillRect(14 + i * 17, 10, 7, h - 20); g.strokeStyle = '#f0f0f0'; g.lineWidth = 14; g.strokeRect(7, 7, w - 14, h - 14); });
+const plateTex = canvasTex(256, 96, (g, w, h) => { g.fillStyle = '#f4f0e0'; g.fillRect(0, 0, w, h); g.strokeStyle = '#111'; g.lineWidth = 6; g.strokeRect(5, 5, w - 10, h - 10); g.fillStyle = '#111'; g.font = 'bold 56px "Bitstream Charter"'; g.textAlign = 'center'; g.fillText('ARMY 1123', w / 2, 68); });
+{ const T = truck;
+  const cab = outlined(new THREE.Mesh(new RoundedBoxGeometry(1.9, 1.5, 1.5, 3, 0.18), olive), T); cab.position.set(0, 1.75, 0.4);
+  const ws = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.6), new THREE.MeshPhysicalMaterial({ color: '#bfe4ff', roughness: 0.05, metalness: 0.2, clearcoat: 1 })); ws.position.set(0, 2.05, 1.16); T.add(ws);
+  const mid = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.62, 0.04), oliveDk); mid.position.set(0, 2.05, 1.17); T.add(mid);
+  for (const s of [-1, 1]) { const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.55), ws.material); win.position.set(s * 0.96, 2.05, 0.45); win.rotation.y = s * Math.PI / 2; T.add(win); }
+  const bonnet = outlined(new THREE.Mesh(new RoundedBoxGeometry(1.2, 0.95, 1.9, 3, 0.1), [std('#ffffff', { map: louvre }), std('#ffffff', { map: louvre }), olive, olive, olive, olive]), T); bonnet.position.set(0, 1.45, 2.05);
+  const gr = outlined(new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.85), std('#ffffff', { map: grille, metalness: 0.6, roughness: 0.3 })), T, { ink: false }); gr.position.set(0, 1.45, 3.01);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.19), std('#ffffff', { map: plateTex })); plate.position.set(0, 0.78, 3.12); T.add(plate);
+  const bumper = outlined(new THREE.Mesh(new RoundedBoxGeometry(2.1, 0.16, 0.16, 2, 0.05), blackM), T); bumper.position.set(0, 0.9, 3.1);
+  for (const s of [-1, 1]) {
+    const guard = outlined(new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.22, 10, 24, Math.PI), olive), T); guard.position.set(s * 0.95, 0.62, 2.15); guard.rotation.y = Math.PI / 2; guard.scale.set(1, 1, 0.9);
+    const lamp = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.15, 0.24, 16), chrome), T); lamp.position.set(s * 0.82, 1.5, 2.85); lamp.rotation.x = Math.PI / 2;
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.14, 20), new THREE.MeshStandardMaterial({ color: '#fff8d8', emissive: '#fff0b0', emissiveIntensity: 0.6 })); lens.position.set(s * 0.82, 1.5, 2.98); T.add(lens);
+    const step = outlined(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 2.2), blackM), T); step.position.set(s * 1.12, 0.62, 0.9);
+  }
+  const tray = outlined(new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.14, 3.0), std('#9a6a3a')), T); tray.position.set(0, 1.05, -1.95);
+  const slats = canvasTex(512, 128, (g, w, h) => { g.fillStyle = '#b07a44'; g.fillRect(0, 0, w, h); for (let i = 0; i < 4; i++) { g.fillStyle = '#5a3a1a'; g.fillRect(0, i * 32, w, 3); } for (let x = 0; x < w; x += 128) g.fillRect(x, 0, 10, h); });
+  for (const [x, z, w, r] of [[-1.03, -1.95, 3.0, Math.PI / 2], [1.03, -1.95, 3.0, Math.PI / 2], [0, -3.43, 2.1, 0]]) { const sd = outlined(new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.06), std('#ffffff', { map: slats })), T); sd.position.set(x, 1.37, z); sd.rotation.y = r; }
+  const tyreM = std('#202020', { roughness: 0.85 }), hubM = std('#5a7a22', { roughness: 0.5 });
+  truck.userData.wheels = [];
+  for (const [x, z] of [[-1, 2.15], [1, 2.15], [-1, -2.2], [1, -2.2]]) {
+    const wg = new THREE.Group(); wg.position.set(x * 0.98, 0.5, z); T.add(wg); truck.userData.wheels.push(wg);
+    const tyre = outlined(new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.15, 12, 28), tyreM), wg); tyre.rotation.y = Math.PI / 2;
+    const disc = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.12, 20), hubM), wg); disc.rotation.z = Math.PI / 2;
+    for (let i = 0; i < 6; i++) { const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 6), chrome); const a = i / 6 * Math.PI * 2; nut.position.set(x * 0.07, Math.cos(a) * 0.15, Math.sin(a) * 0.15); nut.rotation.z = Math.PI / 2; wg.add(nut); }
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), chrome); cap.position.x = x * 0.07; wg.add(cap);
+  }
+  const spare = new THREE.Group(); spare.position.set(1.15, 1.1, -0.65); T.add(spare);
+  outlined(new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.13, 10, 24), tyreM), spare).rotation.y = Math.PI / 2;
+  // Lewis gun on a pillar mount: finned cooling shroud, pan magazine on top, receiver, wooden stock, grip
+  const gun = new THREE.Group(); gun.position.set(0, 2.95, -1.0); T.add(gun); truck.userData.gun = gun;   // tall pillar mount: fires over the cab roof
+  outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.85, 8), blackM), T).position.set(0, 2.0, -1.0);
+  const fins = canvasTex(64, 256, (g, w, h) => { g.fillStyle = '#2a2a2a'; g.fillRect(0, 0, w, h); g.fillStyle = '#5a5a5a'; for (let y = 0; y < h; y += 12) g.fillRect(0, y, w, 5); });
+  const shroud = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.95, 16), std('#ffffff', { map: fins, metalness: 0.6, roughness: 0.4 })), gun); shroud.rotation.x = Math.PI / 2; shroud.position.z = 0.55;
+  const muzzle = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.18, 10), blackM), gun); muzzle.rotation.x = Math.PI / 2; muzzle.position.z = 1.1;
+  const recv = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.16, 0.2, 0.55, 2, 0.03), blackM), gun); recv.position.z = -0.12;
+  const panTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#3a3a3a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#6a6a6a'; g.lineWidth = 6; for (let i = 0; i < 25; i++) { const a = i / 25 * Math.PI * 2; g.beginPath(); g.moveTo(w / 2 + Math.cos(a) * 30, h / 2 + Math.sin(a) * 30); g.lineTo(w / 2 + Math.cos(a) * 120, h / 2 + Math.sin(a) * 120); g.stroke(); } g.fillStyle = '#5a5a5a'; g.beginPath(); g.arc(w / 2, h / 2, 26, 0, 7); g.fill(); });
+  const pan = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.07, 32), [std('#3a3a3a', { metalness: 0.6 }), std('#ffffff', { map: panTex, metalness: 0.5, roughness: 0.4 }), std('#3a3a3a')]), gun); pan.position.set(0, 0.15, -0.05); gun.userData.pan = pan;
+  const stock = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.18, 0.5, 2, 0.03), std('#7a4a22', { roughness: 0.5 })), gun); stock.position.set(0, -0.06, -0.6); stock.rotation.x = 0.12;
+  const grip = outlined(new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.2, 0.08, 2, 0.02), std('#7a4a22')), gun); grip.position.set(0, -0.17, -0.25); grip.rotation.x = 0.3;
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, map: canvasTex(256, 256, (g, w, h) => { g.translate(w / 2, h / 2); for (let i = 0; i < 8; i++) { g.rotate(Math.PI / 4); const gr = g.createLinearGradient(0, 0, 120, 0); gr.addColorStop(0, '#fffbe0'); gr.addColorStop(0.4, '#ffc040'); gr.addColorStop(1, 'rgba(255,120,0,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(0, -i % 2 * 6 - 8); g.lineTo(i % 2 ? 90 : 128, 0); g.lineTo(0, i % 2 * 6 + 8); g.fill(); } }) }));
+  flash.position.z = 1.35; flash.scale.setScalar(0.9); gun.add(flash); gun.userData.flash = flash;
+}
+// shell casings (brass) thrown out of the gun while it fires
+const casings = []; { const m = std('#e0b050', { metalness: 0.9, roughness: 0.25 }); for (let i = 0; i < 40; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.06, 8), m); c.visible = false; scene.add(c); casings.push(c); } }
+// dust: soft puffs behind wheels / running birds
+const dustTex = canvasTex(128, 128, (g, w, h) => { const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(240,170,120,.9)'); gr.addColorStop(1, 'rgba(240,170,120,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const dusts = []; for (let i = 0; i < 70; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustTex, transparent: true, depthWrite: false })); s.visible = false; scene.add(s); dusts.push(s); }
+
+// ---------- emus ----------
+// Anatomy (cartoon, ours): shaggy double-plumed body that droops into a ragged skirt; long neck, feathered low and
+// bare blue skin near the head; small dark-capped head, flat dark beak; big eyes with amber iris, blue-grey lids;
+// thick feathered thighs, long grey scaly shanks with a backward ankle, three forward toes with claws.
+const featherTex = canvasTex(512, 512, (g, w, h) => {
+  g.fillStyle = '#6a5034'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 2600; i++) { const x = rr(0, w), y = rr(0, h), l = rr(18, 46); g.strokeStyle = pick(['#2a1a10', '#3a2a1a', '#8a6a44', '#a8885a', '#1a120a']); g.lineWidth = rr(1.5, 3.5); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + rr(-6, 6), y + l * 0.5, x + rr(-10, 10), y + l); g.stroke(); }
+}, [2, 2]);
+const neckTex = canvasTex(512, 64, (g, w, h) => {   // along the neck: feathered base -> blue bare skin
+  const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, '#6a5034'); gr.addColorStop(0.45, '#6a5034'); gr.addColorStop(0.6, '#5a7ac8'); gr.addColorStop(1, '#4a6ab8'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 500; i++) { const x = rr(0, w), y = rr(0, h); g.fillStyle = x < w * 0.55 ? pick(['#2a1a10', '#8a6a44']) : pick(['rgba(30,30,50,.6)', 'rgba(140,170,230,.6)']); g.fillRect(x, y, rr(4, 12) * (x < w * 0.55 ? 1 : 0.4), rr(1, 3)); }
+});
+const scaleTex = canvasTex(64, 256, (g, w, h) => { g.fillStyle = '#7a7a84'; g.fillRect(0, 0, w, h); g.strokeStyle = '#4a4a54'; g.lineWidth = 2; for (let y = 0; y < h; y += 10) { g.beginPath(); g.moveTo(0, y); g.quadraticCurveTo(w / 2, y + 6, w, y); g.stroke(); } });
+const EMU_M = { feather: std('#ffffff', { map: featherTex, roughness: 1 }), neck: std('#ffffff', { map: neckTex, roughness: 0.8 }), head: std('#4a4a5e', { roughness: 0.8 }),
+  beak: std('#3a3a40', { roughness: 0.4 }), leg: std('#ffffff', { map: scaleTex, roughness: 0.6 }), white: std('#ffffff', { roughness: 0.2 }), iris: std('#d8902a', { roughness: 0.3 }),
+  pupil: std('#0a0a0a', { roughness: 0.1 }), lid: std('#5a6a90', { roughness: 0.6 }), claw: std('#2a2a2a') };
+function makeEmu(hero) {
+  const seg = hero ? 1 : 0.5, ink = hero ? undefined : false, root = new THREE.Group(), body = new THREE.Group(); body.position.y = 1.0; root.add(body);
+  const add = (geo, mat, parent, o = {}) => outlined(new THREE.Mesh(geo, mat), parent, Object.assign({ ink: hero ? undefined : false }, o));
+  const torso = add(new THREE.SphereGeometry(1, 24 * seg, 16 * seg), EMU_M.feather, body); torso.scale.set(0.32, 0.3, 0.52); body.rotation.order = 'YXZ';
+  const skirtG = new THREE.CylinderGeometry(0.29, 0.33, 0.24, 28 * seg, 3, true); { const p = skirtG.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) < -0.1) p.setY(i, p.getY(i) - Math.abs(Math.sin(i * 1.7)) * 0.1); skirtG.computeVertexNormals(); }
+  const skirt = add(skirtG, EMU_M.feather, body, { ink: false }); skirt.position.set(0, -0.1, -0.06); skirt.scale.set(1, 1, 1.5); skirt.material = EMU_M.feather.clone(); skirt.material.side = THREE.DoubleSide;
+  const neckPivot = new THREE.Group(); neckPivot.position.set(0, 0.12, 0.3); body.add(neckPivot);
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0.25, 0.14), new THREE.Vector3(0, 0.55, 0.14), new THREE.Vector3(0, 0.74, 0.22)]);
+  add(new THREE.TubeGeometry(curve, 20 * seg, 0.068, 10 * seg), EMU_M.neck, neckPivot);
+  const head = new THREE.Group(); head.position.set(0, 0.78, 0.25); head.scale.setScalar(1.7); neckPivot.add(head);   // cartoon: big head so the face reads
+  const skull = add(new THREE.SphereGeometry(0.085, 18 * seg, 12 * seg), EMU_M.head, head); skull.scale.set(0.9, 0.85, 1.1);
+  const bg = new THREE.ConeGeometry(0.038, 0.13, 12); bg.rotateX(Math.PI / 2); bg.scale(1, 0.5, 1); const beak = add(bg, EMU_M.beak, head); beak.position.set(0, -0.015, 0.13);
+  const eyes = [];
+  for (const s of [-1, 1]) {
+    const e = new THREE.Group(); e.position.set(s * 0.06, 0.02, 0.04); e.rotation.y = s * 0.55; head.add(e);
+    add(new THREE.SphereGeometry(0.036, 16, 12), EMU_M.white, e, { ink: false });
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), EMU_M.iris); iris.position.z = 0.022; iris.scale.z = 0.5; e.add(iris);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), EMU_M.pupil); pupil.position.z = 0.03; pupil.scale.z = 0.5; e.add(pupil);
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.005, 6, 4), std('#ffffff', { emissive: '#ffffff' })); hl.position.set(0.008, 0.009, 0.036); e.add(hl);
+    const lid = new THREE.Mesh(new THREE.SphereGeometry(0.039, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), EMU_M.lid); lid.rotation.x = -1.6; e.add(lid);
+    eyes.push({ e, lid, iris, pupil });
+  }
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(s * 0.11, -0.12, 0.02); body.add(hip);
+    const thigh = add(new THREE.SphereGeometry(0.1, 12 * seg, 8 * seg), EMU_M.feather, hip, { ink: false }); thigh.scale.set(0.8, 1.4, 1); thigh.position.y = -0.08;
+    const knee = new THREE.Group(); knee.position.y = -0.2; hip.add(knee);
+    const shank = add(new THREE.CylinderGeometry(0.03, 0.035, 0.38, 8), EMU_M.leg, knee); shank.position.y = -0.19;
+    const ankle = new THREE.Group(); ankle.position.y = -0.38; knee.add(ankle);
+    const tars = add(new THREE.CylinderGeometry(0.025, 0.03, 0.4, 8), EMU_M.leg, ankle); tars.position.y = -0.2;
+    const foot = new THREE.Group(); foot.position.y = -0.4; ankle.add(foot);
+    for (const a of [-0.45, 0, 0.45]) { const toe = add(new THREE.CylinderGeometry(0.014, 0.02, 0.13, 6), EMU_M.leg, foot, { ink: false }); toe.rotation.set(Math.PI / 2, 0, 0); toe.position.set(Math.sin(a) * 0.06, 0, Math.cos(a) * 0.06); toe.rotation.z = -a; if (hero) { const cl = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.035, 6), EMU_M.claw); cl.rotation.x = Math.PI / 2; cl.position.set(Math.sin(a) * 0.13, 0, Math.cos(a) * 0.13); foot.add(cl); } }
+    legs.push({ hip, knee, ankle, foot });
+  }
+  root.userData = { body, neckPivot, head, eyes, legs, hat: null };
+  return root;
+}
+// pose: speed 0 = standing (optionally grazing), >0 = running cycle; look: eye direction; lid 0 open .. 1 closed
+function poseEmu(e, t, o = {}) {
+  const u = e.userData, sp = o.speed || 0, ph = (o.phase || 0) + t * (sp > 0 ? 3.2 + sp * 0.12 : 0) * Math.PI * 2;
+  for (let i = 0; i < 2; i++) {
+    const L = u.legs[i], p = ph + i * Math.PI, sw = sp > 0 ? Math.sin(p) : 0, lift = sp > 0 ? Math.max(0, Math.cos(p)) : 0;
+    L.hip.rotation.x = -sw * 0.75;
+    L.knee.rotation.x = 0.5 + lift * 0.5;        // tibia slopes back
+    L.ankle.rotation.x = -0.9 - lift * 0.9;      // the backward-bending "knee" of a bird is the ankle
+    L.foot.rotation.x = 0.4 + lift * 0.6 - sw * 0.2;
+  }
+  u.body.position.y = 1.0 + (sp > 0 ? Math.abs(Math.sin(ph)) * 0.06 : 0) - (o.crouch || 0);
+  u.body.rotation.x = sp > 0 ? 0.05 : -0.12;   // standing: back slopes down to the tail
+  const graze = o.graze || 0, pump = sp > 0 ? Math.sin(ph * 2) * 0.12 : 0;
+  u.neckPivot.rotation.x = graze * 1.6 + (sp > 0 ? 0.35 + pump : 0) + (o.neck || 0);
+  u.head.rotation.x = -graze * 0.9 - (sp > 0 ? 0.35 : 0) + (o.nod || 0); u.head.rotation.y = o.headYaw || 0;
+  for (const E of u.eyes) { E.lid.rotation.x = -1.6 + (o.lid || 0) * 1.25; const lx = o.lookX || 0, ly = o.lookY || 0; E.iris.position.set(lx * 0.012, ly * 0.012, 0.022); E.pupil.position.set(lx * 0.016, ly * 0.016, 0.03); }
+}
+// slouch hat (3D, real anatomy: dented crown, pleated band, wide brim with one side pinned up, badge)
+function slouchHat() {
+  const g = new THREE.Group(), felt = std('#9a8050', { roughness: 0.9 });
+  const crownPts = [[0, 0], [0.14, 0], [0.135, 0.06], [0.12, 0.11], [0.08, 0.13], [0.03, 0.115], [0, 0.12]].map(([a, b]) => new THREE.Vector2(a, b));
+  outlined(new THREE.Mesh(new THREE.LatheGeometry(crownPts, 24), felt), g);
+  const band = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.142, 0.142, 0.04, 24, 1, true), std('#6a5636', { side: THREE.DoubleSide })), g, { ink: false }); band.position.y = 0.025;
+  const brimG = new THREE.CylinderGeometry(0.27, 0.27, 0.012, 32, 1); { const p = brimG.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); if (x < -0.12) p.setY(i, p.getY(i) + (-x - 0.12) * 1.6); } brimG.computeVertexNormals(); }
+  outlined(new THREE.Mesh(brimG, felt), g);
+  const badge = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16, 0, Math.PI), std('#e0b050', { metalness: 0.8, roughness: 0.3 })); badge.position.set(-0.17, 0.1, 0.02); badge.rotation.set(0, -Math.PI / 2 + 0.3, 0); g.add(badge);
+  return g;
+}
+
+// hero emus (detailed) + herd (light)
+const HERO = [makeEmu(true), makeEmu(true), makeEmu(true)]; HERO.forEach(e => scene.add(e));
+const HERD = []; for (let i = 0; i < 90; i++) { const e = makeEmu(false); e.scale.setScalar(rr(0.88, 1.08)); e.userData.ph = rr(0, 6.28); e.userData.off = [rr(-1, 1), rr(-1, 1)]; scene.add(e); HERD.push(e); }
+const hatOnEmu = slouchHat(); hatOnEmu.scale.setScalar(0.85); hatOnEmu.position.set(0, 0.07, -0.01); hatOnEmu.rotation.x = -0.15; HERO[0].userData.head.add(hatOnEmu); hatOnEmu.visible = false;
+
+// ---------- props: newspaper, tally counter ----------
+const paper = RP.newspaper(); scene.add(paper);
+const counter = RP.tallyCounter('ROUNDS FIRED'); scene.add(counter);
+const stamp = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.16), new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.9, map: canvasTex(512, 240, (g, w, h) => { g.strokeStyle = '#d8202a'; g.lineWidth = 14; g.strokeRect(14, 14, w - 28, h - 28); g.lineWidth = 4; g.strokeRect(30, 30, w - 60, h - 60); g.fillStyle = '#d8202a'; g.font = 'bold 150px "Bitstream Charter"'; g.textAlign = 'center'; g.fillText('1932', w / 2, 175); g.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 260; i++) { g.beginPath(); g.arc(rr(0, w), rr(0, h), rr(1, 5), 0, 7); g.fill(); } }) }));
+scene.add(stamp);
+
+// ---------- 2D soldiers (Rig2D cards) ----------
+const CW = 1024, CH = 2048, FEET = { legL: { x: -30, y: -12 }, legR: { x: 30, y: -12 } }, EX = Rig2D.EXPRESSIONS;
+const LIGHT2D = Light.preset('day', { dir: -35, castShadow: false });
+function cardActor(def, id, h = 1.75) {
+  const canvas = document.createElement('canvas'); canvas.width = CW; canvas.height = CH;
+  const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(h / 2, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }));
+  mesh.geometry.translate(0, h / 2, 0); mesh.castShadow = true; mesh.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.4 });
+  const actor = new Rig2D.Actor(def, { id }), wp = new THREE.Vector3();
+  return { mesh, async draw(t, state) {
+    actor.pose(Rig2D.alive(Object.assign({ view: 'front', ik: FEET }, state, { face: Object.assign({ _t: t }, state.face) }), t, { seed: id.length }));
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CW}" height="${CH}" viewBox="0 0 ${CW} ${CH}">${Light.render(actor, { x: CW / 2, y: CH - 40, scale: 1.9, t, light: LIGHT2D, id, castShadow: false })}</svg>`;
+    await new Promise(res => { const img = new Image(); img.onload = () => { const c = canvas.getContext('2d'); c.clearRect(0, 0, CW, CH); c.drawImage(img, 0, 0); tex.needsUpdate = true; res(); }; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
+    mesh.getWorldPosition(wp); const lp = mesh.parent.worldToLocal(new THREE.Vector3(camera.position.x, wp.y, camera.position.z)); mesh.lookAt(mesh.parent.localToWorld(lp));
+  } };
+}
+const GUNNER = cardActor(EM.gunner, 'gunner'), MAJOR = cardActor(EM.major, 'major');
+const BARE = cardActor(EM.gunnerBare, 'bare');
+truck.add(GUNNER.mesh, MAJOR.mesh, BARE.mesh); GUNNER.mesh.position.set(0, 1.12, -1.75); MAJOR.mesh.position.set(-0.6, 1.12, -2.6);
+
+// ---------- lights: bright midday outback ----------
+scene.add(new THREE.HemisphereLight('#bfe4ff', '#d8703a', 0.9));
+const sun = new THREE.DirectionalLight('#fff4e0', 3.6); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.radius = 3;
+Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 120 }); scene.add(sun, sun.target);
+function aimSun(at) { sun.target.position.set(at[0], 0, at[2]); sun.position.set(at[0] - 30, 50, at[2] + 25); sun.target.updateMatrixWorld(); }
+
+// ---------- post: vibrant grade + bloom + directional motion blur for whips ----------
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.22, 0.4, 0.9));
+const blurPass = new ShaderPass({ uniforms: { tDiffuse: { value: null }, dir: { value: new THREE.Vector2(0, 0) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
+  fragmentShader: 'uniform sampler2D tDiffuse; uniform vec2 dir; varying vec2 vUv; void main(){ vec4 c = vec4(0.); for (int i = 0; i < 12; i++) { float k = float(i) / 11. - .5; c += texture2D(tDiffuse, vUv + dir * k); } gl_FragColor = c / 12.; }' });
+composer.addPass(blurPass);
+composer.addPass(new ShaderPass({ uniforms: { tDiffuse: { value: null } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
+  fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(.3,.59,.11)); c.rgb = mix(vec3(l), c.rgb, 1.28); c.rgb = (c.rgb - .5) * 1.08 + .5; vec2 d = vUv - .5; c.rgb *= mix(.82, 1., smoothstep(.85, .3, length(d * vec2(1., .7)))); gl_FragColor = c; }' }));
+composer.addPass(new OutputPass());
+
+// ---------- timeline ----------
+const TM = await (await fetch('../stories/emu10/audio/timing.json')).json();
+const ORDER = ['e1', 'e2', 'e3', 'e4', 'e5', 'e6'], GAP = { e6: 0.3 }, LN = {};
+{ let t = 0.05; for (const k of ORDER) { if (k !== 'e1') t += GAP[k] || 0.18; LN[k] = t; t += TM[k].duration; } }
+const WT = (l, w) => LN[l] + TM[l].words.find(x => x.word.toLowerCase().replace(/[^a-z0-9]/g, '') === w).start;
+const EV = { year: WT('e1', '1932'), aus: WT('e1', 'australia'), guns: WT('e1', 'machine'), fight: WT('e1', 'to'), twenty: WT('e1', 'twenty'), emus: WT('e1', 'emus'),
+  ran: LN.e2, split: LN.e3, faster: LN.e4, fired: WT('e5', 'fired'), ten: WT('e5', 'ten'), lost: WT('e5', 'and'), how: LN.e6 };
+window.EV = EV; window.DURATION = +(LN.e6 + TM.e6.duration + 0.45).toFixed(2);
+
+const clamp = x => x < 0 ? 0 : x > 1 ? 1 : x, out3 = x => 1 - Math.pow(1 - clamp(x), 3), out5 = x => 1 - Math.pow(1 - clamp(x), 5), io = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+const V3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+// shot list: t1 = end time; each shot stages its own action (stage fn) and camera (c0->c1, l0->l1, ease)
+const NEWS = [0, 40, 0];                // the newspaper hangs in the sky for the opening (spinning-paper insert)
+const SHOTS = [
+  { t1: EV.aus - 0.05, cam: () => ({ c: [0, 40, 1.6], l: [0, 40, 0] }), name: 'paper' },
+  { t1: EV.guns - 0.12, c0: [34, 14, 22], c1: [27, 4.5, 6], l0: [14, 2, -24], l1: [18, 1.4, -18], e: out3, name: 'wide' },
+  { t1: EV.fight - 0.02, track: 'truck', name: 'truck' },
+  { t1: EV.emus - 0.1, c0: [0, 1.6, -13.5], c1: [0, 1.45, -16.5], l0: [0, 1.3, -24], l1: [0, 1.4, -24], e: out5, name: 'popup' },
+  { t1: EV.ran - 0.08, c0: [0, 1.45, -16.5], c1: [7, 19, -8], l0: [0, 1.4, -24], l1: [0, 0, -31], e: out5, name: 'reveal' },
+  { t1: EV.split - 0.08, track: 'run', name: 'run' },
+  { t1: EV.faster - 0.08, c0: [0, 30, -40.5], c1: [0, 22, -40.2], l0: [0, 0, -40], l1: [0, 0, -40], e: out3, roll: 1, name: 'split' },
+  { t1: LN.e5 - 0.05, track: 'chase', name: 'chase' },
+  { t1: EV.ten - 0.05, track: 'gun', name: 'gun' },
+  { t1: EV.lost - 0.08, cam: () => ({ c: [0, 40, 0.75], l: [0, 40, 0] }), name: 'counter' },
+  { t1: EV.how - 0.02, track: 'lost', name: 'lost' },
+  { t1: 99, track: 'how', name: 'how' },
+];
+window.CUTS = [];
+let SEL = null;
+function shotIndex(t) { const ts = SEL && SEL.side === 'before' ? Math.min(t, SEL.cut - 1e-3) : SEL && SEL.side === 'after' ? Math.max(t, SEL.cut + 1e-3) : t; let i = 0; while (i < SHOTS.length - 1 && ts >= SHOTS[i].t1) i++; return i; }
+const t0Of = i => i ? SHOTS[i - 1].t1 : 0;
+
+// where things are, per shot (pure functions of t)
+const RUN_V = 13;                            // emus sprint ~13 m/s (about 47 km/h)
+function herdRun(t, t0, x0, dirAng) {        // herd running as a loose pack along dirAng
+  HERD.forEach((e, i) => { const row = i % 10, col = Math.floor(i / 10); const d = (t - t0) * RUN_V * (0.95 + (i % 7) * 0.02);
+    e.position.set(x0[0] + Math.cos(dirAng) * d - Math.sin(dirAng) * (row - 4.5) * 1.6 + e.userData.off[0] * 0.6, 0, x0[2] + Math.sin(dirAng) * -d - Math.cos(dirAng) * (col * 1.8 + e.userData.off[1] * 0.6));
+    e.rotation.y = Math.PI / 2 - dirAng; poseEmu(e, t, { speed: RUN_V, phase: e.userData.ph }); e.visible = true; });
+}
+function stage(i, t) {
+  const S = SHOTS[i], t0 = t0Of(i), k = (t - t0) / (S.t1 - t0);
+  HERD.forEach(e => e.visible = false); HERO.forEach(e => e.visible = false); paper.visible = stamp.visible = counter.visible = false;
+  truck.visible = false; hatOnEmu.visible = false; casings.forEach(c => c.visible = false); dusts.forEach(d => d.visible = false); truck.userData.gun.userData.flash.visible = false;
+  GUNNER.mesh.visible = MAJOR.mesh.visible = true;
+  const dust = (list) => list.forEach(([p, s, o], j) => { const d = dusts[j]; if (!d) return; d.visible = true; d.position.set(...p); d.scale.setScalar(s); d.material.opacity = o; });
+  if (S.name === 'paper') {   // spinning newspaper flies in and stops; "1932" stamp slams on
+    paper.visible = true; const sp = out3(t / 0.7); paper.position.set(0, 40, -6 + sp * 5.5); paper.rotation.set(0, 0, (1 - sp) * Math.PI * 5); paper.scale.setScalar(1);
+    const st = clamp((t - (EV.year + 0.35)) / 0.1); stamp.visible = t > EV.year + 0.35; stamp.position.set(0.12, 40.1, paper.position.z + 0.01); stamp.rotation.set(0, 0, -0.2); stamp.scale.setScalar(st < 1 ? 2.2 - st * 1.2 : 1);
+    aimSun([0, 0, 0]);
+  }
+  if (['wide', 'truck', 'lost', 'how'].includes(S.name)) {   // truck on the track
+    truck.visible = true; const drive = S.name === 'wide' || S.name === 'truck';
+    const z = S.name === 'wide' ? -30 + (t - t0) * 9 : S.name === 'truck' ? -14 + (t - t0) * 9 : 2;
+    truck.position.set(18, drive ? Math.abs(Math.sin(t * 14)) * 0.04 : 0, z); truck.rotation.set(drive ? Math.sin(t * 9) * 0.015 : 0, 0, drive ? Math.sin(t * 7) * 0.015 : 0);
+    truck.userData.wheels.forEach(w => w.rotation.x = drive ? t * 18 : 0);
+    if (drive) dust(Array.from({ length: 24 }, (_, j) => [[18 + rr(-1.2, 1.2), 0.4 + j * 0.05, z - 3.6 - j * 0.6], 1.2 + j * 0.15, 0.5 * (1 - j / 24)]));
+  }
+  if (S.name === 'wide') { HERD.slice(0, 40).forEach((e, j) => { e.visible = true; e.position.set(-20 + (j % 8) * 4 + e.userData.off[0] * 2, 0, -40 - Math.floor(j / 8) * 5); e.rotation.y = e.userData.ph; poseEmu(e, t, { graze: 0.6 + 0.4 * Math.sin(t * 2 + j) }); }); aimSun([10, 0, -20]); }
+  if (S.name === 'truck') { aimSun([18, 0, -6]); GUNNER.mesh.visible = MAJOR.mesh.visible = true; }
+  if (S.name === 'popup' || S.name === 'reveal') {   // heads pop out of the wheat on the beat, then the whole herd is revealed
+    HERD.forEach((e, j) => { const row = j % 15, col = Math.floor(j / 15); e.visible = true; e.position.set(-14 + row * 2 + e.userData.off[0], 0, -22 - col * 3 - e.userData.off[1] * 1.2); e.rotation.y = Math.PI * 0.85 + e.userData.off[0] * 0.4;
+      const popAt = t0Of(3) + (j % 12) * 0.05 + (j < 12 ? 0 : 0.3), up = S.name === 'reveal' ? 1 : out5((t - popAt) / 0.18);
+      poseEmu(e, t, { crouch: (1 - up) * 1.3, lookX: Math.sin(j) * 0.6 }); });
+    HERO[1].visible = true; HERO[1].position.set(0.2, 0, -21.5); HERO[1].rotation.y = Math.PI * 0.9; const up = out5((t - t0Of(3) - 0.12) / 0.18); poseEmu(HERO[1], t, { crouch: (1 - up) * 1.3, lookX: -0.4, lid: 0.25 });
+    aimSun([0, 0, -26]);
+  }
+  if (S.name === 'run') {      // low tracking shot beside a hero emu, pack behind
+    herdRun(t, t0, [-30, 0, -36], 0); HERO[0].visible = true; HERO[0].position.set(-30 + (t - t0) * RUN_V + 6, 0, -33.5); HERO[0].rotation.y = Math.PI / 2; poseEmu(HERO[0], t, { speed: RUN_V, lookX: 0.8, lid: 0.3 });
+    dust(Array.from({ length: 40 }, (_, j) => [[-30 + (t - t0) * RUN_V - j * 0.8 + 4, 0.3 + (j % 3) * 0.2, -33 - (j % 9) * 1.8], 1.4 + (j % 4) * 0.4, 0.35]));
+    aimSun([-30 + (t - t0) * RUN_V, 0, -36]);
+  }
+  if (S.name === 'split') {    // top-down: the pack bursts outward in every direction
+    HERD.forEach((e, j) => { const a = j / HERD.length * Math.PI * 2 + e.userData.off[0] * 0.2, r = 0.8 + (j % 5) * 0.7 + out3(k) * 7 * (0.8 + (j % 3) * 0.15);
+      e.visible = true; e.position.set(Math.cos(a) * r, 0, -40 + Math.sin(a) * r); e.rotation.y = Math.PI / 2 - a; poseEmu(e, t, { speed: RUN_V, phase: e.userData.ph }); });
+    truck.visible = true; truck.position.set(0, 0, -40); truck.rotation.set(0, Math.PI * 0.25, 0); aimSun([0, 0, -40]);
+  }
+  if (S.name === 'chase' || S.name === 'gun') {   // truck chasing from behind; birds pull away
+    truck.visible = true; const z = -10 - (t - t0Of(7)) * 11; truck.position.set(18, Math.abs(Math.sin(t * 16)) * 0.06, z); truck.rotation.set(Math.sin(t * 11) * 0.02, Math.PI, Math.sin(t * 8) * 0.02); truck.userData.wheels.forEach(w => w.rotation.x = -t * 22);
+    HERD.slice(0, 30).forEach((e, j) => { const d = (t - t0Of(7)) * (RUN_V + 4); e.visible = true; e.position.set(18 + ((j % 6) - 2.5) * 1.5 + e.userData.off[0], 0, z - 9 - Math.floor(j / 6) * 2.2 - d * 0.35); e.rotation.y = Math.PI; poseEmu(e, t, { speed: RUN_V + 4, phase: e.userData.ph }); });
+    HERO[2].visible = true; HERO[2].position.set(18.4, 0, z - 7.2 - (t - t0Of(7)) * 4); HERO[2].rotation.y = Math.PI; poseEmu(HERO[2], t, { speed: RUN_V + 4, headYaw: Math.PI * 0.8, lookX: -0.6, lid: 0.45 });
+    dust(Array.from({ length: 24 }, (_, j) => [[18 + rr(-1.2, 1.2), 0.4 + j * 0.05, z + 3.6 + j * 0.6], 1.2 + j * 0.15, 0.5 * (1 - j / 24)]));
+    const gun = truck.userData.gun; gun.rotation.set(Math.sin(t * 3) * 0.04, Math.sin(t * 2) * 0.1, 0);
+    if (S.name === 'gun') { const shotN = Math.floor((t - t0) * 18); gun.userData.flash.visible = shotN % 2 === 0; gun.userData.flash.material.rotation = shotN * 0.9; gun.userData.flash.scale.setScalar(0.7 + (shotN % 3) * 0.25); gun.userData.pan.rotation.y = -(t - t0) * 9;
+      casings.forEach((c, j) => { const age = ((t - t0) * 18 - j * 0.5); if (age < 0 || age > 10) return; const a = age / 18; const gw = new THREE.Vector3(); gun.getWorldPosition(gw); c.visible = true; c.position.set(gw.x + 0.3 + a * 2.2, gw.y + a * 3 - 9.8 * a * a * 2, gw.z - 0.1 + Math.sin(j) * a); c.rotation.set(age * 3, age * 2, 0); }); }
+    aimSun([18, 0, z]);
+  }
+  if (S.name === 'counter') { counter.visible = true; counter.position.set(0, 40, 0); counter.rotation.set(Math.sin(t * 30) * 0.01, 0, 0);
+    const v = 10000 * out3((t - t0) / (S.t1 - t0 - 0.12)); counter.userData.set(Math.min(10000, v)); aimSun([0, 0, 0]); }
+  if (S.name === 'lost' || S.name === 'how') {   // truck stopped; an emu stands on the bonnet wearing the gunner's hat
+    HERO[0].visible = true; HERO[0].position.set(18, 1.92, 2.6); HERO[0].rotation.y = Math.PI * 0.08; hatOnEmu.visible = true;
+    poseEmu(HERO[0], t, { lid: S.name === 'how' ? 0.55 + (Math.abs((t - t0) - 0.5) < 0.06 ? 0.45 : 0) : 0.4, lookX: S.name === 'how' ? 0 : 0.5, nod: Math.sin(t * 2) * 0.05 });
+    GUNNER.mesh.visible = MAJOR.mesh.visible = true; HERD.slice(0, 25).forEach((e, j) => { e.visible = true; e.position.set(-10 + ((t - t0) * RUN_V + j * 3.1) % 60, 0, -14 - (j % 5) * 2.5); e.rotation.y = Math.PI / 2; poseEmu(e, t, { speed: RUN_V, phase: e.userData.ph }); });
+    aimSun([18, 0, 2]);
+  }
+}
+// soldier placement + faces per shot (cards live on the truck)
+function soldiers(i) {
+  const n = SHOTS[i].name;
+  const after = n === 'lost' || n === 'how'; GUNNER.mesh.visible = !after && GUNNER.mesh.visible; BARE.mesh.visible = after;
+  if (after) { BARE.mesh.position.set(1.7, 0, 2.2); MAJOR.mesh.position.set(1.8, 0, 0.6); }
+  else { GUNNER.mesh.position.set(0, 1.12, -1.75); MAJOR.mesh.position.set(-0.6, 1.12, -2.6); }
+  const face = { paper: {}, wide: {}, truck: EX.smugBar, chase: Object.assign({}, EX.worried), gun: Object.assign({}, EX.crazy), split: EX.shock, lost: Object.assign({}, EX.panic, { sweatDrops: 3 }), how: EX.shock }[n] || {};
+  const major = { truck: Object.assign({}, EX.smugBar, { lookX: 0.6 }), chase: EX.shock, gun: EX.worried, lost: Object.assign({}, EX.worried, { lookX: -0.7 }), how: EX.worried }[n] || {};
+  return { face, major };
+}
+
+// ---------- captions ----------
+const CAPW = []; for (const l of ORDER) TM[l].words.forEach(w => CAPW.push([LN[l] + w.start, w.word.replace(/[,.]$/, ''), l]));
+const HOT = /^(1932|emus|ran|faster|bullets|lost|how\?)$/i;
+window.POST = { grade: false, captions: { style: { font: 'Inter Black', size: 104, outline: 7, y: 1300, pop: 1.25, popTime: 0.08 },
+  words: CAPW.map(([s, w, l], i) => [s, Math.min(i + 1 < CAPW.length ? CAPW[i + 1][0] : 1e9, LN[l] + TM[l].duration + 0.2), w, HOT.test(w)]) },
+  fades: [{ type: 'out', start: +(window.DURATION - 0.25).toFixed(2), duration: 0.25 }] };
+
+// camera for shot i at time t
+function camAt(i, t) {
+  const S = SHOTS[i], t0 = t0Of(i), k = (t - t0) / (S.t1 - t0);
+  if (S.cam) return S.cam(t);
+  const hp = () => { const v = new THREE.Vector3(); HERO[0].userData.head.getWorldPosition(v); return v; };
+  if (S.track === 'truck') { const zT = -14 + (t - t0) * 9; return { c: [15.8, 0.6, zT + 9.5 - out3(k) * 2.5], l: [18, 1.4, zT + 1] }; }
+  if (S.track === 'run') { const x = -30 + (t - t0) * RUN_V + 6; return { c: [x - 1.2 + out3(k) * 1.2, 1.05, -33.5 + 4.6], l: [x + 0.3, 1.1, -33.5] }; }
+  const W2 = (o, v) => o.localToWorld(new THREE.Vector3(...v)).toArray();
+  if (S.track === 'chase') return { c: W2(truck, [1.3, 3.4, -7.6 + out5(k) * 1.6]), l: W2(truck, [0, 0.8, 8]) };            // behind and above the tray, birds ahead
+  if (S.track === 'gun') return { c: W2(truck.userData.gun, [0.85, 0.35, -0.7]), l: W2(truck.userData.gun, [-0.2, 0, 3]) };     // over the gunner's shoulder, muzzle forward
+  if (S.track === 'lost') return { c: [24.2 - out5(k) * 1.6, 2.3, 11.5 - out5(k) * 2.6], l: [18.9, 2.1, 2.9] };
+  if (S.track === 'how') { const h = hp(), a = Math.PI * 0.08 + 0.75, d = 0.95 - out5(k) * 0.25; return { c: [h.x + Math.sin(a) * d, h.y + 0.08, h.z + Math.cos(a) * d], l: [h.x, h.y + 0.04, h.z] }; }   // three-quarter: one eye, beak, hat
+  const e = S.e(k); const c = V3(S.c0, S.c1, e), l = V3(S.l0, S.l1, e);
+  if (S.roll) return { c, l, up: [Math.cos(t * 1.5), 0, Math.sin(t * 1.5)] };
+  return { c, l };
+}
+const prevDir = new THREE.Vector3(), tmpCam = new THREE.PerspectiveCamera();
+window.render = async function (t, opt) {
+  SEL = opt || null;
+  const i = shotIndex(t); stage(i, t); scene.updateMatrixWorld(); const C = camAt(i, t), k0 = t - t0Of(i);
+  const kick = (SHOTS[i].name === 'gun' ? 0.03 * Math.abs(Math.sin(t * 57)) : 0) + Math.exp(-k0 * 12) * 0.03;
+  camera.up.set(...(C.up || [0, 1, 0])); camera.position.set(C.c[0] + Math.sin(t * 61) * kick, C.c[1] + Math.cos(t * 53) * kick, C.c[2]); camera.lookAt(...C.l); camera.updateMatrixWorld();
+  // motion blur from how fast the view direction turns (whips in the first frames of a shot)
+  const dt = 1 / 30, Cp = camAt(i, Math.max(t0Of(i), t - dt)); tmpCam.position.set(...Cp.c); tmpCam.up.copy(camera.up); tmpCam.lookAt(...Cp.l); tmpCam.updateMatrixWorld();
+  const f = new THREE.Vector3(0, 0, -100).applyQuaternion(tmpCam.quaternion).add(camera.position).project(camera);   // where last frame's view centre lands now (rotation only)
+  blurPass.uniforms.dir.value.set(f.z < 1 ? -f.x * 0.25 : 0, f.z < 1 ? -f.y * 0.25 : 0).clampLength(0, 0.022);
+  pump.userData.wheel.rotation.z = -t * 3;
+  const sf = soldiers(i);
+  const gunnerPose = ['gun', 'chase'].includes(SHOTS[i].name) ? { armL: { x: -110, y: -640, weight: 1 }, armR: { x: 110, y: -640, weight: 1 } } : {};   // hands up on the gun
+  if (BARE.mesh.visible) await BARE.draw(t, { face: sf.face }); else await GUNNER.draw(t, { face: sf.face, ik: Object.assign({}, FEET, gunnerPose) });
+  await MAJOR.draw(t, { face: sf.major });
+  composer.render();
+};
+await window.render(0);
+window.READY = true;
+</script>
+</body></html>

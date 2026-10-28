@@ -296,7 +296,7 @@
         const w = (r[0] - l[0]) * (0.86 - 0.12 * tw), cx = (l[0] + r[0]) / 2 + shift;
         d += ` M${pt(l)} Q${n2(blob.cx)},${n2(blob.cy - blob.ry * 0.62)} ${pt(r)} L${n2(cx + w / 2)},${n2(top + 20)} L${n2(cx + w / 2 - 20)},${n2(top)} L${n2(cx - w / 2 + 20)},${n2(top)} L${n2(cx - w / 2)},${n2(top + 20)}Z`;
       }
-      if (T.style === 'bowler' || T.style === 'cap') {
+      if (T.style === 'bowler' || T.style === 'cap' || T.style === 'slouch') {
         const l = blob.point(Math.PI * (T.style === 'bowler' ? 1.17 : 1.13), 1.04), r = blob.point(Math.PI * (T.style === 'bowler' ? 1.83 : 1.87), 1.04);
         const top = blob.cy - blob.ry * (T.style === 'bowler' ? 1.5 : 1.12), by = T.style === 'bowler' ? blob.cy - blob.ry * 0.6 : (l[1] + r[1]) / 2;
         d += ` M${n2(l[0])},${n2(by)} C${n2(l[0])},${n2(top)} ${n2(r[0])},${n2(top)} ${n2(r[0])},${n2(by)}Z`;
@@ -345,6 +345,22 @@
         s += `<path d="M${n2(cx - w / 2 + 4)},${n2(by - 22)} Q${n2(cx)},${n2(by - 30)} ${n2(cx + w / 2 - 4)},${n2(by - 22)} L${n2(cx + w / 2)},${n2(by - 2)} Q${n2(cx)},${n2(by - 10)} ${n2(cx - w / 2)},${n2(by - 2)}Z" fill="${T.trim}" stroke="${INK}" stroke-width="3"/>`;
         s += `<path d="M${n2(cx - w / 2 - 44)},${n2(by + 6)} Q${n2(cx)},${n2(by - 20)} ${n2(cx + w / 2 + 44)},${n2(by + 6)} Q${n2(cx)},${n2(by + 18)} ${n2(cx - w / 2 - 44)},${n2(by + 6)}Z" fill="${T.color}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
         s += `<path d="M${n2(cx - w * 0.28)},${n2(top + (by - top) * 0.32)} q${n2(w * 0.15)},-14 ${n2(w * 0.32)},-8" stroke="${lt(T.color, 0.45)}" stroke-width="7" fill="none" stroke-linecap="round" opacity=".7"/>`;
+        return s;
+      }
+      if (T.style === 'slouch') {        // army slouch hat: dented felt crown, pleated band, wide brim with the left side pinned up + badge
+        const l = blob.point(Math.PI * 1.15, 1.04), r = blob.point(Math.PI * 1.85, 1.04), by = blob.cy - blob.ry * 0.62, cx = (l[0] + r[0]) / 2 + shift;
+        const w = (r[0] - l[0]) * 0.95, top = blob.cy - blob.ry * 1.38, felt = T.color, band = T.trim || dk(T.color, 0.35);
+        let s = `<path d="M${n2(cx - w / 2)},${n2(by)} C${n2(cx - w / 2)},${n2(top)} ${n2(cx - w * 0.1)},${n2(top + 18)} ${n2(cx)},${n2(top + 8)} C${n2(cx + w * 0.1)},${n2(top + 18)} ${n2(cx + w / 2)},${n2(top)} ${n2(cx + w / 2)},${n2(by)}Z" fill="${felt}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        s += `<path d="M${n2(cx)},${n2(top + 10)} Q${n2(cx + 4)},${n2((top + by) / 2)} ${n2(cx - 2)},${n2(by - 26)}" stroke="${dk(felt, 0.3)}" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+        s += `<path d="M${n2(cx - w / 2 + 2)},${n2(by - 30)} Q${n2(cx)},${n2(by - 38)} ${n2(cx + w / 2 - 2)},${n2(by - 30)} L${n2(cx + w / 2)},${n2(by - 2)} Q${n2(cx)},${n2(by - 10)} ${n2(cx - w / 2)},${n2(by - 2)}Z" fill="${band}" stroke="${INK}" stroke-width="3"/>`;
+        for (let i = 1; i < 6; i++) { const x = cx - w / 2 + w * i / 6; s += `<path d="M${n2(x - 6)},${n2(by - 28)} L${n2(x + 6)},${n2(by - 6)}" stroke="${dk(band, 0.25)}" stroke-width="2.5"/>`; }
+        // brim: flat on the right, turned up on the left (pinned to the crown)
+        s += `<path d="M${n2(cx - w * 0.05)},${n2(by + 2)} Q${n2(cx + w * 0.4)},${n2(by - 6)} ${n2(cx + w / 2 + 70)},${n2(by + 12)} Q${n2(cx + w * 0.4)},${n2(by + 26)} ${n2(cx - w * 0.05)},${n2(by + 16)}Z" fill="${felt}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        s += `<path d="M${n2(cx - w * 0.02)},${n2(by + 14)} Q${n2(cx - w * 0.35)},${n2(by + 18)} ${n2(cx - w / 2 - 40)},${n2(by + 6)} Q${n2(cx - w / 2 - 34)},${n2(top + 6)} ${n2(cx - w * 0.3)},${n2(top + 24)} Q${n2(cx - w * 0.22)},${n2(by - 40)} ${n2(cx - w * 0.02)},${n2(by + 14)}Z" fill="${lt(felt, 0.06)}" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>`;
+        const bx = cx - w * 0.36, bY = (top + by) / 2 + 6;   // sunburst badge on the pinned side
+        let rays = ''; for (let i = 0; i < 9; i++) { const a = Math.PI * (1.05 + i * 0.1125); rays += `M${n2(bx)},${n2(bY)} L${n2(bx + Math.cos(a) * 20)},${n2(bY + Math.sin(a) * 20)} `; }
+        s += `<path d="${rays}" stroke="#c89a3a" stroke-width="4" stroke-linecap="round"/><path d="M${n2(bx - 16)},${n2(bY)} A16,16 0 0 1 ${n2(bx + 16)},${n2(bY)}Z" fill="#e0b050" stroke="${INK}" stroke-width="2.5"/>`;
+        s += `<path d="M${n2(cx + w * 0.08)},${n2(top + (by - top) * 0.3)} q${n2(w * 0.14)},-10 ${n2(w * 0.3)},-2" stroke="${lt(felt, 0.4)}" stroke-width="6" fill="none" stroke-linecap="round" opacity=".6"/>`;
         return s;
       }
       if (T.style === 'visor') {         // green celluloid eyeshade on a band (the classic clerk)
