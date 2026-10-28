@@ -1,4 +1,5 @@
 <title>Topple</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20128%20128%22%3E%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2228%22%20fill%3D%22%2314161b%22/%3E%3Cg%20transform%3D%22translate%2864%2066%29%20scale%28.82%29%20translate%28-63%20-72%29%22%3E%3Cg%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%2214%22%20y%3D%2288%22%20width%3D%2276%22%20height%3D%2220%22%20rx%3D%225%22%20fill%3D%22%231b1e24%22%20stroke%3D%22%23ff6b1a%22%20stroke-width%3D%225%22/%3E%3Crect%20x%3D%2244%22%20y%3D%2262%22%20width%3D%2276%22%20height%3D%2220%22%20rx%3D%225%22%20fill%3D%22%23ff6b1a%22/%3E%3Crect%20x%3D%2254%22%20y%3D%2266%22%20width%3D%2256%22%20height%3D%224%22%20rx%3D%222%22%20fill%3D%22%23fff%22%20opacity%3D%22.35%22/%3E%3Cg%20transform%3D%22rotate%28-7%2090%2056%29%22%3E%3Crect%20x%3D%2214%22%20y%3D%2236%22%20width%3D%2276%22%20height%3D%2220%22%20rx%3D%225%22%20fill%3D%22%231b1e24%22%20stroke%3D%22%23ff6b1a%22%20stroke-width%3D%225%22/%3E%3C/g%3E%3Cpath%20d%3D%22M6%2074h28M14%2081h18%22%20stroke%3D%22%23b4ff39%22%20stroke-width%3D%224.5%22%20stroke-linecap%3D%22round%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700;800&display=swap">
@@ -157,10 +158,10 @@ svg{display:block}
 /* level map */
 #map{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:5}
 .maphead{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 22px max(12px,env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(8,9,11,.95),rgba(8,9,11,0))}
-.maphead .logo{font-family:var(--display);font-size:24px;letter-spacing:.06em;color:var(--orange);margin-right:auto;text-shadow:0 0 16px rgba(255,107,26,.6),0 3px 0 #000}
-.maphead .logo i{font-style:normal;color:var(--lime);text-shadow:0 0 16px rgba(180,255,57,.6),0 3px 0 #000}
+.maphead .logo{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:22px;letter-spacing:.06em;color:var(--ink);margin-right:auto;text-shadow:0 3px 0 #000}
+.maphead .logo .mark{width:44px;height:30px;filter:drop-shadow(0 0 6px rgba(255,107,26,.55))}
 .heartpill svg{width:22px;height:22px}
-@media (max-width:440px){.maphead .logo{display:none}.maphead .heartpill{margin-right:auto}}
+@media (max-width:440px){.maphead .logo span{display:none}}
 .mapscroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;position:relative}
 .world{position:relative;width:100%}
 .world > svg.bg{position:absolute;inset:0;width:100%;height:100%}
@@ -214,6 +215,7 @@ svg{display:block}
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <symbol id="i-mark" viewBox="4 30 120 82"><g stroke-linejoin="round"><rect x="14" y="88" width="76" height="20" rx="5" fill="#1b1e24" stroke="#ff6b1a" stroke-width="5"/><rect x="44" y="62" width="76" height="20" rx="5" fill="#ff6b1a"/><rect x="54" y="66" width="56" height="4" rx="2" fill="#fff" opacity=".35"/><g transform="rotate(-7 90 56)"><rect x="14" y="36" width="76" height="20" rx="5" fill="#1b1e24" stroke="#ff6b1a" stroke-width="5"/></g><path d="M6 74h28M14 81h18" stroke="#b4ff39" stroke-width="4.5" stroke-linecap="round"/></g></symbol>
     <symbol id="i-coin" viewBox="0 0 32 32"><path d="M16 3l11.5 6.6v13.8L16 30 4.5 23.4V9.6z" fill="#9a3608"/><path d="M16 1.5l11.5 6.6v13.3L16 28 4.5 21.4V8.1z" fill="#ff6b1a"/><path d="M16 6.5l7.5 4.3v8.6L16 23.7l-7.5-4.3v-8.6z" fill="none" stroke="#ffc08f" stroke-width="2"/><path d="M10 9.5l6-3.4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.6l-6.4 3.6 1.5-7.1L1.7 9.2l7.2-.8z"/></symbol>
     <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.3-8.5-11.2A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 3.2C20.5 15.7 12 21 12 21z" fill="#ff4d3d"/><path d="M7 8.5a2.6 2.6 0 0 1 2.4-1.4" stroke="#ffc2bc" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
@@ -271,7 +273,7 @@ svg{display:block}
 <!-- level map (home screen) -->
 <div id="map">
   <div class="maphead">
-    <div class="logo">TOP<i>PLE</i></div>
+    <div class="logo"><svg class="mark" aria-hidden="true"><use href="#i-mark"/></svg><span>TOPPLE</span></div>
     <div class="pill heartpill" id="heartPill"><svg><use href="#i-heart"/></svg><span id="lives">5</span><small id="lifeTimer"></small></div>
     <div class="pill"><svg class="coin"><use href="#i-coin"/></svg><span id="mapWallet">0</span></div>
     <button class="roundbtn" id="shopBtn" type="button" aria-label="Shop"><svg><use href="#i-shop"/></svg></button>
@@ -559,7 +561,7 @@ Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 16, bottom: -4, near
 scene.add(sun);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.55, 0.62); // neon edges glow
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.5, 0.74); // neon edges glow
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
@@ -722,12 +724,12 @@ function faceTexture(pal, w, h) {
     g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = s * 0.04; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke();
     drawRivets(g, w, h, s);
   } else {
-    g.fillStyle = rgba(pal.base, 0.2); rr(g, m, m, w - 2 * m, h - 2 * m, r); g.fill();
-    g.save(); g.shadowColor = pal.base; g.shadowBlur = s * 0.3;
-    g.strokeStyle = pal.base; g.lineWidth = s * 0.08; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke(); g.stroke();
+    g.fillStyle = rgba(pal.base, 0.13); rr(g, m, m, w - 2 * m, h - 2 * m, r); g.fill();
+    g.save(); g.shadowColor = pal.base; g.shadowBlur = s * 0.14;
+    g.strokeStyle = pal.base; g.lineWidth = s * 0.07; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke();
     g.restore();
-    g.strokeStyle = mixHex(pal.base, '#ffffff', 0.6); g.lineWidth = s * 0.022; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke();
-    g.fillStyle = 'rgba(255,255,255,0.08)'; rr(g, m * 1.8, m * 1.5, w - m * 3.6, (h - 2 * m) * 0.3, r * 0.5); g.fill();
+    g.strokeStyle = mixHex(pal.base, '#ffffff', 0.3); g.lineWidth = s * 0.018; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.05)'; rr(g, m * 1.8, m * 1.5, w - m * 3.6, (h - 2 * m) * 0.3, r * 0.5); g.fill();
   }
   if (pal.key === 'star') drawStar(g, w / 2, h / 2 + s * 0.03, s * 0.28);
   if (pal.key === 'gem') drawGem(g, w / 2, h / 2, s * 0.26);
@@ -741,7 +743,7 @@ function blockMaterials(pal) { // box face order: +x,-x (ends) +y,-y (top/bottom
   const stone = pal.key === 'stone';
   const mk = (w, h) => {
     const map = faceTexture(pal, w, h);
-    return new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: stone ? 0.15 : 0.95, roughness: stone ? 0.75 : 0.28, metalness: stone ? 0.2 : 0.35, envMapIntensity: 0.6 });
+    return new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: stone ? 0.15 : 0.6, roughness: stone ? 0.75 : 0.28, metalness: stone ? 0.2 : 0.35, envMapIntensity: 0.6 });
   };
   const end = mk(160, 96), top = mk(480, 160), side = mk(480, 96);
   const mats = [end, end, top, top, side, side];
