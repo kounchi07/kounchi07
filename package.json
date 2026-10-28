@@ -1,0 +1,9 @@
+{
+  "name": "kounchi07",
+  "version": "1.0.0",
+  "private": true,
+  "description": "kounchi07 workspace",
+  "devDependencies": {
+    "rea-agents": "github:morluto/rea"
+  }
+}
