@@ -12,6 +12,8 @@ Does the core of what paid "outlier finder" tools do:
   niches   [seeds...]      Scan many niches; rank by new channels breaking through.
   transcripts <targets>    Save transcripts of videos / a channel's top videos.
   download <targets>       Download video, audio, subtitles, thumbnails (yt-dlp).
+  topics   <queries...>    Which subjects (brands, people, places) are hot vs saturated.
+  watch / dashboard        Track channels over time, get breakout alerts, see charts.
   quota                    API units used today; every response is cached in cache.db.
 
 Every command writes an HTML report to ./reports/.
@@ -54,6 +56,9 @@ TTL_HOURS = {"search": 24, "videos": 6, "channels": 24, "playlistItems": 6,
              "suggest": 24 * 7, "transcript": 24 * 365}
 # YouTube Data API quota cost per call (10,000 free units/day, resets midnight Pacific).
 QUOTA_COST = {"search": 100}
+# Stop before this many units/day so you never hit the hard limit mid-run.
+# Override with TUBESCOUT_DAILY_BUDGET=... in .env or the environment.
+DEFAULT_BUDGET = 9000
 UA = {"User-Agent": "Mozilla/5.0 (TubeScout)"}
 
 STOPWORDS = set("""a an the and or of in on at to for with from by is are was were be i you
@@ -63,16 +68,19 @@ into out up as so if than then just about after before over under can will 1 2 3
 
 # ---------------------------------------------------------------- helpers
 
-def load_key():
-    key = os.environ.get("YOUTUBE_API_KEY")
-    if key:
-        return key
-    for env in (Path.cwd() / ".env", Path(__file__).resolve().parent / ".env"):
+def setting(name, default=None):
+    if os.environ.get(name):
+        return os.environ[name]
+    for env in (Path.cwd() / ".env", HERE / ".env"):
         if env.exists():
             for line in env.read_text().splitlines():
-                if line.strip().startswith("YOUTUBE_API_KEY="):
+                if line.strip().startswith(name + "="):
                     return line.split("=", 1)[1].strip().strip('"\'')
-    return None
+    return default
+
+
+def load_key():
+    return setting("YOUTUBE_API_KEY")
 
 
 def need_key():
@@ -117,6 +125,11 @@ def quota_day():
     return (datetime.now(timezone.utc) - timedelta(hours=8)).strftime("%Y-%m-%d")
 
 
+def units_today():
+    row = db().execute("SELECT units FROM quota WHERE day=?", (quota_day(),)).fetchone()
+    return row[0] if row else 0
+
+
 def spend(units):
     db().execute("INSERT INTO quota VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET units = units + ?",
                  (quota_day(), units, units))
@@ -128,6 +141,10 @@ def api(endpoint, key, **params):
     k, hit = cache_get(endpoint, ident)
     if hit is not None:
         return hit
+    budget = int(setting("TUBESCOUT_DAILY_BUDGET", DEFAULT_BUDGET))
+    if units_today() + QUOTA_COST.get(endpoint, 1) > budget:
+        sys.exit(f"Daily budget reached ({units_today()}/{budget} units). Cached results still work; "
+                 "fresh data resumes after midnight Pacific. Raise TUBESCOUT_DAILY_BUDGET to override.")
     r = requests.get(f"{API}/{endpoint}", params={**params, "key": key}, timeout=30)
     data = r.json()
     if "error" in data:
@@ -623,6 +640,147 @@ def cmd_ideas(a):
     print(f"Report: {path}")
 
 
+# Words that make up title *templates* rather than *subjects*. Whatever is left in a
+# title after removing these (and joining across small connectors) is the topic.
+COMMON = set("""
+a about above after again against ago all almost alone already also always am america american
+americans an and another any anymore are around as at away back bad bankrupt be became because become
+been before behind being best better between big biggest billion billions both broke broken brutal
+but buy by can cant can't case changed cheap cheaper collapse collapsed collapsing could crash crashed
+crashing crisis dark day days dead death deal deserve deserved deserves destroyed destroying did
+didn't die died disaster disturbing do does doesn't doing done don't down downfall dying each
+empire end ended ending enemies enemy entire even ever every everyone everything exactly expensive
+explained fail failed failing failure fall fell few final finally first for forever free from full
+gets getting go going gone good got great greed greedy had happened happening has have having he her
+here him his history hit how huge i if in inside instead into is isn't it it's its itself just
+killed killing king know last left less let like little lost lot losing made make makes making many
+may me might million millions mistake money more most much must my never new next no nobody not
+nothing now of off old on once one only or other our out over own paid part people plan played
+problem quietly rather real really reason rich rise rose ruined said same saved secret see self
+shocking should so some something still stop stopped story strange such sure terrible than that
+the their them then there these they thing things this those thought through time to too took
+top totally tried true truth turned under unfortunately until up us used very wanted wants was
+wasn't way we were weren't what when where which while who whole why will with won world worse
+iconic survivors survivor ruled right here she he across trouble three closing closed car cars
+worst would wrong year years yet you your 2024 2025 2026 vs went twice exist exists backfire
+backfired backfiring store stores wtf actually insane massive slowly fast owner owners customers
+fans brand brands company companies business finally getting
+""".split())
+CONNECTORS = {"of", "the", "in", "&", "and", "n", "a"}
+
+
+WORDLIST_URL = ("https://raw.githubusercontent.com/first20hours/google-10000-english/"
+                "master/google-10000-english-usa.txt")
+
+
+def common_words():
+    """Top-10k English words (downloaded once, cached a year). One-word topics that are plain
+    English ('Closing', 'Iconic') are dropped from the proven list. Trade-off: a one-word brand
+    that is also a common word (Target, Subway) is dropped too, but still shows in breakouts."""
+    k, hit = cache_get("transcript", "wordlist-10k")  # 'transcript' TTL = 1 year
+    if hit is None:
+        try:
+            hit = requests.get(WORDLIST_URL, timeout=20).text.split()
+            cache_put(k, "transcript", hit)
+        except requests.RequestException:
+            hit = []
+    return set(hit) | COMMON
+
+
+def extract_topics(title):
+    """'Jack in the Box Is (Finally) Getting What It Deserves' -> ['Jack in the Box']"""
+    tokens = re.findall(r"[\w'’.&$-]+", title.replace("’", "'"))
+    out, run = [], []
+    for tok in tokens + [""]:
+        low = tok.lower().strip(".")
+        if tok and low not in COMMON and not low.isdigit():
+            run.append(tok)
+        elif tok and run and low in CONNECTORS:
+            run.append(tok)
+        else:
+            while run and run[-1].lower() in CONNECTORS:
+                run.pop()
+            if run and any(len(t) > 2 for t in run):
+                out.append(re.sub(r"'s$", "", " ".join(run).strip(".-")))
+            run = []
+    return out
+
+
+def cmd_topics(a):
+    key = need_key()
+    pool = {}
+    for q in a.queries:
+        print(f"• {q}", file=sys.stderr)
+        sub = argparse.Namespace(query=q, days=a.days, pages=a.pages, order="viewCount",
+                                 max_subs=a.max_subs, min_views=1_000, duration=None,
+                                 no_shorts=True, lang=a.lang, region=None)
+        vids, _ = find_outliers(sub, key)
+        pool.update({v["id"]: v for v in vids})
+    topics = defaultdict(list)
+    for v in pool.values():
+        for t in dict.fromkeys(extract_topics(v["title"])):
+            topics[t.lower()].append((t, v))
+    rows = []
+    for vs in topics.values():
+        vids = list({v["id"]: v for _, v in vs}.values())
+        name = Counter(t for t, _ in vs).most_common(1)[0][0]
+        outs = [min(v["outlier"], 50) for v in vids]  # cap: a 5000x on a 3-video channel is noise
+        rows.append({"topic": name, "videos": len(vids),
+                     "channels": len({v["channel_id"] for v in vids}),
+                     "views": sum(v["views"] for v in vids),
+                     "best": max(v["outlier"] for v in vids),
+                     "median_outlier": statistics.median(outs),
+                     "latest": max(v["published"] for v in vids)[:10],
+                     "examples": sorted(vids, key=lambda v: -v["views"])[:4]})
+    words = common_words()
+
+    def generic(topic):
+        w = topic.lower().strip("'")
+        stems = {w, w.rstrip("s"), re.sub(r"(ed|ing|ly)$", "", w), re.sub(r"(ied|ies)$", "y", w)}
+        return " " not in topic and (bool(stems & words) or topic.isupper() and len(topic) > 4)
+
+    rows = [r for r in rows if not generic(r["topic"])]
+    for r in rows:
+        r["score"] = r["median_outlier"] * len(str(int(r["views"])))
+    # Proven: several channels found the same subject worth a video, and it paid off.
+    proven = sorted([r for r in rows if r["channels"] >= 2 and r["best"] >= a.min_score],
+                    key=lambda r: -r["score"])
+    # Single breakouts: one video, listed once (not once per word fragment).
+    singles = sorted([v for v in pool.values() if v["outlier"] >= max(a.min_score, 3)],
+                     key=lambda v: -(v["views"] * min(v["outlier"], 50)))
+    proven_names = {r["topic"].lower() for r in proven}
+    singles = [v for v in singles if not {t.lower() for t in extract_topics(v["title"])} & proven_names]
+
+    print(f"\n{len(pool)} videos analysed.\n\nPROVEN TOPICS (covered by 2+ channels):")
+    print(f"{'topic':28} {'videos':>6} {'chans':>5} {'views':>7} {'best':>6} {'med.x':>6}  latest")
+    for r in proven[:a.limit]:
+        print(f"{r['topic'][:28]:28} {r['videos']:>6} {r['channels']:>5} {fmt(r['views']):>7} "
+              f"{min(r['best'], 999):>5.1f}x {r['median_outlier']:>5.1f}x  {r['latest']}")
+    print("\nSINGLE BREAKOUTS (one channel so far, open territory):")
+    for v in singles[:a.limit]:
+        print(f"  {min(v['outlier'], 999):>5.0f}x {fmt(v['views']):>7}  {v['title'][:70]}  — {v['channel']}")
+
+    sections = ["<p class=muted>Subjects pulled from the titles of every video found for: "
+                + html.escape(", ".join(a.queries)) + f" (last {a.days} days). Outlier multiples are capped "
+                "at 50x when ranking so tiny channels don't drown everything else.</p>",
+                "<h2>Proven topics (2+ channels covered it)</h2><div class=wrap><table><tr><th>Topic</th>"
+                "<th>Videos</th><th>Channels</th><th>Views</th><th>Best</th><th>Median</th><th>Latest</th></tr>"]
+    for r in proven[:a.limit]:
+        sections.append(f"<tr><td><b>{html.escape(r['topic'])}</b></td><td class=n>{r['videos']}</td>"
+                        f"<td class=n>{r['channels']}</td><td class=n>{fmt(r['views'])}</td>"
+                        f"<td class=n>{r['best']:.1f}x</td><td class=n>{r['median_outlier']:.1f}x</td>"
+                        f"<td>{r['latest']}</td></tr>")
+    sections += ["</table></div>", "<h2>Single breakouts: open territory</h2>",
+                 video_table(singles[:a.limit], outlier_cols())]
+    for r in proven[:10]:
+        sections += [f"<h2>{html.escape(r['topic'])}</h2>", video_table(r["examples"], outlier_cols())]
+    path = write_report(f"topics-{a.queries[0]}", "Topic radar: " + ", ".join(a.queries)[:80], sections)
+    (REPORTS / f"{path.stem}.json").write_text(json.dumps(
+        {"proven": [{k: v for k, v in r.items() if k != "examples"} for r in proven],
+         "singles": singles}, indent=1))
+    print(f"\nReport: {path}")
+
+
 # Faceless, narration-led formats that can be made with AI images/animation + voiceover.
 NICHE_SEEDS = [
     "brand downfall story", "what happened to company", "finally getting what it deserves",
@@ -870,6 +1028,22 @@ def main():
     d.add_argument("--info", action="store_true", help="also save full metadata .info.json")
     d.add_argument("--cookies-from-browser", metavar="BROWSER", help="chrome/firefox/edge/safari")
     d.set_defaults(fn=cmd_download)
+
+    tp = sub.add_parser("topics", help="which subjects (brands, people, places) are hot in a niche")
+    tp.add_argument("queries", nargs="+", help="one or more niche searches")
+    tp.add_argument("--days", type=int, default=90)
+    tp.add_argument("--pages", type=int, default=1, help="50 results/page, 100 units each")
+    tp.add_argument("--max-subs", type=int, default=2_000_000)
+    tp.add_argument("--min-score", type=float, default=1.0, help="hide topics whose best video is below this")
+    tp.add_argument("--limit", type=int, default=30)
+    tp.add_argument("--lang", default="en")
+    tp.set_defaults(fn=cmd_topics)
+
+    try:
+        import tracker
+        tracker.add_commands(sub)
+    except ImportError:
+        pass
 
     q = sub.add_parser("quota", help="show API units used today and cache size")
     q.add_argument("--clear", action="store_true", help="delete all cached responses")

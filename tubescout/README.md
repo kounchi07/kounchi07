@@ -77,6 +77,15 @@ python tubescout.py niches "brand downfall" "true crime animated"
 # (run this on your own computer: YouTube blocks transcript downloads from cloud servers)
 python tubescout.py transcripts @SomeChannel --top 3
 
+# Topic radar: which subjects (brands, people, places) are hot vs already covered
+python tubescout.py topics "finally getting what it deserves" "what happened to company" --days 90
+
+# Watchlist + alerts + dashboard
+python tubescout.py watch discover "brand downfall" --days 30    # add new channels that are popping
+python tubescout.py watch add @BagholderAssociation @nobodygetsin
+python tubescout.py watch run                                    # snapshot: about 1-2 units per channel
+python tubescout.py dashboard                                    # open reports/dashboard.html
+
 # Download with yt-dlp: video (mp4) + English subtitles + thumbnail
 python tubescout.py download https://www.youtube.com/watch?v=3Hp03-lSQRw
 python tubescout.py download @BagholderAssociation --top 5 --subs-only   # scripts + thumbnails only
@@ -88,12 +97,41 @@ python tubescout.py download <url> --cookies-from-browser chrome
 python tubescout.py quota
 ```
 
+### Alerts and the dashboard
+
+`watch run` saves a snapshot of every tracked channel and its latest uploads, then flags:
+
+- 🔥 **breakout**: a video from the last 14 days at 3x+ its channel's median views
+- ⚡ **accelerating**: a video gaining views 3x faster than the channel's normal pace (needs two snapshots)
+- 🆕 **new channel**: a channel under 120 days old with 100K+ views
+- 📈 **surging**: subscribers growing 10%+ per day
+
+Each alert fires once. `dashboard` turns everything into one page with charts. Growth
+charts fill in once snapshots are 3+ hours apart, because YouTube only refreshes channel
+totals every few hours.
+
+Run it automatically every 4 hours on your computer:
+
+- **Mac/Linux:** run `crontab -e` and add
+  `0 */4 * * * cd /path/to/kounchi07/tubescout && python3 tubescout.py watch run && python3 tubescout.py dashboard`
+- **Windows:** use Task Scheduler to run the same two commands.
+
+To get alerts on your phone, create a Discord channel webhook (Channel settings →
+Integrations → Webhooks) and add `DISCORD_WEBHOOK_URL=...` to `.env`.
+
+With 25 channels, each run costs about 30 units. That's about 180 units a day at 6 runs
+a day.
+
 ### Saving your free quota
 
 Every API answer is saved in `tubescout/cache.db`. Running the same search again the same
 day costs **0 units**. Video stats are reused for 6 hours, searches and channels for 24
 hours, autocomplete for a week, and transcripts permanently. Add `--fresh` to force new
 data, for example `python tubescout.py --fresh channel @x`.
+
+There is also a **daily budget**. TubeScout stops at 9,000 units a day, so it never hits
+YouTube's 10,000 limit in the middle of a run. Cached results keep working after that.
+Change it with `TUBESCOUT_DAILY_BUDGET=...` in `.env`.
 
 ### Scripts
 
