@@ -11,6 +11,7 @@ Does the core of what paid "outlier finder" tools do:
   ideas    <query>         outliers + autocomplete -> list of title formats to test.
   niches   [seeds...]      Scan many niches; rank by new channels breaking through.
   transcripts <targets>    Save transcripts of videos / a channel's top videos.
+  download <targets>       Download video, audio, subtitles, thumbnails (yt-dlp).
   quota                    API units used today; every response is cached in cache.db.
 
 Every command writes an HTML report to ./reports/.
@@ -672,51 +673,131 @@ def cmd_niches(a):
     print(f"\nReport: {path}")
 
 
-def fetch_transcript(video_id):
+def ydl_opts(cookies_browser=None, **extra):
+    opts = {"quiet": True, "no_warnings": True, **extra}
+    if cookies_browser:  # e.g. "chrome", "firefox": fixes "Sign in to confirm you're not a bot"
+        opts["cookiesfrombrowser"] = (cookies_browser,)
+    return opts
+
+
+def vtt_to_lines(vtt):
+    """WebVTT auto-captions repeat each phrase across cues; keep each new line once."""
+    lines, seen, stamp = [], set(), "0:00"
+    for raw in vtt.splitlines():
+        m = re.match(r"(\d+):(\d\d):(\d\d)\.\d+ -->", raw)
+        if m:
+            h, mi, sec = map(int, m.groups())
+            stamp = f"{h * 60 + mi}:{sec:02d}"
+            continue
+        text = re.sub(r"<[^>]+>", "", raw).strip()
+        if not text or text == "WEBVTT" or text in seen or re.match(r"^(Kind|Language):", text):
+            continue
+        seen.add(text)
+        lines.append(f"[{stamp}] {text}")
+    return lines
+
+
+def transcript_via_ytdlp(video_id, cookies_browser=None):
+    try:
+        import yt_dlp
+    except ImportError:
+        return None
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts(cookies_browser, skip_download=True)) as ydl:
+            info = ydl.extract_info(url, download=False)
+            tracks = {**info.get("automatic_captions", {}), **info.get("subtitles", {})}
+            lang = next((l for l in ("en", "en-US", "en-GB", "en-orig") if l in tracks), None)
+            vtt = next((t for t in tracks.get(lang, []) if t.get("ext") == "vtt"), None) if lang else None
+            if not vtt:
+                return None
+            return vtt_to_lines(ydl.urlopen(vtt["url"]).read().decode("utf-8", "replace"))
+    except Exception as e:  # yt-dlp raises DownloadError for bot checks, private videos, etc.
+        print(f"  ! {video_id}: yt-dlp: {str(e)[:150]}", file=sys.stderr)
+        return None
+
+
+def fetch_transcript(video_id, cookies_browser=None):
     k, hit = cache_get("transcript", video_id)
     if hit is not None:
         return hit
+    lines = None
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
-    except ImportError:
-        sys.exit("pip install youtube-transcript-api")
-    try:
         parts = YouTubeTranscriptApi().fetch(video_id, languages=["en", "en-US", "en-GB"])
-    except Exception as e:  # library raises many specific types; all mean "no transcript"
-        print(f"  ! {video_id}: {type(e).__name__} (YouTube blocks cloud servers; run this on your own computer)",
-              file=sys.stderr)
+        lines = [f"[{int(p.start) // 60}:{int(p.start) % 60:02d}] {p.text}" for p in parts]
+    except Exception as e:  # ImportError or any of the library's "no transcript" errors
+        print(f"  · {video_id}: transcript API failed ({type(e).__name__}), trying yt-dlp…", file=sys.stderr)
+        lines = transcript_via_ytdlp(video_id, cookies_browser)
+    if not lines:
+        print(f"  ! {video_id}: no transcript. On a server/VPN YouTube blocks this; run it on your own "
+              "computer, or add --cookies-from-browser chrome", file=sys.stderr)
         return None
-    lines = [f"[{int(p.start) // 60}:{int(p.start) % 60:02d}] {p.text}" for p in parts]
     cache_put(k, "transcript", lines)
     return lines
 
 
-def cmd_transcripts(a):
+def resolve_targets(refs, top):
+    """Video URLs/ids pass through; @channels expand to their `top` most-viewed uploads."""
     key = load_key()
     targets = []
-    for ref in a.targets:
+    for ref in refs:
         if ref.startswith("@") or "/channel/" in ref or ref.startswith("UC") or "/@" in ref:
             key = key or need_key()
             cid = resolve_channel(ref, key)
             chan = channel_info([cid], key)[cid]
             vids = video_details(upload_ids(chan["uploads"], key, 50), key)
-            targets += sorted(vids, key=lambda v: -v["views"])[:a.top]
+            targets += sorted(vids, key=lambda v: -v["views"])[:top]
         else:
             vid = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", ref)
             targets.append({"id": vid.group(1) if vid else ref, "title": ref, "views": 0})
+    return targets
+
+
+def cmd_transcripts(a):
+    targets = resolve_targets(a.targets, a.top)
     outdir = REPORTS / "transcripts"
     outdir.mkdir(parents=True, exist_ok=True)
+    saved = 0
     for v in targets:
-        lines = fetch_transcript(v["id"])
+        lines = fetch_transcript(v["id"], a.cookies_from_browser)
         if not lines:
             continue
+        saved += 1
         safe = re.sub(r"[^\w-]+", "-", v["title"]).strip("-")[:60]
         path = outdir / f"{v['id']}-{safe}.txt"
         path.write_text(f"{v['title']}\nhttps://www.youtube.com/watch?v={v['id']}\n"
                         f"views: {v.get('views', 0)}\n\n" + "\n".join(lines))
         hook = " ".join(l.split("] ", 1)[1] for l in lines[:12])
         print(f"{path.name}\n   hook: {hook[:220]}…\n")
-    print(f"Saved to {outdir}. Paste them into Claude with prompts/script-breakdown.md.")
+    print(f"Saved {saved}/{len(targets)} to {outdir}. Paste them into Claude with prompts/script-breakdown.md.")
+
+
+def cmd_download(a):
+    try:
+        import yt_dlp
+    except ImportError:
+        sys.exit("pip install yt-dlp   (and for best results install deno: https://deno.com)")
+    targets = resolve_targets(a.targets, a.top)
+    outdir = REPORTS / "downloads"
+    extra = {"outtmpl": str(outdir / "%(channel)s" / "%(title).80s [%(id)s].%(ext)s"),
+             "writethumbnail": True, "writeinfojson": a.info,
+             "writesubtitles": True, "writeautomaticsub": True,
+             "subtitleslangs": ["en", "en-US", "en-orig"], "subtitlesformat": "vtt",
+             "ignoreerrors": True, "quiet": False}
+    if a.audio:
+        extra |= {"format": "bestaudio/best"}
+    elif a.subs_only:
+        extra |= {"skip_download": True}
+    else:
+        extra |= {"format": f"bv*[height<={a.max_height}]+ba/b[height<={a.max_height}]/b",
+                  "merge_output_format": "mp4"}
+    urls = [f"https://www.youtube.com/watch?v={v['id']}" for v in targets]
+    with yt_dlp.YoutubeDL(ydl_opts(a.cookies_from_browser, **extra)) as ydl:
+        failed = ydl.download(urls)
+    print(f"\nSaved to {outdir}" + (" (some downloads failed: see errors above. If YouTube says "
+                                     "'Sign in to confirm you're not a bot', add --cookies-from-browser "
+                                     "chrome, or run from your own computer, not a server)" if failed else ""))
 
 
 def cmd_quota(a):
@@ -777,7 +858,18 @@ def main():
     t = sub.add_parser("transcripts", help="save transcripts of videos or a channel's top videos")
     t.add_argument("targets", nargs="+", help="video URLs/ids or @channel handles")
     t.add_argument("--top", type=int, default=5, help="for channels: how many top videos")
+    t.add_argument("--cookies-from-browser", metavar="BROWSER", help="chrome/firefox/edge/safari")
     t.set_defaults(fn=cmd_transcripts)
+
+    d = sub.add_parser("download", help="download videos/audio/subtitles/thumbnails with yt-dlp")
+    d.add_argument("targets", nargs="+", help="video URLs/ids or @channel handles")
+    d.add_argument("--top", type=int, default=3, help="for channels: how many top videos")
+    d.add_argument("--audio", action="store_true", help="audio only")
+    d.add_argument("--subs-only", action="store_true", help="only subtitles + thumbnail, no video")
+    d.add_argument("--max-height", type=int, default=1080, help="max video resolution")
+    d.add_argument("--info", action="store_true", help="also save full metadata .info.json")
+    d.add_argument("--cookies-from-browser", metavar="BROWSER", help="chrome/firefox/edge/safari")
+    d.set_defaults(fn=cmd_download)
 
     q = sub.add_parser("quota", help="show API units used today and cache size")
     q.add_argument("--clear", action="store_true", help="delete all cached responses")

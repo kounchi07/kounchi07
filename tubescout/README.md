@@ -33,6 +33,12 @@ TubeScout automates steps 1 and 2.
 pip install -r requirements.txt
 ```
 
+Downloads and transcripts use [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
+[youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api), both free and
+open source. yt-dlp works best with [deno](https://deno.com) installed and **ffmpeg**
+installed (needed to merge video and audio). YouTube blocks both tools from cloud servers
+and many VPNs, so run them on your own computer.
+
 `suggest` and `channel` work right away. `outliers` and `ideas` need a **free** YouTube
 Data API key:
 
@@ -70,6 +76,13 @@ python tubescout.py niches "brand downfall" "true crime animated"
 # Save transcripts of a channel's top videos to study their scripts
 # (run this on your own computer: YouTube blocks transcript downloads from cloud servers)
 python tubescout.py transcripts @SomeChannel --top 3
+
+# Download with yt-dlp: video (mp4) + English subtitles + thumbnail
+python tubescout.py download https://www.youtube.com/watch?v=3Hp03-lSQRw
+python tubescout.py download @BagholderAssociation --top 5 --subs-only   # scripts + thumbnails only
+python tubescout.py download <url> --audio                               # audio only (voice/pacing study)
+# If YouTube says "Sign in to confirm you're not a bot":
+python tubescout.py download <url> --cookies-from-browser chrome
 
 # See how much free quota you've used today and how big the cache is
 python tubescout.py quota
