@@ -1,0 +1,682 @@
+<title>Topple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Chakra+Petch:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed WebGL void; stats pinned top-left, pot + bank docked bottom-centre. Single dark arcade look by design. */
+:root{
+  --void:#0b0a14;
+  --panel:rgba(22,18,40,.8);
+  --line:rgba(190,170,255,.2);
+  --ink:#efeaff;
+  --muted:#a59cc4;
+  --ember:#ff7a45;
+  --gold:#ffc65c;
+  --danger:#ff4d6d;
+  --calm:#5b8cff;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --ui:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--void);color:var(--ink);font-family:var(--ui);font-size:15px;overflow:hidden;user-select:none;-webkit-user-select:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#gl.hot{cursor:pointer}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;justify-content:space-between;align-items:flex-start;gap:12px;pointer-events:none}
+.stats{display:flex;gap:20px;flex-wrap:wrap}
+.k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.v{font-family:var(--display);font-weight:600;font-size:20px;font-variant-numeric:tabular-nums}
+.relics{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:12px;padding:3px 8px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.iconbtn{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px}
+
+#toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 84px);left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;max-width:calc(100% - 32px);text-align:center}
+#toast.on{opacity:1}
+
+.dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:min(520px,calc(100% - 32px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:10px 14px;align-items:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.pot{min-width:0}
+.pot .v{font-size:24px}
+.pot .calc{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+#bank{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:.04em;background:var(--gold);color:#1a1206;border:0;border-radius:10px;padding:12px 18px;min-width:120px}
+#bank:disabled{background:transparent;color:var(--muted);border:1px dashed var(--line);cursor:default;font-family:var(--ui);font-weight:600;font-size:13px}
+.meter{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+.bar{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+#fill{height:100%;width:0;background:var(--calm);border-radius:99px;transition:background .2s}
+
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,6,16,.62);padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto}
+.card{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(44px,13vw,64px);letter-spacing:.02em;margin:0;line-height:1;background:linear-gradient(180deg,var(--gold),var(--ember));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-family:var(--display);font-weight:600;font-size:22px;margin:0;text-wrap:balance}
+p{margin:0;line-height:1.5;color:var(--muted)}
+ul.rules{margin:0;padding-left:18px;display:grid;gap:6px;line-height:1.45}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;border-radius:12px;padding:13px 16px;font-weight:600;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.btn.primary{background:var(--gold);color:#1a1206;border:0;font-family:var(--display);font-weight:800}
+.relic-list{display:grid;gap:10px}
+.relic{text-align:left;border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:12px;padding:12px 14px;display:grid;gap:4px}
+.relic:hover{border-color:var(--gold)}
+.relic b{font-family:var(--display);font-weight:600;font-size:15px;color:var(--gold)}
+.relic span{color:var(--muted);font-size:14px}
+pre#share{margin:0;padding:12px;border-radius:10px;background:rgba(0,0,0,.3);border:1px solid var(--line);font-family:var(--ui);white-space:pre-wrap;user-select:text;-webkit-user-select:text}
+.big{font-family:var(--display);font-weight:800;font-size:36px;color:var(--gold);font-variant-numeric:tabular-nums}
+
+.pop{position:fixed;transform:translate(-50%,-50%);font-family:var(--display);font-weight:800;font-size:22px;pointer-events:none;text-shadow:0 2px 12px rgba(0,0,0,.6);animation:rise 1.1s ease-out forwards;white-space:nowrap}
+@keyframes rise{from{opacity:1;margin-top:0}to{opacity:0;margin-top:-70px}}
+@media (prefers-reduced-motion:reduce){.pop{animation-duration:.01s}}
+</style>
+
+<canvas id="gl" tabindex="0" aria-label="Tower of blocks. Tap a block to pull it out; drag to rotate."></canvas>
+
+<div class="hud">
+  <div>
+    <div class="stats">
+      <div class="stat"><div class="k">Floor</div><div class="v" id="floor">1</div></div>
+      <div class="stat"><div class="k">Banked</div><div class="v" id="banked">0</div></div>
+      <div class="stat"><div class="k">Best</div><div class="v" id="best">0</div></div>
+    </div>
+    <div class="relics" id="relics"></div>
+  </div>
+  <button class="iconbtn" id="mute" type="button">Sound on</button>
+</div>
+
+<div id="toast" role="status"></div>
+
+<div class="dock" id="dock" hidden>
+  <div class="pot">
+    <div class="k">Unbanked pot</div>
+    <div class="v" id="pot">0</div>
+    <div class="calc" id="calc">0 coins × 1.0</div>
+  </div>
+  <button id="bank" type="button" disabled>Need 20</button>
+  <div class="meter"><span class="k">Wobble</span><div class="bar"><div id="fill"></div></div><span class="k" id="pct">0%</span></div>
+</div>
+
+<div class="overlay" id="menu">
+  <div class="card">
+    <h1>TOPPLE</h1>
+    <p>Pull blocks from a floating tower. Every block hides loot. Bank it before the tower falls.</p>
+    <ul class="rules">
+      <li><b>Tap a block</b> to slide it out. Drag to rotate the tower.</li>
+      <li><b>Deeper blocks pay more</b> and are riskier to pull.</li>
+      <li>Reach the floor's <b>quota</b>, then bank it or keep pulling.</li>
+      <li>Some blocks are <b>cracked</b> and shake the tower. The more you have pulled, the harder they shake.</li>
+      <li>If the tower falls, your <b>unbanked</b> pot is gone.</li>
+    </ul>
+    <p id="dailyNote" hidden></p>
+    <div class="row">
+      <button class="btn primary" id="play" type="button">Play</button>
+      <button class="btn" id="daily" type="button">Daily Tower</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="relicPick" hidden>
+  <div class="card">
+    <div class="k" id="relicFloor">Floor cleared</div>
+    <h2>Choose a relic</h2>
+    <div class="relic-list" id="relicList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <div class="card">
+    <div class="k" id="overKicker">The tower fell</div>
+    <div class="big" id="overScore">0</div>
+    <p id="overText"></p>
+    <pre id="share"></pre>
+    <div class="row">
+      <button class="btn" id="copy" type="button">Copy result</button>
+      <button class="btn primary" id="again" type="button">Play again</button>
+    </div>
+    <button class="btn" id="toMenu" type="button">Menu</button>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "cannon-es":"https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import * as CANNON from 'cannon-es';
+
+// ---------- constants & helpers ----------
+const BW = 3, BH = 0.6, BD = 1, GAP = 0.02;
+const $ = id => document.getElementById(id);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const d = new Date();
+const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const dateSeed = +dateKey.replace(/-/g, '');
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const layersFor = f => Math.min(18, 12 + 2 * (f - 1));
+const quotaFor = f => Math.round(20 * Math.pow(1.6, f - 1));
+
+const RELICS = {
+  midas:  { name: 'Midas Touch',    text: 'Coin blocks pay 50% more.' },
+  steady: { name: 'Steady Hands',   text: 'Pulling a block no longer jolts the layer above it.' },
+  lens:   { name: "Jeweler's Lens", text: 'Gem and multiplier blocks glow gold, so you can find them.' },
+  net:    { name: 'Safety Net',     text: 'The first time the tower falls, keep half your pot and get a fresh tower.' },
+  greed:  { name: 'Blind Greed',    text: 'Banking pays 1.5×, but the wobble meter is hidden.' },
+  roots:  { name: 'Deep Roots',     text: 'Blocks in the bottom third pay double.' },
+};
+
+// ---------- game state ----------
+const S = {
+  mode: 'menu', floor: 1, banked: 0, potCoins: 0, potMult: 1,
+  relics: new Set(), insuranceUsed: false, daily: false, rng: Math.random,
+  blocks: [], pulling: null, history: [], layers: 12,
+  best: +(store.get('topple-best') || 0),
+};
+const potValue = () => Math.round(S.potCoins * S.potMult);
+
+// ---------- audio (tiny synth) ----------
+const audio = (() => {
+  let ctx = null, muted = store.get('topple-muted') === '1';
+  function ensure() {
+    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; } }
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  function tone(freq, dur, type = 'sine', vol = 0.15, slide = 0, delay = 0) {
+    if (!ctx || muted) return;
+    const t = ctx.currentTime + delay, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol, freq) {
+    if (!ctx || muted) return;
+    const len = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), ch = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; g.gain.value = vol;
+    s.connect(f).connect(g).connect(ctx.destination); s.start();
+  }
+  return {
+    ensure, get muted() { return muted; },
+    toggle() { muted = !muted; store.set('topple-muted', muted ? '1' : '0'); return muted; },
+    scrape() { noise(1.1, 0.22, 900); },
+    coin() { tone(880, 0.18, 'triangle', 0.12, 1.5); },
+    dud() { tone(180, 0.15, 'square', 0.05, 0.7); },
+    mult() { tone(440, 0.3, 'sawtooth', 0.06, 2); },
+    gem() { [0, 4, 7, 12].forEach((s, i) => tone(660 * Math.pow(2, s / 12), 0.25, 'triangle', 0.1, 1, i * 0.06)); },
+    bank() { [0, 7, 12, 19].forEach((s, i) => tone(523 * Math.pow(2, s / 12), 0.4, 'sine', 0.12, 1, i * 0.08)); },
+    boom() { tone(90, 1.2, 'sine', 0.4, 0.4); noise(1.4, 0.5, 200); },
+  };
+})();
+
+// ---------- renderer / scene ----------
+const canvas = $('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0a14);
+scene.fog = new THREE.Fog(0x0b0a14, 28, 70);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(10, 10, 12);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.enablePan = false;
+controls.minDistance = 7; controls.maxDistance = 28;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.autoRotate = !reduceMotion; controls.autoRotateSpeed = 0.6;
+
+scene.add(new THREE.HemisphereLight(0x9a88ff, 0x1a1028, 0.7));
+const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+sun.position.set(7, 18, 9); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 14, bottom: -4, near: 1, far: 50 });
+scene.add(sun);
+const rim = new THREE.PointLight(0xff7a45, 40, 30); rim.position.set(-6, 4, -6); scene.add(rim);
+
+const pedestal = new THREE.Mesh(
+  new THREE.CylinderGeometry(3.4, 3.9, 0.6, 64),
+  new THREE.MeshStandardMaterial({ color: 0x1c1730, roughness: 0.6, metalness: 0.3 }));
+pedestal.position.y = -0.3; pedestal.receiveShadow = true; scene.add(pedestal);
+const ring = new THREE.Mesh(new THREE.TorusGeometry(3.42, 0.04, 8, 128),
+  new THREE.MeshBasicMaterial({ color: 0xff7a45 }));
+ring.rotation.x = Math.PI / 2; ring.position.y = 0.01; scene.add(ring);
+
+{ // starfield
+  const n = 1400, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 40 + Math.random() * 40, th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
+    pos.set([r * Math.sin(ph) * Math.cos(th), r * Math.cos(ph), r * Math.sin(ph) * Math.sin(th)], i * 3);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbfb3ff, size: 0.18, fog: false })));
+}
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.6, 0.8);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+function fitCamera() { // pull back on tall, narrow screens so the whole tower fits
+  const off = camera.position.clone().sub(controls.target);
+  off.setLength(Math.min(controls.maxDistance, 18.5 * Math.max(1, 0.75 / camera.aspect)));
+  camera.position.copy(controls.target).add(off);
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); fitCamera();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- physics ----------
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0), allowSleep: true });
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 25;
+const blockMat = new CANNON.Material('block');
+world.addContactMaterial(new CANNON.ContactMaterial(blockMat, blockMat, {
+  friction: 0.5, restitution: 0.02, contactEquationStiffness: 1e8, contactEquationRelaxation: 3,
+  frictionEquationStiffness: 1e8, frictionEquationRelaxation: 3,
+}));
+const ground = new CANNON.Body({ mass: 0, material: blockMat, shape: new CANNON.Box(new CANNON.Vec3(3.4, 0.3, 3.4)) });
+ground.position.set(0, -0.3, 0); ground.type = CANNON.Body.KINEMATIC; world.addBody(ground);
+
+// ---------- tower ----------
+const blockGeo = new THREE.BoxGeometry(BW, BH, BD);
+const edgeGeo = new THREE.EdgesGeometry(blockGeo);
+const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
+const C_LOW = new THREE.Color(0xff7a45), C_MID = new THREE.Color(0xd94fa8), C_TOP = new THREE.Color(0x5b8cff);
+const GOLD = new THREE.Color(0xffc65c);
+const depthColor = t => t < 0.5 ? C_LOW.clone().lerp(C_MID, t * 2) : C_MID.clone().lerp(C_TOP, (t - 0.5) * 2);
+
+function rollLoot(layer, L) {
+  const r = S.rng();
+  const depth = 1 + 2 * (1 - layer / Math.max(1, L - 1));
+  const floorScale = 1 + 0.6 * (S.floor - 1);
+  if (r < 0.08) return { type: 'crack' };
+  if (r < 0.18) return { type: 'dud' };
+  if (r < 0.80) return { type: 'coin', base: 2 + Math.floor(S.rng() * 5), depth, floorScale };
+  if (r < 0.93) return { type: 'mult', add: 0.5 };
+  return { type: 'gem', base: 20, depth, floorScale };
+}
+
+function clearTower() {
+  for (const b of S.blocks) { world.removeBody(b.body); scene.remove(b.mesh); b.mesh.material.dispose(); }
+  S.blocks = []; S.pulling = null;
+}
+
+function buildTower() {
+  clearTower();
+  quake = null; ground.velocity.set(0, 0, 0); ground.position.set(0, -0.3, 0);
+  S.pulls = 0;
+  const L = layersFor(S.floor); S.layers = L;
+  for (let i = 0; i < L; i++) {
+    const alongX = i % 2 === 0, t = L > 1 ? i / (L - 1) : 0;
+    for (let j = -1; j <= 1; j++) {
+      const off = j * (BD + GAP);
+      const body = new CANNON.Body({ mass: 1, material: blockMat, shape: new CANNON.Box(new CANNON.Vec3(BW / 2, BH / 2, BD / 2)) });
+      body.position.set(alongX ? 0 : off, BH / 2 + i * BH, alongX ? off : 0);
+      if (!alongX) body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
+      body.linearDamping = 0.05; body.angularDamping = 0.12;
+      body.sleepSpeedLimit = 0.06; body.sleepTimeLimit = 0.3;
+      world.addBody(body); body.sleep();
+
+      const loot = rollLoot(i, L);
+      const col = depthColor(t);
+      const special = S.relics.has('lens') && (loot.type === 'gem' || loot.type === 'mult');
+      const mat = new THREE.MeshStandardMaterial({ color: col, emissive: special ? GOLD : col, emissiveIntensity: 0.18, roughness: 0.38, metalness: 0.1 });
+      const mesh = new THREE.Mesh(blockGeo, mat);
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
+      scene.add(mesh);
+      const blk = { body, mesh, layer: i, loot, special, axis: alongX ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1), rest: body.position.clone() };
+      mesh.userData.blk = blk;
+      S.blocks.push(blk);
+    }
+  }
+  syncMeshes();
+  controls.target.set(0, L * BH * 0.45, 0);
+  fitCamera();
+}
+
+function syncMeshes() {
+  for (const b of S.blocks) {
+    const p = b.body.interpolatedPosition, q = b.body.interpolatedQuaternion;
+    b.mesh.position.set(p.x, p.y, p.z); b.mesh.quaternion.set(q.x, q.y, q.z, q.w);
+  }
+}
+
+// ---------- pulling ----------
+function startPull(blk) {
+  if (S.mode !== 'play') return;
+  S.mode = 'pulling'; S.pulling = blk; hovered = null; audio.scrape();
+  world.bodies.forEach(b => b.wakeUp());
+  const toCam = new THREE.Vector3().subVectors(camera.position, blk.mesh.position);
+  const dir = blk.axis.clone().multiplyScalar(Math.sign(toCam.dot(blk.axis)) || 1);
+  const b = blk.body;
+  b.type = CANNON.Body.KINEMATIC; b.mass = 0; b.updateMassProperties();
+  b.collisionResponse = false; // slides through its neighbours; the jolt below is the only disturbance
+  b.velocity.set(dir.x * 2.6, 0, dir.z * 2.6); b.angularVelocity.set(0, 0, 0);
+  if (blk.loot.type === 'crack') {
+    // a cracked block shatters and shakes the whole pedestal; hollow towers rock and fall
+    const a = Math.random() * Math.PI * 2;
+    quake = { t: 0, dur: 1, amp: quakeAmp(), w: Math.PI * 6, dx: Math.cos(a), dz: Math.sin(a) };
+    audio.boom(); shake = reduceMotion ? 0 : 0.25;
+  } else if (!S.relics.has('steady')) {
+    const k = 0.35 + Math.random() * 0.35;
+    for (const o of S.blocks) if (o.layer === blk.layer + 1) o.body.applyImpulse(new CANNON.Vec3(dir.x * k, 0, dir.z * k));
+  }
+  blk.pullStart = b.position.clone(); blk.pullDist = BW + 0.3;
+}
+
+function finishPull() {
+  const blk = S.pulling; S.pulling = null;
+  world.removeBody(blk.body); scene.remove(blk.mesh); blk.mesh.material.dispose();
+  S.blocks.splice(S.blocks.indexOf(blk), 1);
+  S.pulls++;
+  world.bodies.forEach(b => b.wakeUp());
+  reveal(blk);
+  if (S.mode === 'pulling') S.mode = 'play';
+  updateHUD();
+}
+
+function lootValue(blk) {
+  const l = blk.loot;
+  if (l.type !== 'coin' && l.type !== 'gem') return 0;
+  let v = l.base * l.depth * l.floorScale;
+  if (l.type === 'coin' && S.relics.has('midas')) v *= 1.5;
+  if (S.relics.has('roots') && blk.layer < S.layers / 3) v *= 2;
+  return Math.round(v);
+}
+
+function reveal(blk) {
+  const p = blk.mesh.position, l = blk.loot;
+  if (l.type === 'coin') { const v = lootValue(blk); S.potCoins += v; pop(p, `+${v}`, '#ffc65c'); burst(p, 0xffc65c, 14); audio.coin(); }
+  else if (l.type === 'gem') { const v = lootValue(blk); S.potCoins += v; pop(p, `GEM +${v}`, '#7ff0ff'); burst(p, 0x7ff0ff, 30); audio.gem(); }
+  else if (l.type === 'mult') { S.potMult += l.add; pop(p, `×${S.potMult.toFixed(1)}`, '#ff8fd0'); burst(p, 0xff8fd0, 20); audio.mult(); }
+  else if (l.type === 'crack') pop(p, 'CRACKED', '#ff4d6d');
+  else { pop(p, 'empty', '#a59cc4'); audio.dud(); }
+}
+
+// ---------- danger / topple ----------
+const UP = new CANNON.Vec3(0, 1, 0), tmpV = new CANNON.Vec3();
+function measureDanger() {
+  let worst = 0;
+  for (const blk of S.blocks) {
+    if (blk === S.pulling) continue;
+    const b = blk.body;
+    const drop = (blk.rest.y - b.position.y) / 0.4;
+    b.quaternion.vmult(UP, tmpV);
+    const tilt = Math.acos(Math.min(1, tmpV.y)) * 180 / Math.PI / 14;
+    const shift = Math.hypot(b.position.x - blk.rest.x, b.position.z - blk.rest.z) / 3; // whole-tower slides on the pedestal are fine
+    worst = Math.max(worst, drop, tilt, shift);
+  }
+  return worst;
+}
+
+let timeScale = 1, shake = 0, meter = 0, quake = null, overFor = 0;
+// cracks shake harder the more blocks you have already taken from this tower
+const quakeAmp = () => Math.min(0.32, 0.17 + 0.012 * S.pulls);
+function stepQuake(dt) {
+  if (!quake) return;
+  quake.t += dt;
+  if (quake.t >= quake.dur) { quake = null; ground.velocity.set(0, 0, 0); ground.position.set(0, -0.3, 0); }
+  else {
+    world.bodies.forEach(b => b.wakeUp());
+    const v = quake.amp * quake.w * Math.cos(quake.w * quake.t);
+    ground.velocity.set(quake.dx * v, 0, quake.dz * v);
+  }
+  pedestal.position.x = ring.position.x = ground.position.x;
+  pedestal.position.z = ring.position.z = ground.position.z;
+}
+function topple() {
+  S.mode = 'toppling';
+  const lost = potValue();
+  if (S.pulling) {
+    const b = S.pulling.body;
+    b.type = CANNON.Body.DYNAMIC; b.mass = 1; b.updateMassProperties(); b.collisionResponse = true;
+    S.pulling = null;
+  }
+  world.bodies.forEach(b => b.wakeUp());
+  timeScale = 0.3; shake = reduceMotion ? 0 : 0.5; audio.boom();
+  toast(lost ? `It's falling. ${lost} unbanked coins lost.` : `It's falling.`);
+  setTimeout(() => {
+    timeScale = 1;
+    if (S.relics.has('net') && !S.insuranceUsed) {
+      S.insuranceUsed = true;
+      const kept = Math.floor(lost / 2);
+      S.banked += kept; resetPot(); buildTower(); S.mode = 'play';
+      toast(`Safety Net kept ${kept} coins. Fresh tower.`); updateHUD();
+    } else gameOver(lost);
+  }, 2600);
+}
+
+// ---------- bank / relics / runs ----------
+function resetPot() { S.potCoins = 0; S.potMult = 1; meter = 0; }
+
+function bank() {
+  if (S.mode !== 'play') return;
+  const v = potValue();
+  if (v < quotaFor(S.floor)) return;
+  const pay = Math.round(v * (S.relics.has('greed') ? 1.5 : 1));
+  S.banked += pay; S.history.push('🟧'); audio.bank();
+  toast(`Banked ${pay} coins`);
+  resetPot(); S.floor++; updateHUD();
+  offerRelics();
+}
+
+function offerRelics() {
+  const pool = Object.keys(RELICS).filter(k => !S.relics.has(k));
+  if (!pool.length) { buildTower(); S.mode = 'play'; return; }
+  const picks = [];
+  while (picks.length < 3 && pool.length) picks.push(pool.splice(Math.floor(S.rng() * pool.length), 1)[0]);
+  S.mode = 'relic';
+  $('relicFloor').textContent = `Floor ${S.floor - 1} cleared · next quota ${quotaFor(S.floor)}`;
+  const list = $('relicList'); list.replaceChildren();
+  for (const k of picks) {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'relic';
+    btn.innerHTML = `<b>${RELICS[k].name}</b><span>${RELICS[k].text}</span>`;
+    btn.onclick = () => { S.relics.add(k); $('relicPick').hidden = true; buildTower(); S.mode = 'play'; updateHUD(); };
+    list.append(btn);
+  }
+  $('relicPick').hidden = false;
+}
+
+function newRun(daily) {
+  S.daily = daily; S.rng = daily ? mulberry32(dateSeed) : Math.random;
+  S.floor = 1; S.banked = 0; S.relics = new Set(); S.insuranceUsed = false; S.history = [];
+  resetPot(); buildTower(); S.mode = 'play';
+  controls.autoRotate = false;
+  for (const id of ['menu', 'over', 'relicPick']) $(id).hidden = true;
+  $('dock').hidden = false;
+  updateHUD();
+}
+
+function shareText() {
+  return `TOPPLE ${S.daily ? 'Daily ' + dateKey : 'Run'}\n${S.history.join('')}\nFloor ${S.floor} · ${S.banked} coins banked`;
+}
+
+function gameOver(lost) {
+  S.mode = 'over'; S.history.push('💥');
+  const record = S.banked > S.best;
+  if (record) { S.best = S.banked; store.set('topple-best', String(S.best)); }
+  if (S.daily) store.set('topple-daily-' + dateKey, JSON.stringify({ score: S.banked, floor: S.floor }));
+  $('overKicker').textContent = record ? 'New best' : 'The tower fell';
+  $('overScore').textContent = `${S.banked} coins`;
+  $('overText').textContent = `You reached floor ${S.floor}${lost ? ` and lost ${lost} unbanked coins` : ''}.`;
+  $('share').textContent = shareText();
+  $('dock').hidden = true; $('over').hidden = false;
+  controls.autoRotate = !reduceMotion;
+  updateHUD();
+}
+
+// ---------- UI ----------
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+function updateHUD() {
+  $('floor').textContent = S.floor;
+  $('banked').textContent = S.banked;
+  $('best').textContent = S.best;
+  $('pot').textContent = potValue();
+  $('calc').textContent = `${S.potCoins} coins × ${S.potMult.toFixed(1)}`;
+  const q = quotaFor(S.floor), v = potValue(), bankBtn = $('bank');
+  const ok = v >= q && S.mode === 'play';
+  bankBtn.disabled = !ok;
+  bankBtn.textContent = v >= q ? `Bank ${Math.round(v * (S.relics.has('greed') ? 1.5 : 1))}` : `Need ${q}`;
+  $('relics').replaceChildren(...[...S.relics].map(k => {
+    const c = document.createElement('span'); c.className = 'chip'; c.textContent = RELICS[k].name; return c;
+  }));
+}
+
+function updateMeter() {
+  const hidden = S.relics.has('greed');
+  const pct = Math.min(100, Math.round(meter * 100));
+  $('fill').style.width = hidden ? '100%' : pct + '%';
+  $('fill').style.background = hidden ? 'repeating-linear-gradient(90deg,var(--muted) 0 6px,transparent 6px 12px)'
+    : pct < 40 ? 'var(--calm)' : pct < 70 ? 'var(--gold)' : 'var(--danger)';
+  $('pct').textContent = hidden ? '???' : pct + '%';
+}
+
+function pop(pos3, text, color) {
+  const v = pos3.clone().project(camera);
+  const el = document.createElement('div');
+  el.className = 'pop'; el.textContent = text; el.style.color = color;
+  el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px';
+  el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px';
+  document.body.append(el); setTimeout(() => el.remove(), 1200);
+}
+
+const particles = [], pGeo = new THREE.BoxGeometry(0.09, 0.09, 0.09);
+function burst(pos, color, n) {
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true });
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(pGeo, mat); m.position.copy(pos); scene.add(m);
+    particles.push({ m, mat, life: 0.9, v: new THREE.Vector3((Math.random() - .5) * 5, Math.random() * 5 + 1, (Math.random() - .5) * 5) });
+  }
+}
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i]; p.life -= dt; p.v.y -= 9 * dt;
+    p.m.position.addScaledVector(p.v, dt); p.mat.opacity = Math.max(0, p.life / 0.9);
+    if (p.life <= 0) { scene.remove(p.m); particles.splice(i, 1); }
+  }
+}
+
+// ---------- input ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let hovered = null, down = null;
+function pick(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(S.blocks.map(b => b.mesh), false);
+  return hits.length ? hits[0].object.userData.blk : null;
+}
+canvas.addEventListener('pointerdown', e => { audio.ensure(); down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+canvas.addEventListener('pointerup', e => {
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), quick = performance.now() - down.t < 500;
+  down = null;
+  if (moved < 8 && quick && S.mode === 'play') { const blk = pick(e); if (blk) startPull(blk); }
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse') return;
+  hovered = S.mode === 'play' ? pick(e) : null;
+  canvas.classList.toggle('hot', !!hovered);
+});
+$('bank').onclick = bank;
+addEventListener('keydown', e => { if ((e.key === 'b' || e.key === 'B') && S.mode === 'play') bank(); });
+$('play').onclick = () => { audio.ensure(); newRun(false); };
+$('daily').onclick = () => { audio.ensure(); newRun(true); };
+$('again').onclick = () => newRun(S.daily);
+$('toMenu').onclick = () => { $('over').hidden = true; showMenu(); };
+$('mute').onclick = () => { $('mute').textContent = audio.toggle() ? 'Sound off' : 'Sound on'; };
+$('mute').textContent = audio.muted ? 'Sound off' : 'Sound on';
+$('copy').onclick = () => {
+  const text = shareText();
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents($('share')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Selected. Copy it from here.'); };
+  try { navigator.clipboard.writeText(text).then(() => toast('Copied'), fallback); } catch { fallback(); }
+};
+
+function showMenu() {
+  S.mode = 'menu'; $('dock').hidden = true; $('menu').hidden = false;
+  controls.autoRotate = !reduceMotion;
+  const prev = store.get('topple-daily-' + dateKey);
+  let note = '';
+  try { if (prev) { const r = JSON.parse(prev); note = `Today's Daily Tower: you banked ${r.score} coins on floor ${r.floor}.`; } } catch {}
+  $('dailyNote').textContent = note; $('dailyNote').hidden = !note;
+  $('daily').textContent = 'Daily Tower';
+}
+
+// ---------- loop ----------
+let last = performance.now();
+const shakeOff = new THREE.Vector3();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  stepQuake(dt * timeScale);
+  world.step(1 / 120, dt * timeScale, 10);
+  syncMeshes();
+
+  if (S.pulling) {
+    const b = S.pulling.body, s = S.pulling.pullStart;
+    if (Math.hypot(b.position.x - s.x, b.position.z - s.z) >= S.pulling.pullDist) finishPull();
+  }
+  if (S.mode === 'play' || S.mode === 'pulling') {
+    const w = measureDanger();
+    meter = Math.max(w, meter * 0.94);
+    overFor = w >= 1 ? overFor + dt : 0; // must stay past the limit briefly, so a rattle isn't a collapse
+    if (overFor > 0.35) { overFor = 0; topple(); }
+    updateMeter();
+  }
+
+  const t = now / 1000;
+  for (const b of S.blocks) {
+    let e = 0.18;
+    if (b.special) e = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * 4 + b.layer));
+    if (b === hovered) e += 0.45;
+    b.mesh.material.emissiveIntensity = e;
+  }
+  updateParticles(dt);
+  controls.update();
+
+  if (shake > 0) {
+    shake = Math.max(0, shake - dt * 0.25);
+    shakeOff.set((Math.random() - .5) * shake, (Math.random() - .5) * shake, (Math.random() - .5) * shake);
+    camera.position.add(shakeOff); composer.render(); camera.position.sub(shakeOff);
+  } else composer.render();
+  requestAnimationFrame(frame);
+}
+
+window.topple = { S, startPull, bank, newRun, measureDanger };
+buildTower();
+showMenu();
+updateHUD();
+requestAnimationFrame(frame);
+</script>
