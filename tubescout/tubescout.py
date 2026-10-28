@@ -14,6 +14,7 @@ Does the core of what paid "outlier finder" tools do:
   download <targets>       Download video, audio, subtitles, thumbnails (yt-dlp).
   topics   <queries...>    Which subjects (brands, people, places) are hot vs saturated.
   watch / dashboard        Track channels over time, get breakout alerts, see charts.
+  predict  <title|url>     Viral odds for an idea, or early verdict on a live video.
   quota                    API units used today; every response is cached in cache.db.
 
 Every command writes an HTML report to ./reports/.
@@ -1039,11 +1040,11 @@ def main():
     tp.add_argument("--lang", default="en")
     tp.set_defaults(fn=cmd_topics)
 
-    try:
-        import tracker
-        tracker.add_commands(sub)
-    except ImportError:
-        pass
+    for module in ("tracker", "model"):
+        try:
+            __import__(module).add_commands(sub)
+        except ImportError as e:
+            print(f"(optional module {module} unavailable: {e})", file=sys.stderr)
 
     q = sub.add_parser("quota", help="show API units used today and cache size")
     q.add_argument("--clear", action="store_true", help="delete all cached responses")

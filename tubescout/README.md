@@ -86,6 +86,13 @@ python tubescout.py watch add @BagholderAssociation @nobodygetsin
 python tubescout.py watch run                                    # snapshot: about 1-2 units per channel
 python tubescout.py dashboard                                    # open reports/dashboard.html
 
+# Viral odds: score an idea before you make it (add your channel for momentum + past hits)
+python tubescout.py predict "Spirit Airlines Is (Finally) Getting What It Deserves…" --channel @brandreceipts --minutes 16 --chapters
+# Early verdict on a video that's already live (is it beating the channel's normal pace?)
+python tubescout.py predict https://www.youtube.com/watch?v=VIDEO_ID
+# Retrain from everything in your cache and print the accuracy report
+python tubescout.py predict --train
+
 # Download with yt-dlp: video (mp4) + English subtitles + thumbnail
 python tubescout.py download https://www.youtube.com/watch?v=3Hp03-lSQRw
 python tubescout.py download @BagholderAssociation --top 5 --subs-only   # scripts + thumbnails only
@@ -121,6 +128,33 @@ Integrations → Webhooks) and add `DISCORD_WEBHOOK_URL=...` to `.env`.
 
 With 25 channels, each run costs about 30 units. That's about 180 units a day at 6 runs
 a day.
+
+### How `predict` works (and how good it is)
+
+vidIQ doesn't publish its formulas. Its docs say its outlier and breakout scores compare a
+video's views and speed with the channel's usual numbers. `predict` uses the same idea and
+learns it from real data:
+
+- **Training data:** every video in your cache (about 8,000 videos from 340 channels after
+  one day of use). Each is labeled by whether it reached **3x its own channel's median**,
+  so a big channel and a small channel are judged the same way.
+- **What it looks at:**
+  - **The title:** length, numbers, questions, ellipsis, power and conflict words.
+  - **Format:** whether the title matches a proven outlier on another channel.
+  - **Topic:** whether it has produced outliers before, and how crowded it is.
+  - **The video:** length, tags, language, category, chapters.
+  - **Your channel:** recent momentum and whether the idea repeats one of your own past hits.
+- **How accurate it is:** on channels it has never seen, AUC is 0.62 (0.5 is a coin flip,
+  1.0 is perfect). Ideas in its top 10% actually hit 3x **34%** of the time; its bottom 10%
+  hit **10%** of the time. That's a real edge, but not a guarantee.
+- **What it can't see:** the thumbnail, the first 30 seconds and audience retention. These
+  matter a lot, so check them yourself.
+- **It gets better as you use it:** every search adds training videos, and it retrains
+  automatically each week.
+
+For a live video, `predict <url>` compares its views with the channel's normal pace at the
+same age, using a growth curve learned from the cached videos. If it's behind after a day,
+change the thumbnail or title.
 
 ### Saving your free quota
 

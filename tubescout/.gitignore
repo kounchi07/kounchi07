@@ -2,3 +2,4 @@ reports/
 .env
 __pycache__/
 cache.db
+model.json
