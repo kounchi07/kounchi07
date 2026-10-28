@@ -9,6 +9,9 @@ Does the core of what paid "outlier finder" tools do:
   outliers <query>         Search a niche for recent videos that got far more views
                            than their channel normally gets (needs a free API key).
   ideas    <query>         outliers + autocomplete -> list of title formats to test.
+  niches   [seeds...]      Scan many niches; rank by new channels breaking through.
+  transcripts <targets>    Save transcripts of videos / a channel's top videos.
+  quota                    API units used today; every response is cached in cache.db.
 
 Every command writes an HTML report to ./reports/.
 
@@ -19,13 +22,16 @@ Without a key, `suggest` works fully and `channel` uses the public RSS feed
 """
 
 import argparse
+import hashlib
 import html
 import json
 import os
 import re
+import sqlite3
 import statistics
 import string
 import sys
+import time
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
@@ -36,7 +42,17 @@ import requests
 API = "https://www.googleapis.com/youtube/v3"
 SUGGEST_URL = "https://suggestqueries.google.com/complete/search"
 RSS_URL = "https://www.youtube.com/feeds/videos.xml"
-REPORTS = Path(__file__).resolve().parent / "reports"
+HERE = Path(__file__).resolve().parent
+REPORTS = HERE / "reports"
+CACHE_DB = HERE / "cache.db"
+FRESH = False  # --fresh: ignore cached responses (still writes new ones)
+
+# How long a cached answer stays good, in hours. Video/channel stats move, search
+# results drift slowly, autocomplete and transcripts barely change.
+TTL_HOURS = {"search": 24, "videos": 6, "channels": 24, "playlistItems": 6,
+             "suggest": 24 * 7, "transcript": 24 * 365}
+# YouTube Data API quota cost per call (10,000 free units/day, resets midnight Pacific).
+QUOTA_COST = {"search": 100}
 UA = {"User-Agent": "Mozilla/5.0 (TubeScout)"}
 
 STOPWORDS = set("""a an the and or of in on at to for with from by is are was were be i you
@@ -68,12 +84,55 @@ def need_key():
     return key
 
 
+_db = None
+
+
+def db():
+    global _db
+    if _db is None:
+        _db = sqlite3.connect(CACHE_DB)
+        _db.execute("CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, kind TEXT, at REAL, v TEXT)")
+        _db.execute("CREATE TABLE IF NOT EXISTS quota (day TEXT PRIMARY KEY, units INTEGER)")
+    return _db
+
+
+def cache_get(kind, ident):
+    k = hashlib.sha1(f"{kind}|{ident}".encode()).hexdigest()
+    if FRESH:
+        return k, None
+    row = db().execute("SELECT at, v FROM cache WHERE k=?", (k,)).fetchone()
+    if row and time.time() - row[0] < TTL_HOURS.get(kind, 24) * 3600:
+        return k, json.loads(row[1])
+    return k, None
+
+
+def cache_put(k, kind, value):
+    db().execute("REPLACE INTO cache VALUES (?,?,?,?)", (k, kind, time.time(), json.dumps(value)))
+    db().commit()
+
+
+def quota_day():
+    # YouTube resets quota at midnight Pacific; UTC-8 is close enough for a counter.
+    return (datetime.now(timezone.utc) - timedelta(hours=8)).strftime("%Y-%m-%d")
+
+
+def spend(units):
+    db().execute("INSERT INTO quota VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET units = units + ?",
+                 (quota_day(), units, units))
+    db().commit()
+
+
 def api(endpoint, key, **params):
-    params["key"] = key
-    r = requests.get(f"{API}/{endpoint}", params=params, timeout=30)
+    ident = json.dumps({"e": endpoint, **params}, sort_keys=True)
+    k, hit = cache_get(endpoint, ident)
+    if hit is not None:
+        return hit
+    r = requests.get(f"{API}/{endpoint}", params={**params, "key": key}, timeout=30)
     data = r.json()
     if "error" in data:
         sys.exit(f"YouTube API error: {data['error'].get('message')}")
+    spend(QUOTA_COST.get(endpoint, 1))
+    cache_put(k, endpoint, data)
     return data
 
 
@@ -121,13 +180,15 @@ def format_family(titles):
         words = title_template(t).split()
         for n in (4, 3, 2):
             if len(words) > n:
-                families[" ".join(words[:n])].append(t)
+                families[" ".join(words[:n]) + " …"].append(t)
+                families["… " + " ".join(words[-n:])].append(t)
     # keep the longest prefix that still covers >= 2 titles, drop sub-prefixes
     keep = {}
     for prefix, items in sorted(families.items(), key=lambda kv: -len(kv[0])):
         if len(items) < 2:
             continue
-        if any(k.startswith(prefix) and len(v) == len(items) for k, v in keep.items()):
+        if any((k.startswith(prefix.rstrip(" …")) or k.endswith(prefix.lstrip("… ")))
+               and len(v) == len(items) for k, v in keep.items()):
             continue
         keep[prefix] = items
     return dict(sorted(keep.items(), key=lambda kv: -len(kv[1])))
@@ -146,13 +207,18 @@ def top_words(titles, n=25):
 # ---------------------------------------------------------------- data sources
 
 def autocomplete(q, lang="en", region="US"):
+    k, hit = cache_get("suggest", f"{q}|{lang}|{region}")
+    if hit is not None:
+        return hit
     r = requests.get(SUGGEST_URL, params={"client": "firefox", "ds": "yt", "q": q,
                                           "hl": lang, "gl": region},
                      headers=UA, timeout=15)
     try:
-        return r.json()[1]
+        out = r.json()[1]
     except (ValueError, IndexError):
         return []
+    cache_put(k, "suggest", out)
+    return out
 
 
 def expand_suggestions(seed, deep=True, **kw):
@@ -227,13 +293,14 @@ def video_details(ids, key):
                 "seconds": parse_duration(v["contentDetails"].get("duration")),
                 "thumb": f"https://i.ytimg.com/vi/{v['id']}/hqdefault.jpg",
                 "tags": sn.get("tags", []),
+                "audio_lang": sn.get("defaultAudioLanguage"), "category": sn.get("categoryId"),
             })
     return out
 
 
 def channel_info(ids, key):
     info = {}
-    for batch in chunks(list(ids), 50):
+    for batch in chunks(sorted(ids), 50):
         data = api("channels", key, part="snippet,statistics,contentDetails", id=",".join(batch))
         for c in data.get("items", []):
             st = c["statistics"]
@@ -335,10 +402,38 @@ def families_html(fams, views_by_title=None):
         if views_by_title:
             tot = sum(views_by_title.get(t, 0) for t in items)
             extra = f" &middot; {fmt(tot)} views total"
-        out.append(f"<div class=card><b>{html.escape(prefix)} …</b> "
+        out.append(f"<div class=card><b>{html.escape(prefix)}</b> "
                    f"<span class=muted>({len(items)} videos{extra})</span>"
                    f"<ul>{''.join(f'<li>{html.escape(t)}</li>' for t in items[:8])}</ul></div>")
     return "".join(out) or "<p class=muted>No repeated format found.</p>"
+
+
+CATEGORIES = {"1": "Film & Animation", "2": "Autos", "10": "Music", "15": "Pets", "17": "Sports",
+              "19": "Travel", "20": "Gaming", "22": "People & Blogs", "23": "Comedy",
+              "24": "Entertainment", "25": "News & Politics", "26": "Howto & Style",
+              "27": "Education", "28": "Science & Technology"}
+
+
+def settings_audit(vids):
+    """Upload settings that quietly hurt reach. Only flags things the API can see."""
+    out = []
+    no_lang = [v for v in vids if not v.get("audio_lang")]
+    if no_lang:
+        out.append(f"{len(no_lang)}/{len(vids)} videos have no 'Video language' set. Set it "
+                   "(Studio > Details > Language) so YouTube knows who to show them to and doesn't "
+                   "default captions/dubs to another language.")
+    cats = Counter(CATEGORIES.get(v.get("category"), v.get("category")) for v in vids)
+    if cats:
+        out.append("Categories: " + ", ".join(f"{c} ×{n}" for c, n in cats.most_common()))
+    no_tags = sum(1 for v in vids if not v.get("tags"))
+    if no_tags > len(vids) / 2:
+        out.append(f"{no_tags}/{len(vids)} videos have no tags (minor, but helps with misspellings).")
+    lengths = [v["seconds"] for v in vids if v.get("seconds")]
+    if lengths:
+        out.append(f"Median length {statistics.median(lengths) / 60:.1f} min "
+                   f"(range {min(lengths) // 60}-{max(lengths) // 60} min). Compare with the "
+                   "channels winning your niche.")
+    return out
 
 
 # ---------------------------------------------------------------- commands
@@ -397,11 +492,16 @@ def cmd_channel(a):
         print(f"  {v['outlier']:5.1f}x  {fmt(v['views']):>7}  {v['published'][:10]}  {v['title']}")
     print("\nRepeated title formats:")
     for p, items in list(fams.items())[:6]:
-        print(f"  [{len(items)}] {p} …")
+        print(f"  [{len(items)}] {p}")
     if sequels:
         print(f"\n{len(sequels)} sequels/follow-ups — this channel milks its winners:")
         for v in sequels[:8]:
             print(f"  {fmt(v['views']):>7}  {v['title']}")
+    checks = settings_audit(vids) if chan else []
+    if checks:
+        print("\nSettings check:")
+        for c in checks:
+            print("  - " + c)
 
     cols = [("", None), ("Video", None),
             ("Outlier", lambda v: f"<span class={'hot' if v['outlier'] >= 2 else ''}>{v['outlier']:.1f}x</span>"),
@@ -410,7 +510,9 @@ def cmd_channel(a):
     head = (f"<p>{len(vids)} uploads over {span:.0f} days · {fmt(total)} views · median "
             f"{fmt(median)} per video" + (f" · {fmt(chan['subs'])} subscribers" if chan else "") + "</p>")
     path = write_report(f"channel-{name}", f"Channel breakdown: {name}", [
-        head, "<h2>Title formats it repeats</h2>", families_html(fams, views_by_title),
+        head, *(["<h2>Settings check</h2><ul>" + "".join(f"<li>{html.escape(c)}</li>" for c in checks)
+                 + "</ul>"] if checks else []),
+        "<h2>Title formats it repeats</h2>", families_html(fams, views_by_title),
         "<h2>Breakouts, ranked by outlier score</h2>", video_table(ranked, cols),
         "<h2>Upload timeline (oldest first)</h2>", video_table(by_date, cols),
         "<h2>Title vocabulary</h2>", chips(f"{w} · {n}" for w, n in top_words([v['title'] for v in vids]))])
@@ -418,7 +520,8 @@ def cmd_channel(a):
 
 
 def find_outliers(a, key):
-    after = (datetime.now(timezone.utc) - timedelta(days=a.days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Whole days only, so repeat runs on the same day hit the cache.
+    after = (datetime.now(timezone.utc) - timedelta(days=a.days)).strftime("%Y-%m-%dT00:00:00Z")
     ids, token = [], None
     for _ in range(a.pages):
         params = dict(part="id", q=a.query, type="video", order=a.order, maxResults=50,
@@ -437,6 +540,9 @@ def find_outliers(a, key):
     vids = video_details(dict.fromkeys(ids), key)
     if a.no_shorts:
         vids = [v for v in vids if v["seconds"] > 180]
+    if a.lang == "en":  # relevanceLanguage is only a hint; drop titles in other scripts/languages
+        vids = [v for v in vids if v.get("audio_lang", "en") in (None, "") or v["audio_lang"].startswith("en")]
+        vids = [v for v in vids if sum(ord(ch) > 0x24F for ch in v["title"]) <= len(v["title"]) * 0.1]
     chans = channel_info({v["channel_id"] for v in vids}, key)
     chans = {k: c for k, c in chans.items() if c["subs"] <= a.max_subs}
     vids = [v for v in vids if v["channel_id"] in chans and v["views"] >= a.min_views]
@@ -516,10 +622,121 @@ def cmd_ideas(a):
     print(f"Report: {path}")
 
 
+# Faceless, narration-led formats that can be made with AI images/animation + voiceover.
+NICHE_SEEDS = [
+    "brand downfall story", "what happened to company", "finally getting what it deserves",
+    "animated survival story", "zombie apocalypse survival day", "stickman story animation",
+    "history explained animation", "dark history story", "true crime animated",
+    "what if scenario animated", "mythology stories animated", "bible stories animated",
+    "scary stories animated", "reddit stories animated", "revenge story animated",
+    "space documentary", "lost civilizations", "conspiracy explained", "billionaire story",
+    "scam explained story", "prison survival story", "ocean mysteries",
+]
+
+
+def cmd_niches(a):
+    key = need_key()
+    seeds = a.seeds or NICHE_SEEDS
+    rows = []
+    for q in seeds:
+        print(f"• {q}", file=sys.stderr)
+        sub = argparse.Namespace(query=q, days=a.days, pages=1, order="viewCount",
+                                 max_subs=a.max_subs, min_views=5_000, duration=None,
+                                 no_shorts=True, lang=a.lang, region=None)
+        vids, chans = find_outliers(sub, key)
+        hits = [v for v in vids if v["outlier"] >= 3]
+        new = [v for v in hits if v["channel_age_days"] and v["channel_age_days"] < 180]
+        rows.append({"niche": q, "outliers": len(hits), "new_channels": len({v["channel_id"] for v in new}),
+                     "median_views": statistics.median([v["views"] for v in hits]) if hits else 0,
+                     "best": hits[0] if hits else None, "new": new[:5]})
+    rows.sort(key=lambda r: (-r["new_channels"], -r["outliers"], -r["median_views"]))
+    print(f"\n{'niche':38} {'outliers':>8} {'new ch.':>7} {'med.views':>9}  best example")
+    for r in rows:
+        b = r["best"]
+        print(f"{r['niche'][:38]:38} {r['outliers']:>8} {r['new_channels']:>7} {fmt(r['median_views']):>9}  "
+              + (f"{b['outlier']:.0f}x {b['title'][:50]}" if b else "-"))
+    sections = ["<p class=muted>Outliers = videos at 3x+ their channel's median, last "
+                f"{a.days} days, channels under {fmt(a.max_subs)} subs. 'New ch.' = channels under 180 days "
+                "old with an outlier: the clearest sign a newcomer can still break in.</p>",
+                "<div class=wrap><table><tr><th>Niche</th><th>Outliers</th><th>New channels popping</th>"
+                "<th>Median outlier views</th></tr>"]
+    for r in rows:
+        sections.append(f"<tr><td>{html.escape(r['niche'])}</td><td class=n>{r['outliers']}</td>"
+                        f"<td class=n>{r['new_channels']}</td><td class=n>{fmt(r['median_views'])}</td></tr>")
+    sections.append("</table></div>")
+    for r in rows:
+        if r["new"]:
+            sections += [f"<h2>{html.escape(r['niche'])}: new channels popping</h2>",
+                         video_table(r["new"], outlier_cols())]
+    path = write_report("niches", "Niche scan: where new channels are breaking through", sections)
+    print(f"\nReport: {path}")
+
+
+def fetch_transcript(video_id):
+    k, hit = cache_get("transcript", video_id)
+    if hit is not None:
+        return hit
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except ImportError:
+        sys.exit("pip install youtube-transcript-api")
+    try:
+        parts = YouTubeTranscriptApi().fetch(video_id, languages=["en", "en-US", "en-GB"])
+    except Exception as e:  # library raises many specific types; all mean "no transcript"
+        print(f"  ! {video_id}: {type(e).__name__} (YouTube blocks cloud servers; run this on your own computer)",
+              file=sys.stderr)
+        return None
+    lines = [f"[{int(p.start) // 60}:{int(p.start) % 60:02d}] {p.text}" for p in parts]
+    cache_put(k, "transcript", lines)
+    return lines
+
+
+def cmd_transcripts(a):
+    key = load_key()
+    targets = []
+    for ref in a.targets:
+        if ref.startswith("@") or "/channel/" in ref or ref.startswith("UC") or "/@" in ref:
+            key = key or need_key()
+            cid = resolve_channel(ref, key)
+            chan = channel_info([cid], key)[cid]
+            vids = video_details(upload_ids(chan["uploads"], key, 50), key)
+            targets += sorted(vids, key=lambda v: -v["views"])[:a.top]
+        else:
+            vid = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", ref)
+            targets.append({"id": vid.group(1) if vid else ref, "title": ref, "views": 0})
+    outdir = REPORTS / "transcripts"
+    outdir.mkdir(parents=True, exist_ok=True)
+    for v in targets:
+        lines = fetch_transcript(v["id"])
+        if not lines:
+            continue
+        safe = re.sub(r"[^\w-]+", "-", v["title"]).strip("-")[:60]
+        path = outdir / f"{v['id']}-{safe}.txt"
+        path.write_text(f"{v['title']}\nhttps://www.youtube.com/watch?v={v['id']}\n"
+                        f"views: {v.get('views', 0)}\n\n" + "\n".join(lines))
+        hook = " ".join(l.split("] ", 1)[1] for l in lines[:12])
+        print(f"{path.name}\n   hook: {hook[:220]}…\n")
+    print(f"Saved to {outdir}. Paste them into Claude with prompts/script-breakdown.md.")
+
+
+def cmd_quota(a):
+    rows = db().execute("SELECT day, units FROM quota ORDER BY day DESC LIMIT 7").fetchall()
+    today = dict(rows).get(quota_day(), 0)
+    n = db().execute("SELECT COUNT(*) FROM cache").fetchone()[0]
+    print(f"Today: {today} / 10,000 units used ({10_000 - today} left). Cached responses: {n}.")
+    for day, units in rows:
+        print(f"  {day}: {units}")
+    if a.clear:
+        db().execute("DELETE FROM cache")
+        db().commit()
+        print("Cache cleared.")
+
+
 # ---------------------------------------------------------------- CLI
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--fresh", action="store_true", help="ignore the cache and refetch everything")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("suggest", help="YouTube autocomplete expansion (no key)")
@@ -550,7 +767,25 @@ def main():
         o.add_argument("--region", default=None)
         o.set_defaults(fn=fn)
 
+    n = sub.add_parser("niches", help="scan many niches, rank by new channels breaking through")
+    n.add_argument("seeds", nargs="*", help="niche searches (default: built-in faceless storytelling list)")
+    n.add_argument("--days", type=int, default=45)
+    n.add_argument("--max-subs", type=int, default=250_000)
+    n.add_argument("--lang", default="en")
+    n.set_defaults(fn=cmd_niches)
+
+    t = sub.add_parser("transcripts", help="save transcripts of videos or a channel's top videos")
+    t.add_argument("targets", nargs="+", help="video URLs/ids or @channel handles")
+    t.add_argument("--top", type=int, default=5, help="for channels: how many top videos")
+    t.set_defaults(fn=cmd_transcripts)
+
+    q = sub.add_parser("quota", help="show API units used today and cache size")
+    q.add_argument("--clear", action="store_true", help="delete all cached responses")
+    q.set_defaults(fn=cmd_quota)
+
     a = p.parse_args()
+    global FRESH
+    FRESH = a.fresh
     a.fn(a)
 
 

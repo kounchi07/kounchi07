@@ -62,7 +62,33 @@ python tubescout.py outliers "what if" --max-subs 50000 --min-score 5 --days 14
 
 # Outliers -> reusable title formats + search demand around each one
 python tubescout.py ideas "faceless history documentary" --days 60
+
+# Scan many faceless niches at once, ranked by new channels breaking through
+python tubescout.py niches                      # built-in faceless storytelling list
+python tubescout.py niches "brand downfall" "true crime animated"
+
+# Save transcripts of a channel's top videos to study their scripts
+# (run this on your own computer: YouTube blocks transcript downloads from cloud servers)
+python tubescout.py transcripts @SomeChannel --top 3
+
+# See how much free quota you've used today and how big the cache is
+python tubescout.py quota
 ```
+
+### Saving your free quota
+
+Every API answer is saved in `tubescout/cache.db`. Running the same search again the same
+day costs **0 units**. Video stats are reused for 6 hours, searches and channels for 24
+hours, autocomplete for a week, and transcripts permanently. Add `--fresh` to force new
+data, for example `python tubescout.py --fresh channel @x`.
+
+### Scripts
+
+- `prompts/script-breakdown.md`: paste in a viral video's transcript and Claude maps its
+  hook, beats and retention tricks.
+- `prompts/script-writer.md`: the structure viral story documentaries use, with a
+  self-scoring pass at the end. Use it with Claude to write your script, then build the
+  video in Remotion.
 
 Each command prints results and saves an HTML report with thumbnails to
 `tubescout/reports/`. Open it in a browser.
