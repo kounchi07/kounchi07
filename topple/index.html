@@ -1,237 +1,242 @@
 <title>Topple</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;600;700;800&display=swap">
 <style>
-/* Layout: candy-puzzle look. Illustrated level map is the home screen; in a level the 3D candy world is
-   full-bleed with HUD (pulls left, goal bar with 3 stars, objective, wallet) on top and hand + BANK +
-   boosters docked bottom. Single bright look by design (no light/dark split). */
+/* Layout: TOPPLE brand. Graphite night surfaces, molten orange for primary actions and heat,
+   lime for rewards and success. Level map is home; in a level the 3D world is full-bleed with HUD
+   on top and hand + BANK + boosters docked bottom. Single dark look by design. */
 :root{
-  --night:#24138a;
-  --ink:#ffffff; --ink-dim:#d9dcff;
-  --green-1:#8cf55f; --green-2:#26b83a; --green-sh:#157a27;
-  --gold-1:#ffe45c; --gold-2:#ffad0f; --gold-sh:#b86a00;
-  --pink-1:#ff7cc0; --pink-2:#e8287a; --pink-sh:#9c0f52;
-  --blue-1:#7fc4ff; --blue-2:#3a72ff; --blue-sh:#1e3fae;
-  --plum-1:#c58bff; --plum-2:#7a2fe0; --plum-sh:#4a1696;
-  --heart:#ff3b6b;
-  --danger:#ff3b5c;
-  --display:"Lilita One","Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;
-  --body:"Nunito","Trebuchet MS",system-ui,sans-serif;
+  --bg:#0c0d10; --panel:#16181d; --panel-2:#1e2128; --panel-3:#272b33;
+  --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
+  --ink:#f3f4f6; --ink-dim:#9aa0aa;
+  --orange:#ff6b1a; --orange-hi:#ff9a4d; --orange-sh:#9a3608;
+  --lime:#b4ff39; --lime-hi:#d8ff8a; --lime-sh:#4f7a00;
+  --steel-1:#3a3f49; --steel-2:#2a2e36; --steel-sh:#121418;
+  --heart:#ff4d3d;
+  --danger:#ff3b4e;
+  --display:"Russo One","Arial Black",system-ui,sans-serif;
+  --body:"Rubik","Segoe UI",system-ui,sans-serif;
   color-scheme:dark;
 }
 html,body{height:100%}
 [hidden]{display:none!important}
-body{background:#5ec8ff;color:var(--ink);font-family:var(--body);font-weight:800;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-weight:600;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
 #gl.hot{cursor:pointer}
 button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
-button:focus-visible{outline:3px solid var(--gold-1);outline-offset:3px}
+button:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
 svg{display:block}
 
-.gt{font-family:var(--display);color:#fff;letter-spacing:.02em;
-  text-shadow:0 3px 0 var(--night),2px 2px 0 var(--night),-2px 2px 0 var(--night),2px -2px 0 var(--night),-2px -2px 0 var(--night),0 6px 10px rgba(0,0,0,.35)}
+/* heavy game text: white with a hard dark drop */
+.gt{font-family:var(--display);color:#fff;letter-spacing:.02em;text-shadow:0 3px 0 #000,0 0 18px rgba(0,0,0,.6)}
 
-.btn{font-family:var(--display);font-size:24px;color:#fff;border-radius:18px;padding:13px 26px;position:relative;
-  box-shadow:0 6px 0 var(--sh),inset 0 3px 0 rgba(255,255,255,.5);text-shadow:0 2px 0 rgba(0,0,0,.25);transition:transform .06s,box-shadow .06s}
-.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--sh),inset 0 3px 0 rgba(255,255,255,.5)}
-.btn.green{background:linear-gradient(180deg,var(--green-1),var(--green-2));--sh:var(--green-sh)}
-.btn.blue{background:linear-gradient(180deg,var(--blue-1),var(--blue-2));--sh:var(--blue-sh)}
-.btn.gold{background:linear-gradient(180deg,var(--gold-1),var(--gold-2));--sh:var(--gold-sh);color:#5a2d00;text-shadow:none}
-.btn.small{font-size:18px;padding:9px 18px;border-radius:14px}
-.btn:disabled{background:linear-gradient(180deg,#a9acd6,#7d80b8);--sh:#53568c;color:#eef}
+/* buttons press down; orange = go, lime = collect, steel = secondary */
+.btn{font-family:var(--display);font-size:22px;letter-spacing:.04em;text-transform:uppercase;color:#fff;border-radius:14px;padding:14px 24px;position:relative;
+  box-shadow:0 5px 0 var(--sh),inset 0 2px 0 rgba(255,255,255,.35);text-shadow:0 2px 0 rgba(0,0,0,.35);transition:transform .06s,box-shadow .06s}
+.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 var(--sh),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn.green{background:linear-gradient(180deg,var(--orange-hi),var(--orange));--sh:var(--orange-sh)}
+.btn.lime{background:linear-gradient(180deg,var(--lime-hi),var(--lime));--sh:var(--lime-sh);color:#132000;text-shadow:none}
+.btn.blue{background:linear-gradient(180deg,var(--steel-1),var(--steel-2));--sh:var(--steel-sh);border:1px solid var(--line-2)}
+.btn.gold{background:linear-gradient(180deg,var(--lime-hi),var(--lime));--sh:var(--lime-sh);color:#132000;text-shadow:none}
+.btn.small{font-size:16px;padding:10px 18px;border-radius:12px}
+.btn:disabled{background:var(--panel-3);--sh:#0a0b0d;color:#6b717c;text-shadow:none}
 .btn .price{display:inline-flex;align-items:center;gap:4px}
 .btn .price svg{width:20px;height:20px}
-.close{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;background:linear-gradient(180deg,#ff7a8e,#e8203f);border:3px solid #fff;box-shadow:0 3px 0 #9c0f2a;font-family:var(--display);font-size:18px;line-height:1}
+.close{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:10px;background:var(--panel-3);border:1px solid var(--line-2);font-family:var(--display);font-size:15px;line-height:1;color:var(--ink-dim)}
 
 /* in-level HUD */
 .top{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));display:flex;align-items:flex-start;gap:10px;pointer-events:none}
 .top > *{pointer-events:auto}
-.moves{flex:none;width:58px;height:58px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--pink-1),var(--pink-2));border:3px solid #fff;box-shadow:0 4px 0 var(--pink-sh);display:grid;place-items:center;line-height:1;text-align:center}
-.moves small{display:block;font-family:var(--body);font-size:9px;letter-spacing:.08em}
+.moves{flex:none;width:58px;height:58px;border-radius:16px;background:var(--panel);border:2px solid var(--orange);box-shadow:0 0 18px rgba(255,107,26,.35),0 4px 0 #000;display:grid;place-items:center;line-height:1;text-align:center}
+.moves small{display:block;font-size:9px;letter-spacing:.12em;color:var(--orange)}
 .moves b{font-family:var(--display);font-size:24px;font-weight:400}
-.moves.low{background:radial-gradient(circle at 35% 30%,#ff9aa8,#e8203f);animation:pulse .6s infinite}
+.moves.low{border-color:var(--danger);box-shadow:0 0 22px rgba(255,59,78,.6),0 4px 0 #000;animation:pulse .6s infinite}
+.moves.low small{color:var(--danger)}
 .goal{flex:1;min-width:0;max-width:460px;margin-inline:auto;display:grid;gap:6px}
-.goal .label{display:flex;justify-content:space-between;font-size:12px;margin:0 4px;text-shadow:0 1px 2px rgba(20,8,90,.8)}
-.bar{position:relative;height:20px;border-radius:999px;background:rgba(20,8,90,.55);border:3px solid #fff;box-shadow:0 3px 0 rgba(20,8,90,.5)}
-.bar .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:999px;background:linear-gradient(180deg,#fff27a,#ffb20f);transition:width .35s cubic-bezier(.3,1.4,.5,1)}
-.bar .fill::after{content:"";position:absolute;left:6px;right:6px;top:2px;height:4px;border-radius:9px;background:rgba(255,255,255,.65)}
-.star{position:absolute;top:50%;width:30px;height:30px;transform:translate(-50%,-55%)}
-.star use{fill:#5d58a8;stroke:#fff;stroke-width:1.6;stroke-linejoin:round}
-.star.on use{fill:#ffd21f}
-.star.on{animation:starpop .5s cubic-bezier(.3,1.8,.5,1)}
+.goal .label{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.04em;margin:0 4px;color:var(--ink-dim);text-shadow:0 1px 2px #000}
+.goal .label span:first-child{color:var(--ink)}
+.bar{position:relative;height:16px;border-radius:999px;background:var(--panel);border:1px solid var(--line-2);box-shadow:0 3px 0 #000}
+.bar .fill{position:absolute;inset:2px auto 2px 2px;width:0;border-radius:999px;background:linear-gradient(90deg,var(--orange),var(--orange-hi));box-shadow:0 0 12px rgba(255,107,26,.7);transition:width .35s cubic-bezier(.3,1.4,.5,1)}
+.star{position:absolute;top:50%;width:28px;height:28px;transform:translate(-50%,-55%)}
+.star use{fill:var(--panel-3);stroke:#5b616c;stroke-width:1.6;stroke-linejoin:round}
+.star.on use{fill:var(--lime);stroke:#fff}
+.star.on{animation:starpop .5s cubic-bezier(.3,1.8,.5,1);filter:drop-shadow(0 0 6px rgba(180,255,57,.8))}
 @keyframes starpop{0%{transform:translate(-50%,-55%) scale(.4)}100%{transform:translate(-50%,-55%) scale(1)}}
-.obj{justify-self:center;display:flex;align-items:center;gap:6px;background:#fff;color:#2b1a8a;border-radius:999px;padding:3px 12px 3px 4px;font-family:var(--display);font-size:16px;box-shadow:0 3px 0 rgba(20,8,90,.45)}
-.obj .sw{width:28px;height:18px;border-radius:5px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.5)}
-.obj svg{width:24px;height:24px}
-.obj.done{background:linear-gradient(180deg,var(--green-1),var(--green-2));color:#fff}
-.pill{flex:none;display:flex;align-items:center;gap:6px;background:rgba(20,8,90,.55);border:2px solid rgba(255,255,255,.6);border-radius:999px;padding:3px 12px 3px 3px;font-family:var(--display);font-size:19px;font-variant-numeric:tabular-nums}
-.pill small{font-family:var(--body);font-size:11px;opacity:.85}
+.obj{justify-self:center;display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line-2);color:var(--ink);border-radius:999px;padding:3px 12px 3px 4px;font-family:var(--display);font-size:15px;box-shadow:0 3px 0 #000}
+.obj .sw{width:28px;height:16px;border-radius:4px;box-shadow:0 0 8px currentColor}
+.obj svg{width:22px;height:22px}
+.obj.done{border-color:var(--lime);color:var(--lime);box-shadow:0 0 14px rgba(180,255,57,.5),0 3px 0 #000}
+.pill{flex:none;display:flex;align-items:center;gap:6px;background:rgba(12,13,16,.8);border:1px solid var(--line-2);border-radius:999px;padding:3px 12px 3px 3px;font-family:var(--display);font-size:17px;font-variant-numeric:tabular-nums}
+.pill small{font-family:var(--body);font-size:11px;color:var(--ink-dim)}
 .coin{width:24px;height:24px;flex:none}
-.roundbtn{width:40px;height:40px;border-radius:50%;background:rgba(20,8,90,.55);border:2px solid rgba(255,255,255,.6);display:grid;place-items:center;flex:none;position:relative}
+.roundbtn{width:40px;height:40px;border-radius:12px;background:rgba(12,13,16,.8);border:1px solid var(--line-2);display:grid;place-items:center;flex:none;position:relative}
 .roundbtn svg{width:22px;height:22px}
-.roundbtn .dot{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:var(--danger);border:2px solid #fff}
+.roundbtn .dot{position:absolute;top:-4px;right:-4px;width:12px;height:12px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);border:2px solid var(--bg)}
 
 .dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:min(500px,calc(100% - 24px));display:grid;gap:10px}
-.stab{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;text-shadow:0 1px 2px rgba(20,8,90,.8)}
-.stab > span{background:rgba(20,8,90,.6);border-radius:99px;padding:3px 9px;flex:none}
-.stab .track{flex:1;min-width:0;height:10px;border-radius:99px;background:rgba(20,8,90,.55);border:2px solid rgba(255,255,255,.6);overflow:hidden}
-.stab .track i{display:block;height:100%;width:100%;border-radius:99px;background:var(--green-1);transition:background .2s}
-.stab b{font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.04em;color:var(--danger);text-transform:none;opacity:0;transition:opacity .2s;text-shadow:0 2px 0 #fff}
+.stab{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+.stab > span{background:rgba(12,13,16,.85);border:1px solid var(--line);border-radius:99px;padding:3px 9px;flex:none}
+.stab .track{flex:1;min-width:0;height:8px;border-radius:99px;background:rgba(12,13,16,.85);border:1px solid var(--line-2);overflow:hidden}
+.stab .track i{display:block;height:100%;width:100%;border-radius:99px;background:var(--lime);box-shadow:0 0 8px currentColor;transition:background .2s}
+.stab b{font-family:var(--display);font-weight:400;font-size:14px;letter-spacing:.06em;color:var(--danger);text-transform:uppercase;opacity:0;transition:opacity .2s;text-shadow:0 0 10px rgba(255,59,78,.8)}
 .stab b.on{opacity:1;animation:wig .3s infinite alternate}
 @keyframes wig{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
-.handrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:linear-gradient(180deg,rgba(60,40,170,.75),rgba(36,19,138,.8));border:3px solid rgba(255,255,255,.75);border-radius:22px;padding:10px 12px;box-shadow:0 6px 0 rgba(20,8,90,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.handrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:linear-gradient(180deg,rgba(30,33,40,.94),rgba(18,20,24,.96));border:1px solid var(--line-2);border-radius:20px;padding:10px 12px;box-shadow:0 6px 0 #000,0 18px 40px rgba(0,0,0,.45)}
 .hand{display:flex;align-items:center;gap:10px;min-width:0}
-.hand .coin{width:40px;height:40px}
-.hand .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
-.hand .n{font-size:32px;line-height:1}
-.mult{font-family:var(--display);font-size:16px;background:linear-gradient(180deg,var(--gold-1),var(--gold-2));color:#5a2d00;border-radius:10px;padding:2px 8px;box-shadow:0 3px 0 var(--gold-sh)}
-#bank{min-width:128px;font-size:26px;line-height:1.05}
-#bank small{display:block;font-family:var(--body);font-size:12px;letter-spacing:.06em;opacity:.95}
+.hand .coin{width:38px;height:38px}
+.hand .k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+.hand .n{font-size:30px;line-height:1}
+.mult{font-family:var(--display);font-size:15px;background:var(--lime);color:#132000;border-radius:8px;padding:2px 8px;box-shadow:0 0 12px rgba(180,255,57,.6)}
+#bank{min-width:128px;font-size:24px;line-height:1.05}
+#bank small{display:block;font-family:var(--body);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:none;opacity:.9}
+#bank:not(:disabled){background:linear-gradient(180deg,var(--lime-hi),var(--lime));--sh:var(--lime-sh);color:#132000;text-shadow:none}
 #bank.ready{animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.2)}}
+@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
 .boosts{display:flex;justify-content:center;gap:16px}
-.boost{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--blue-1),var(--blue-2));border:3px solid #fff;box-shadow:0 4px 0 var(--blue-sh);display:grid;place-items:center;position:relative}
-.boost:active{transform:translateY(3px);box-shadow:0 1px 0 var(--blue-sh)}
+.boost{width:56px;height:56px;border-radius:16px;background:linear-gradient(180deg,var(--steel-1),var(--steel-2));border:1px solid var(--line-2);box-shadow:0 4px 0 #000;display:grid;place-items:center;position:relative}
+.boost:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
 .boost svg{width:28px;height:28px}
-.badge{position:absolute;top:-6px;right:-8px;min-width:24px;height:24px;border-radius:12px;padding:0 6px;background:linear-gradient(180deg,#ff6b81,#e8203f);border:2px solid #fff;font-family:var(--display);font-size:14px;display:grid;place-items:center}
-.badge.price{background:linear-gradient(180deg,var(--gold-1),var(--gold-2));color:#5a2d00}
-.boost.active{box-shadow:0 4px 0 var(--blue-sh),0 0 0 4px var(--gold-1),0 0 24px var(--gold-1)}
+.badge{position:absolute;top:-7px;right:-8px;min-width:22px;height:22px;border-radius:11px;padding:0 6px;background:var(--orange);border:2px solid var(--bg);font-family:var(--display);font-size:12px;display:grid;place-items:center}
+.badge.price{background:var(--lime);color:#132000}
+.boost.active{border-color:var(--lime);box-shadow:0 4px 0 #000,0 0 0 2px var(--lime),0 0 24px rgba(180,255,57,.7)}
 .boost.hint{animation:hint 1s infinite}
-@keyframes hint{50%{box-shadow:0 4px 0 var(--blue-sh),0 0 0 6px #fff,0 0 30px #fff}}
-.boost-name{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;text-shadow:0 1px 2px rgba(20,8,90,.9)}
+@keyframes hint{50%{border-color:var(--orange);box-shadow:0 4px 0 #000,0 0 0 3px var(--orange),0 0 30px rgba(255,107,26,.9)}}
+.boost-name{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;color:var(--ink-dim);text-shadow:0 1px 2px #000}
 
-#tip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 112px);left:50%;transform:translateX(-50%);width:min(380px,calc(100% - 32px));background:#fff;color:#2b1a8a;border-radius:18px;padding:12px 16px;text-align:center;font-size:16px;line-height:1.35;box-shadow:0 6px 0 rgba(20,8,90,.45);animation:bob 1.6s ease-in-out infinite;z-index:3}
+#tip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 112px);left:50%;transform:translateX(-50%);width:min(380px,calc(100% - 32px));background:var(--panel);color:var(--ink);border:1px solid var(--orange);border-radius:14px;padding:12px 16px;text-align:center;font-size:15px;line-height:1.4;box-shadow:0 0 24px rgba(255,107,26,.3),0 6px 0 #000;animation:bob 1.6s ease-in-out infinite;z-index:3}
 @keyframes bob{50%{transform:translate(-50%,4px)}}
-#ring{position:fixed;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:4px solid #fff;pointer-events:none;box-shadow:0 0 0 3px rgba(43,26,138,.6);animation:tap 1s ease-out infinite;z-index:3}
+#ring{position:fixed;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:3px solid var(--lime);pointer-events:none;box-shadow:0 0 18px var(--lime);animation:tap 1s ease-out infinite;z-index:3}
 @keyframes tap{0%{transform:scale(1.4);opacity:0}40%{opacity:1}100%{transform:scale(.7);opacity:0}}
 
 /* overlays + panels */
-.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(24,10,90,.6);padding-block:40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;z-index:10}
-.panel{width:min(390px,100%);margin:auto;background:linear-gradient(180deg,#6474ff,#4130c9);border:4px solid #fff;border-radius:28px;box-shadow:0 10px 0 var(--night),0 24px 50px rgba(0,0,0,.35);padding:44px 18px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;position:relative;animation:panelin .35s cubic-bezier(.3,1.5,.5,1)}
-@keyframes panelin{from{transform:scale(.7);opacity:0}}
-.ribbon{position:absolute;top:-26px;left:50%;transform:translateX(-50%);white-space:nowrap;background:linear-gradient(180deg,var(--pink-1),var(--pink-2));border:3px solid #fff;border-radius:16px;padding:8px 22px;box-shadow:0 6px 0 var(--pink-sh);font-size:26px}
-.ribbon.bad{background:linear-gradient(180deg,#ff7a8e,#e8203f);box-shadow:0 6px 0 #9c0f2a}
-.ribbon.hard{background:linear-gradient(180deg,var(--plum-1),var(--plum-2));box-shadow:0 6px 0 var(--plum-sh)}
-.ribbon.gold{background:linear-gradient(180deg,var(--gold-1),var(--gold-2));box-shadow:0 6px 0 var(--gold-sh)}
-.panel p{margin:0;color:var(--ink-dim);line-height:1.4;font-size:16px}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,6,8,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);padding-block:40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;z-index:10}
+.panel{width:min(390px,100%);margin:auto;background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line-2);border-radius:24px;box-shadow:0 8px 0 #000,0 30px 60px rgba(0,0,0,.6);padding:44px 18px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;position:relative;animation:panelin .3s cubic-bezier(.3,1.5,.5,1)}
+.panel::before{content:"";position:absolute;left:24px;right:24px;top:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--orange),transparent)}
+@keyframes panelin{from{transform:scale(.85);opacity:0}}
+.ribbon{position:absolute;top:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--orange);border-radius:12px;padding:8px 20px;box-shadow:0 5px 0 var(--orange-sh),0 0 24px rgba(255,107,26,.5);font-size:22px;letter-spacing:.04em;text-transform:uppercase}
+.ribbon.bad{background:var(--danger);box-shadow:0 5px 0 #7a0a14,0 0 24px rgba(255,59,78,.5)}
+.ribbon.hard{background:var(--lime);color:#132000;text-shadow:none;box-shadow:0 5px 0 var(--lime-sh),0 0 24px rgba(180,255,57,.5)}
+.ribbon.gold{background:var(--lime);color:#132000;text-shadow:none;box-shadow:0 5px 0 var(--lime-sh),0 0 24px rgba(180,255,57,.5)}
+.panel p{margin:0;color:var(--ink-dim);line-height:1.45;font-size:15px;font-weight:500}
 .bigstars{display:flex;gap:6px;align-items:flex-end}
-.bigstars svg{width:64px;height:64px}
-.bigstars svg:nth-child(2){width:80px;height:80px}
-.bigstars use{fill:#3a2c9a;stroke:#fff;stroke-width:1.4;stroke-linejoin:round}
-.bigstars svg.on use{fill:#ffd21f}
-.bigstars svg.on{animation:bigpop .45s cubic-bezier(.3,1.8,.5,1) both}
+.bigstars svg{width:62px;height:62px}
+.bigstars svg:nth-child(2){width:78px;height:78px}
+.bigstars use{fill:var(--panel-3);stroke:#4a4f59;stroke-width:1.2;stroke-linejoin:round}
+.bigstars svg.on use{fill:var(--lime);stroke:#fff}
+.bigstars svg.on{animation:bigpop .45s cubic-bezier(.3,1.8,.5,1) both;filter:drop-shadow(0 0 10px rgba(180,255,57,.7))}
 .bigstars.static svg.on{animation:none}
 @keyframes bigpop{from{transform:scale(0) rotate(-40deg)}}
 .reward{display:flex;align-items:center;gap:8px;font-size:30px}
-.reward .coin{width:34px;height:34px}
+.reward .coin{width:32px;height:32px}
 .col{display:flex;flex-direction:column;gap:12px;width:100%}
-.goalcard{width:100%;background:rgba(20,8,90,.35);border-radius:16px;padding:12px;display:grid;gap:4px;justify-items:center}
-.goalcard b{font-family:var(--display);font-weight:400;font-size:26px;color:#ffd21f;display:flex;align-items:center;gap:8px}
-.goalcard .sw{width:36px;height:22px;border-radius:6px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.5)}
-.goalcard svg{width:28px;height:28px}
+.goalcard{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:4px;justify-items:center;color:var(--ink-dim);font-size:14px}
+.goalcard b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--orange);display:flex;align-items:center;gap:8px;text-shadow:0 0 14px rgba(255,107,26,.5)}
+.goalcard .sw{width:34px;height:20px;border-radius:5px;box-shadow:0 0 10px currentColor}
+.goalcard svg{width:26px;height:26px}
 .feats{display:grid;gap:8px;width:100%;text-align:left}
-.feat{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.12);border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.3}
-.feat svg{width:28px;height:28px;flex:none}
+.feat{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px;line-height:1.35;color:var(--ink)}
+.feat svg{width:26px;height:26px;flex:none}
 .hearts{display:flex;gap:4px;justify-content:center}
-.hearts svg{width:34px;height:34px}
-.hearts svg.off{filter:grayscale(1) brightness(.55);opacity:.6}
+.hearts svg{width:32px;height:32px}
+.hearts svg.off{filter:grayscale(1) brightness(.4);opacity:.6}
 
 /* shop */
 .shopgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
-.item{background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.5);border-radius:18px;padding:12px 8px 10px;display:grid;justify-items:center;gap:6px;position:relative;min-width:0}
-.item .ic{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,var(--blue-1),var(--blue-2));border:3px solid #fff;box-shadow:0 4px 0 var(--blue-sh)}
-.item .ic.heart{background:radial-gradient(circle at 35% 30%,#ff9ab6,#e8203f);box-shadow:0 4px 0 #9c0f2a}
+.item{background:var(--bg);border:1px solid var(--line-2);border-radius:16px;padding:12px 8px 10px;display:grid;justify-items:center;gap:6px;position:relative;min-width:0}
+.item .ic{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(180deg,var(--steel-1),var(--steel-2));border:1px solid var(--line-2)}
+.item .ic.heart{border-color:var(--heart);box-shadow:0 0 14px rgba(255,77,61,.4)}
 .item .ic svg{width:30px;height:30px}
-.item b{font-family:var(--display);font-weight:400;font-size:17px}
-.item span{font-size:12px;color:var(--ink-dim);line-height:1.25}
-.item .own{position:absolute;top:6px;left:8px;font-size:11px;color:var(--ink-dim)}
+.item b{font-family:var(--display);font-weight:400;font-size:15px}
+.item span{font-size:12px;color:var(--ink-dim);line-height:1.3}
+.item .own{position:absolute;top:6px;left:8px;font-size:10px;color:var(--ink-dim)}
 .item .qty{position:absolute;top:-8px;right:-6px}
-.item .btn{padding:7px 12px;font-size:17px;border-radius:12px;width:100%}
+.item .btn{padding:8px 12px;font-size:16px;border-radius:10px;width:100%}
 .item.wide{grid-column:span 2}
 
 /* level map */
-#map{position:fixed;inset:0;display:flex;flex-direction:column;background:#7fdcff;z-index:5}
-.maphead{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 18px max(12px,env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(36,19,138,.7),rgba(36,19,138,0))}
-.maphead .logo{font-family:var(--display);font-size:26px;color:#ffd21f;margin-right:auto;text-shadow:0 3px 0 #e8287a,2px 2px 0 #e8287a,-2px 2px 0 #e8287a,2px -2px 0 #e8287a,-2px -2px 0 #e8287a,0 5px 0 var(--night)}
-.heartpill svg{width:24px;height:24px}
+#map{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:5}
+.maphead{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 22px max(12px,env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(8,9,11,.95),rgba(8,9,11,0))}
+.maphead .logo{font-family:var(--display);font-size:24px;letter-spacing:.06em;color:var(--orange);margin-right:auto;text-shadow:0 0 16px rgba(255,107,26,.6),0 3px 0 #000}
+.maphead .logo i{font-style:normal;color:var(--lime);text-shadow:0 0 16px rgba(180,255,57,.6),0 3px 0 #000}
+.heartpill svg{width:22px;height:22px}
 @media (max-width:440px){.maphead .logo{display:none}.maphead .heartpill{margin-right:auto}}
 .mapscroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;position:relative}
 .world{position:relative;width:100%}
 .world > svg.bg{position:absolute;inset:0;width:100%;height:100%}
 .track{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);width:min(440px,100%)}
 .track svg.path{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.zone-sign{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:20px;padding:6px 18px;border-radius:14px;border:3px solid #fff;box-shadow:0 5px 0 rgba(20,8,90,.45)}
-.node{position:absolute;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;display:grid;place-items:center;border:4px solid #fff;
-  background:radial-gradient(circle at 35% 30%,var(--pink-1),var(--pink-2));box-shadow:0 6px 0 var(--pink-sh),0 10px 16px rgba(0,0,0,.25)}
-.node .num{font-family:var(--display);font-size:24px;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.3)}
-.node.hard{background:radial-gradient(circle at 35% 30%,var(--plum-1),var(--plum-2));box-shadow:0 6px 0 var(--plum-sh),0 10px 16px rgba(0,0,0,.25)}
-.node.locked{background:radial-gradient(circle at 35% 30%,#ecebf7,#aaa6d2);box-shadow:0 6px 0 #67639b;color:#67639b;cursor:default}
-.node.locked svg{width:24px;height:24px}
-.node.current{width:78px;height:78px;margin:-39px 0 0 -39px;background:radial-gradient(circle at 35% 30%,var(--gold-1),var(--gold-2));box-shadow:0 6px 0 var(--gold-sh),0 0 0 6px rgba(255,255,255,.45),0 12px 20px rgba(0,0,0,.3);animation:hop 1.1s ease-in-out infinite}
-.node.current .num{font-size:30px}
-@keyframes hop{50%{transform:translateY(-8px)}}
-.node .nstars{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);display:flex;gap:1px}
-.node .nstars svg{width:17px;height:17px}
-.node .nstars use{fill:#5d58a8;stroke:#fff;stroke-width:2}
-.node .nstars svg.on use{fill:#ffd21f}
-.node .tag{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-family:var(--display);font-size:11px;letter-spacing:.06em;background:var(--plum-2);border:2px solid #fff;border-radius:8px;padding:1px 6px;white-space:nowrap}
+.zone-sign{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:15px;letter-spacing:.1em;text-transform:uppercase;padding:7px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--zc,var(--orange));color:var(--zc,var(--orange));text-shadow:0 0 12px var(--zc,var(--orange));box-shadow:0 0 20px rgba(0,0,0,.6),0 4px 0 #000}
+.node{position:absolute;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:16px;display:grid;place-items:center;
+  background:var(--panel-2);border:2px solid var(--orange);box-shadow:0 0 16px rgba(255,107,26,.45),0 5px 0 #000}
+.node .num{font-family:var(--display);font-size:20px;color:#fff}
+.node.hard{border-color:var(--lime);box-shadow:0 0 16px rgba(180,255,57,.45),0 5px 0 #000}
+.node.locked{background:var(--panel);border-color:#2d313a;box-shadow:0 5px 0 #000;color:#4c525d;cursor:default}
+.node.locked svg{width:20px;height:20px}
+.node.current{width:72px;height:72px;margin:-36px 0 0 -36px;background:linear-gradient(135deg,var(--orange-hi),var(--orange));border-color:#fff;box-shadow:0 0 0 6px rgba(255,107,26,.25),0 0 40px rgba(255,107,26,.8),0 5px 0 var(--orange-sh);animation:hop 1.1s ease-in-out infinite}
+.node.current .num{font-size:26px;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+@keyframes hop{50%{translate:0 -7px}}
+.node .nstars{position:absolute;bottom:-22px;left:50%;translate:-50% 0;display:flex;gap:1px}
+.node .nstars svg{width:15px;height:15px}
+.node .nstars use{fill:var(--panel-3);stroke:#5b616c;stroke-width:2}
+.node .nstars svg.on use{fill:var(--lime);stroke:#fff}
+.node .tag{position:absolute;top:-22px;left:50%;translate:-50% 0;font-family:var(--display);font-size:10px;letter-spacing:.1em;background:var(--lime);color:#132000;border-radius:6px;padding:2px 6px;white-space:nowrap}
 
 /* daily rewards */
 .days{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%}
-.day{position:relative;border-radius:14px;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.45);padding:8px 4px 6px;display:grid;justify-items:center;gap:2px;font-size:12px;min-width:0}
-.day .dn{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
-.day svg{width:30px;height:30px}
-.day .amt{font-family:var(--display);font-size:15px;line-height:1.1}
+.day{position:relative;border-radius:12px;background:var(--bg);border:1px solid var(--line-2);padding:8px 4px 6px;display:grid;justify-items:center;gap:2px;font-size:12px;min-width:0}
+.day .dn{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+.day svg{width:28px;height:28px}
+.day .amt{font-family:var(--display);font-size:13px;line-height:1.15}
 .day.big{grid-column:span 2}
-.day.claimed{opacity:.5}
-.day.claimed::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:36px;color:#8cf55f;text-shadow:0 2px 0 var(--green-sh)}
-.day.today{background:linear-gradient(180deg,var(--gold-1),var(--gold-2));border-color:#fff;color:#5a2d00;animation:pulse 1s infinite}
-.day.today .dn{color:#7a4300}
+.day.claimed{opacity:.45}
+.day.claimed::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:32px;color:var(--lime);text-shadow:0 0 12px var(--lime)}
+.day.today{border:2px solid var(--orange);box-shadow:0 0 18px rgba(255,107,26,.5);animation:pulse 1s infinite}
+.day.today .dn{color:var(--orange)}
 
 /* in-world feedback */
-.pop{position:fixed;transform:translate(-50%,-50%);font-size:28px;pointer-events:none;animation:rise 1s ease-out forwards;white-space:nowrap;z-index:2}
+.pop{position:fixed;transform:translate(-50%,-50%);font-size:26px;pointer-events:none;animation:rise 1s ease-out forwards;white-space:nowrap;z-index:2}
 @keyframes rise{0%{opacity:0;margin-top:10px;scale:.6}15%{opacity:1;scale:1.15}30%{scale:1}100%{opacity:0;margin-top:-80px}}
-#combo{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);font-size:clamp(40px,11vw,64px);pointer-events:none;text-align:center;line-height:1;opacity:0;white-space:nowrap;z-index:2}
+#combo{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);font-size:clamp(34px,10vw,58px);text-transform:uppercase;pointer-events:none;text-align:center;line-height:1;opacity:0;white-space:nowrap;z-index:2;color:var(--orange);text-shadow:0 0 24px rgba(255,107,26,.8),0 4px 0 #000}
 #combo.show{animation:combo 1.2s cubic-bezier(.3,1.6,.5,1) forwards}
-#combo small{display:block;font-size:.5em;color:#ffd21f}
-@keyframes combo{0%{transform:translate(-50%,-50%) scale(0) rotate(-12deg);opacity:1}25%{transform:translate(-50%,-50%) scale(1.1) rotate(3deg);opacity:1}40%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-70%) scale(1)}}
-.flycoin{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;pointer-events:none;z-index:20}
+#combo small{display:block;font-size:.42em;letter-spacing:.08em;color:var(--lime);text-shadow:0 0 14px rgba(180,255,57,.8),0 3px 0 #000;margin-top:4px}
+@keyframes combo{0%{transform:translate(-50%,-50%) scale(0) rotate(-8deg);opacity:1}25%{transform:translate(-50%,-50%) scale(1.1) rotate(2deg);opacity:1}40%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-70%) scale(1)}}
+.flycoin{position:fixed;width:24px;height:24px;margin:-12px 0 0 -12px;pointer-events:none;z-index:20;filter:drop-shadow(0 0 6px rgba(255,107,26,.9))}
 #vig{position:fixed;inset:0;pointer-events:none;transition:box-shadow .3s}
-#vig.danger{box-shadow:inset 0 0 110px 20px rgba(255,40,80,.55)}
-#vig.frozen{box-shadow:inset 0 0 110px 26px rgba(120,220,255,.75)}
-#vig.gust{box-shadow:inset 0 0 90px 10px rgba(255,180,90,.55)}
-.confetti{position:fixed;top:-20px;width:10px;height:16px;border-radius:3px;pointer-events:none;z-index:15}
-#toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 112px);left:50%;transform:translateX(-50%);background:var(--night);border:2px solid #fff;padding:8px 16px;border-radius:14px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center;width:max-content;max-width:calc(100% - 32px);z-index:30}
+#vig.danger{box-shadow:inset 0 0 120px 24px rgba(255,40,60,.5)}
+#vig.frozen{box-shadow:inset 0 0 120px 28px rgba(120,230,255,.55)}
+#vig.gust{box-shadow:inset 0 0 100px 14px rgba(255,107,26,.55)}
+.confetti{position:fixed;top:-20px;width:8px;height:14px;border-radius:2px;pointer-events:none;z-index:15}
+#toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 112px);left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line-2);padding:9px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center;width:max-content;max-width:calc(100% - 32px);z-index:30;box-shadow:0 6px 0 #000}
 #toast.on{opacity:1}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <symbol id="i-coin" viewBox="0 0 32 32"><circle cx="16" cy="17" r="13" fill="#c27400"/><circle cx="16" cy="15" r="13" fill="#ffc21a"/><circle cx="16" cy="15" r="9" fill="none" stroke="#ffe680" stroke-width="2.5"/><path d="M11 9a9 9 0 0 1 6-2" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 32 32"><path d="M16 3l11.5 6.6v13.8L16 30 4.5 23.4V9.6z" fill="#9a3608"/><path d="M16 1.5l11.5 6.6v13.3L16 28 4.5 21.4V8.1z" fill="#ff6b1a"/><path d="M16 6.5l7.5 4.3v8.6L16 23.7l-7.5-4.3v-8.6z" fill="none" stroke="#ffc08f" stroke-width="2"/><path d="M10 9.5l6-3.4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.6l-6.4 3.6 1.5-7.1L1.7 9.2l7.2-.8z"/></symbol>
-    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.3-8.5-11.2A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 3.2C20.5 15.7 12 21 12 21z" fill="#ff3b6b" stroke="#fff" stroke-width="1.8"/><path d="M7 8.5a2.6 2.6 0 0 1 2.4-1.4" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
-    <symbol id="i-freeze" viewBox="0 0 24 24"><g stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/><path d="M9 4l3 2 3-2M9 20l3-2 3 2"/></g></symbol>
-    <symbol id="i-xray" viewBox="0 0 24 24"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" fill="#fff"/><circle cx="12" cy="12" r="4.2" fill="#3a72ff"/><circle cx="12" cy="12" r="1.8" fill="#14104a"/></symbol>
-    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5z" fill="#fff"/><path d="M12 5.5l5 1.9v3.8c0 3.3-2.1 6.2-5 7.4z" fill="#8fd3ff"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.3-8.5-11.2A4.8 4.8 0 0 1 12 6.6a4.8 4.8 0 0 1 8.5 3.2C20.5 15.7 12 21 12 21z" fill="#ff4d3d"/><path d="M7 8.5a2.6 2.6 0 0 1 2.4-1.4" stroke="#ffc2bc" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-freeze" viewBox="0 0 24 24"><g stroke="#8ff0ff" stroke-width="2.4" stroke-linecap="round" fill="none"><path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/><path d="M9 4l3 2 3-2M9 20l3-2 3 2"/></g></symbol>
+    <symbol id="i-xray" viewBox="0 0 24 24"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z" fill="#fff"/><circle cx="12" cy="12" r="4.2" fill="#ff6b1a"/><circle cx="12" cy="12" r="1.8" fill="#0c0d10"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5z" fill="#fff"/><path d="M12 5.5l5 1.9v3.8c0 3.3-2.1 6.2-5 7.4z" fill="#b4ff39"/></symbol>
     <symbol id="i-plus3" viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-family="Lilita One, Arial Black, sans-serif" font-size="15" fill="#fff">+3</text></symbol>
     <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#fff"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
     <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="#fff"/><path d="M16.5 9.5l5 5m0-5l-5 5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></symbol>
-    <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" fill="#fff"/><path d="M9 4v14M15 6v14" stroke="#3a72ff" stroke-width="1.8"/></symbol>
-    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="11" rx="2" fill="#ff4fa0"/><rect x="2" y="7" width="20" height="4.5" rx="1.5" fill="#ff7cc0"/><rect x="10.5" y="7" width="3" height="14" fill="#ffd21f"/><path d="M12 7C10 3 5.5 3 6 5.6S10.5 7 12 7zm0 0c2-4 6.5-4 6-1.4S13.5 7 12 7z" fill="#ffd21f"/></symbol>
-    <symbol id="i-shop" viewBox="0 0 24 24"><path d="M3 9h18l-1.5 11a1.5 1.5 0 0 1-1.5 1.3H6a1.5 1.5 0 0 1-1.5-1.3z" fill="#ffd21f"/><path d="M8 9V7a4 4 0 0 1 8 0v2" stroke="#fff" stroke-width="2.2" fill="none"/><path d="M3 9h18" stroke="#c27400" stroke-width="1.5"/><circle cx="12" cy="15" r="2.4" fill="#ff4fa0"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" fill="#f3f4f6"/><path d="M9 4v14M15 6v14" stroke="#ff6b1a" stroke-width="1.8"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="11" rx="2" fill="#2a2e36" stroke="#b4ff39" stroke-width="1.5"/><rect x="2" y="7" width="20" height="4.5" rx="1.5" fill="#b4ff39"/><rect x="10.5" y="7" width="3" height="14" fill="#ff6b1a"/><path d="M12 7C10 3 5.5 3 6 5.6S10.5 7 12 7zm0 0c2-4 6.5-4 6-1.4S13.5 7 12 7z" fill="#ff6b1a"/></symbol>
+    <symbol id="i-shop" viewBox="0 0 24 24"><path d="M3 9h18l-1.5 11a1.5 1.5 0 0 1-1.5 1.3H6a1.5 1.5 0 0 1-1.5-1.3z" fill="#ff6b1a"/><path d="M8 9V7a4 4 0 0 1 8 0v2" stroke="#fff" stroke-width="2.2" fill="none"/><circle cx="12" cy="15" r="2.4" fill="#b4ff39"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3" fill="currentColor"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2.6" fill="none"/></symbol>
     <symbol id="i-wind" viewBox="0 0 24 24"><path d="M2 9l3-3 3 3 3-3 3 3 3-3 3 3 2-2M2 15l3-3 3 3 3-3 3 3 3-3 3 3 2-2" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-stone" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="3" fill="#a7adc4" stroke="#5b627e" stroke-width="1.8"/><circle cx="6" cy="12" r="1.4" fill="#5b627e"/><circle cx="18" cy="12" r="1.4" fill="#5b627e"/></symbol>
-    <symbol id="i-crack" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="3" fill="#ff7a8e" stroke="#fff" stroke-width="1.8"/><path d="M9 7l2 4-2 2 3 4M14 7l-1 3 2 2" stroke="#7a0f25" stroke-width="1.8" fill="none" stroke-linejoin="round"/></symbol>
-    <symbol id="i-stack" viewBox="0 0 24 24"><rect x="4" y="15" width="16" height="5" rx="1.5" fill="#35d65b" stroke="#fff" stroke-width="1.4"/><rect x="4" y="9" width="16" height="5" rx="1.5" fill="#2b9dff" stroke="#fff" stroke-width="1.4"/><path d="M12 7V2m-3 3l3-3 3 3" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-row" viewBox="0 0 24 24"><rect x="2" y="8" width="6" height="8" rx="1.5" fill="#ff3b5c" stroke="#fff" stroke-width="1.4"/><rect x="9" y="8" width="6" height="8" rx="1.5" fill="#ff3b5c" stroke="#fff" stroke-width="1.4"/><rect x="16" y="8" width="6" height="8" rx="1.5" fill="#ff3b5c" stroke="#fff" stroke-width="1.4"/></symbol>
+    <symbol id="i-stone" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="3" fill="#4a505b" stroke="#2a2e36" stroke-width="1.8"/><circle cx="6" cy="12" r="1.4" fill="#2a2e36"/><circle cx="18" cy="12" r="1.4" fill="#2a2e36"/></symbol>
+    <symbol id="i-crack" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="3" fill="#1e2128" stroke="#ff3b4e" stroke-width="1.8"/><path d="M9 7l2 4-2 2 3 4M14 7l-1 3 2 2" stroke="#ff3b4e" stroke-width="1.8" fill="none" stroke-linejoin="round"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><rect x="4" y="15" width="16" height="5" rx="1.5" fill="#1e2128" stroke="#b4ff39" stroke-width="1.6"/><rect x="4" y="9" width="16" height="5" rx="1.5" fill="#1e2128" stroke="#ff6b1a" stroke-width="1.6"/><path d="M12 7V2m-3 3l3-3 3 3" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-row" viewBox="0 0 24 24"><rect x="2" y="8" width="6" height="8" rx="1.5" fill="#1e2128" stroke="#ff6b1a" stroke-width="1.8"/><rect x="9" y="8" width="6" height="8" rx="1.5" fill="#1e2128" stroke="#ff6b1a" stroke-width="1.8"/><rect x="16" y="8" width="6" height="8" rx="1.5" fill="#1e2128" stroke="#ff6b1a" stroke-width="1.8"/></symbol>
     <symbol id="i-gem" viewBox="0 0 24 24"><path d="M4 9l4-5h8l4 5-8 12z" fill="#5fd0ff" stroke="#1f5fc9" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 9h16l-8 12z" fill="#2b9dff"/><path d="M8 4l1.5 5H4z" fill="#fff"/></symbol>
   </defs>
 </svg>
 
-<canvas id="gl" tabindex="0" aria-label="Tower of candy blocks. Tap a block to pull it out; drag to turn the tower."></canvas>
+<canvas id="gl" tabindex="0" aria-label="Tower of glowing blocks. Tap a block to pull it out; drag to turn the tower."></canvas>
 <div id="vig"></div>
 
 <div class="top" id="top" hidden>
@@ -266,7 +271,7 @@ svg{display:block}
 <!-- level map (home screen) -->
 <div id="map">
   <div class="maphead">
-    <div class="logo">TOPPLE</div>
+    <div class="logo">TOP<i>PLE</i></div>
     <div class="pill heartpill" id="heartPill"><svg><use href="#i-heart"/></svg><span id="lives">5</span><small id="lifeTimer"></small></div>
     <div class="pill"><svg class="coin"><use href="#i-coin"/></svg><span id="mapWallet">0</span></div>
     <button class="roundbtn" id="shopBtn" type="button" aria-label="Shop"><svg><use href="#i-shop"/></svg></button>
@@ -359,6 +364,10 @@ svg{display:block}
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import * as CANNON from 'cannon-es';
 
 // ---------- constants & save ----------
@@ -386,22 +395,23 @@ function mulberry32(a) {
 const round5 = v => Math.max(5, Math.round(v / 5) * 5);
 
 const COLORS = [
-  { key: 'red',    name: 'red',    base: '#ff3b5c', dark: '#b8103a', light: '#ffa3b4' },
-  { key: 'yellow', name: 'yellow', base: '#ffcc1f', dark: '#d07a00', light: '#fff3a0' },
-  { key: 'green',  name: 'green',  base: '#35d65b', dark: '#118a35', light: '#b4f9b8' },
-  { key: 'blue',   name: 'blue',   base: '#2b9dff', dark: '#124fc9', light: '#a9dcff' },
-  { key: 'purple', name: 'purple', base: '#a65bff', dark: '#5f20c4', light: '#dcc0ff' },
+  { key: 'orange', name: 'orange', base: '#ff6b1a' },
+  { key: 'lime',   name: 'lime',   base: '#b4ff39' },
+  { key: 'cyan',   name: 'cyan',   base: '#22e3ff' },
+  { key: 'pink',   name: 'pink',   base: '#ff2e88' },
+  { key: 'violet', name: 'violet', base: '#9b5cff' },
 ];
 const SPECIAL = {
-  star:  { key: 'star',  base: '#ffd21f', dark: '#d97800', light: '#fffbd0' },
-  gem:   { key: 'gem',   base: '#c9f1ff', dark: '#3f8fe8', light: '#ffffff' },
-  stone: { key: 'stone', base: '#a7adc4', dark: '#5b627e', light: '#e2e6f5' },
+  star:  { key: 'star',  base: '#ffd23a' },
+  gem:   { key: 'gem',   base: '#e6f8ff' },
+  stone: { key: 'stone', base: '#5a606b' },
 };
+// zone accents tint the sky glow, grid floor, distant towers and map scenery
 const ZONES = [
-  { name: 'Candy Meadow',    sky: ['#57c4ff', '#ffd9f0'], ground: '#9ef0b4', hills: ['#78dda0', '#ffb3d9', '#b9a3ff', '#8ee8c8'], sign: 'linear-gradient(180deg,#ff7cc0,#e8287a)' },
-  { name: 'Frosting Peaks',  sky: ['#5b8cff', '#e6f3ff'], ground: '#f2f8ff', hills: ['#ffffff', '#cfe6ff', '#a9cfff', '#e4d6ff'], sign: 'linear-gradient(180deg,#7fc4ff,#3a72ff)' },
-  { name: 'Chocolate Canyon', sky: ['#ff8a5c', '#ffe2a8'], ground: '#b8774a', hills: ['#8a4f2c', '#a8693f', '#d79a5c', '#6e3a1f'], sign: 'linear-gradient(180deg,#d79a5c,#8a4f2c)' },
-  { name: 'Starlight Sky',   sky: ['#170f4f', '#7b4fd8'], ground: '#3d2c86', hills: ['#4b3a9c', '#5e46c0', '#33287a', '#7a5ad8'], sign: 'linear-gradient(180deg,#c58bff,#7a2fe0)' },
+  { name: 'Ember Yard',    accent: '#ff6b1a', sky: ['#07080b', '#2e1307'] },
+  { name: 'Acid Docks',    accent: '#b4ff39', sky: ['#06080a', '#17260a'] },
+  { name: 'Molten Core',   accent: '#ff3d1f', sky: ['#0b0505', '#3d0e07'] },
+  { name: 'Blackout Grid', accent: '#22e3ff', sky: ['#05070b', '#082230'] },
 ];
 const zoneOf = n => ZONES[Math.floor((n - 1) / 10) % ZONES.length];
 const BOOSTERS = {
@@ -466,7 +476,7 @@ function starsReached() {
   return 1 + (v >= g2) + (v >= g3);
 }
 
-// ---------- audio: soft candy palette through a limiter ----------
+// ---------- audio: soft synth palette through a limiter ----------
 const audio = (() => {
   let ctx = null, out = null, noiseBuf = null;
   function ensure() {
@@ -541,121 +551,108 @@ controls.enableDamping = true; controls.enablePan = false;
 controls.minDistance = 8; controls.maxDistance = 46;
 controls.minPolarAngle = Math.PI * 0.22; controls.maxPolarAngle = Math.PI * 0.47;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x9a7cff, 1.05));
-const sun = new THREE.DirectionalLight(0xffffff, 1.45);
+const hemi = new THREE.HemisphereLight(0xd6dcff, 0x1a0f08, 0.95); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffe4c8, 1.35);
 sun.position.set(6, 18, 10); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 16, bottom: -4, near: 1, far: 50 });
 scene.add(sun);
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.55, 0.62); // neon edges glow
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
 
 const plate = new THREE.Group(); scene.add(plate);
-{ // frosted cake-plate pedestal
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 0.5, 64), new THREE.MeshStandardMaterial({ color: 0xfff3fb, roughness: 0.25 }));
+const rimMat = new THREE.MeshStandardMaterial({ color: 0xff6b1a, emissive: 0xff6b1a, emissiveIntensity: 0.85, roughness: 0.3 });
+{ // machined plinth
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 0.5, 64), new THREE.MeshStandardMaterial({ color: 0x1d2027, roughness: 0.35, metalness: 0.6 }));
   top.position.y = -0.25; top.receiveShadow = true; plate.add(top);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.22, 16, 96), new THREE.MeshStandardMaterial({ color: 0xff4fa0, roughness: 0.25, emissive: 0xff4fa0, emissiveIntensity: 0.2 }));
-  rim.rotation.x = Math.PI / 2; rim.position.y = -0.25; plate.add(rim);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 2.4, 1.85, 48), new THREE.MeshStandardMaterial({ color: 0xa36bff, roughness: 0.35 }));
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.07, 12, 128), rimMat);
+  rim.rotation.x = Math.PI / 2; rim.position.y = 0.0; plate.add(rim);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(3.3, 2.5, 1.85, 6), new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.5, metalness: 0.5, flatShading: true }));
   base.position.y = -1.4; base.castShadow = true; plate.add(base);
-  const dotGeo = new THREE.SphereGeometry(0.09, 10, 8);
-  for (let i = 0; i < 36; i++) {
-    const a = i / 36 * Math.PI * 2, c = COLORS[i % 5].base;
-    const d = new THREE.Mesh(dotGeo, new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.4 }));
-    d.position.set(Math.cos(a) * 3.6, -0.02, Math.sin(a) * 3.6); plate.add(d);
-  }
 }
 
-// ---------- 3D candy world backdrop (rebuilt per zone) ----------
-let env = null, clouds = null;
-function swirlTexture(c1, c2) {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const g = c.getContext('2d'); g.fillStyle = c1; g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = c2; g.lineWidth = 16; g.lineCap = 'round'; g.beginPath();
-  for (let a = 0; a < Math.PI * 10; a += 0.05) { const r = a * 4; g.lineTo(128 + Math.cos(a) * r, 128 + Math.sin(a) * r); }
-  g.stroke();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-function glowTexture(color) {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const g = c.getContext('2d'), rg = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-  rg.addColorStop(0, color); rg.addColorStop(0.25, color); rg.addColorStop(0.4, 'rgba(255,255,255,0.35)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = rg; g.fillRect(0, 0, 256, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+// ---------- 3D world backdrop (rebuilt per zone) ----------
+let env = null, embers = null, floaters = [];
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
 }
 function buildEnvironment(zone) {
   if (env) { scene.remove(env); env.traverse(o => { o.geometry?.dispose(); }); }
-  env = new THREE.Group(); scene.add(env);
-  const rng = mulberry32(ZONES.indexOf(zone) * 131 + 5);
-  const night = zone === ZONES[3];
-  // sky dome
-  const skyMat = new THREE.ShaderMaterial({
+  env = new THREE.Group(); scene.add(env); floaters = [];
+  const rng = mulberry32(ZONES.indexOf(zone) * 131 + 5), acc = new THREE.Color(zone.accent);
+  rimMat.color.copy(acc); rimMat.emissive.copy(acc);
+  // sky: dark dome, a hot band on the horizon and a low sun
+  const sunDir = new THREE.Vector3(-0.55, 0.06, -1).normalize();
+  env.add(new THREE.Mesh(new THREE.SphereGeometry(300, 48, 24), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color(zone.sky[0]) }, bot: { value: new THREE.Color(zone.sky[1]) } },
+    uniforms: { top: { value: new THREE.Color(zone.sky[0]) }, bot: { value: new THREE.Color(zone.sky[1]) }, acc: { value: acc }, sunDir: { value: sunDir } },
     vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-    fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying vec3 vP; void main(){ float h = clamp(vP.y * 1.6 + 0.15, 0.0, 1.0); gl_FragColor = vec4(mix(bot, top, pow(h, 0.8)), 1.0); }',
-  });
-  env.add(new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), skyMat));
-  scene.fog = new THREE.Fog(new THREE.Color(zone.sky[1]), 60, 220);
-  document.body.style.background = zone.sky[1];
-  // sun or moon glow
-  const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(night ? '#fff6d6' : '#fff8c8'), transparent: true, depthWrite: false, fog: false }));
-  sunSprite.position.set(-70, 70, -150); sunSprite.scale.setScalar(night ? 40 : 70); env.add(sunSprite);
-  if (night) { // stars
-    const n = 700, pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { const th = rng() * Math.PI * 2, ph = rng() * Math.PI * 0.45; pos.set([Math.cos(th) * Math.sin(ph) * 280, Math.cos(ph) * 280, Math.sin(th) * Math.sin(ph) * 280], i * 3); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    env.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, fog: false })));
-  }
-  // ground
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64), new THREE.MeshStandardMaterial({ color: zone.ground, roughness: 0.9 }));
+    fragmentShader: `uniform vec3 top; uniform vec3 bot; uniform vec3 acc; uniform vec3 sunDir; varying vec3 vP;
+      void main(){
+        float h = vP.y;
+        vec3 c = mix(bot, top, smoothstep(-0.02, 0.55, h));
+        c += acc * exp(-abs(h - 0.01) * 18.0) * 0.45;
+        float d = max(dot(normalize(vP), sunDir), 0.0);
+        c += acc * pow(d, 80.0) * 0.55 + vec3(1.0, 0.85, 0.65) * 0.7 * smoothstep(0.9988, 0.9994, d);
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  })));
+  scene.fog = new THREE.Fog(new THREE.Color(zone.sky[1]), 55, 210);
+  document.body.style.background = zone.sky[0];
+  // glowing grid floor
+  const grid = canvasTex(128, 128, g => {
+    g.fillStyle = '#0a0b0e'; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = zone.accent; g.globalAlpha = 0.55; g.lineWidth = 2; g.strokeRect(0, 0, 128, 128);
+    g.globalAlpha = 0.18; g.lineWidth = 1; g.beginPath(); g.moveTo(64, 0); g.lineTo(64, 128); g.moveTo(0, 64); g.lineTo(128, 64); g.stroke();
+  }, [70, 70]);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64), new THREE.MeshStandardMaterial({ map: grid, emissiveMap: grid, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.8, metalness: 0.2 }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -2.3; ground.receiveShadow = true; env.add(ground);
-  // rolling hills / peaks ring
-  const peaks = zone === ZONES[1];
-  for (let i = 0; i < 26; i++) {
-    const a = rng() * Math.PI * 2, r = 55 + rng() * 80, col = zone.hills[i % zone.hills.length];
-    const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 });
-    let m;
-    if (peaks) {
-      const h = 25 + rng() * 30; m = new THREE.Mesh(new THREE.ConeGeometry(14 + rng() * 10, h, 7), mat); m.position.y = h / 2 - 2.3;
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(5.5, h * 0.32, 7), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 }));
-      cap.position.y = h * 0.34; m.add(cap);
-    } else {
-      const s = 14 + rng() * 18; m = new THREE.Mesh(new THREE.SphereGeometry(s, 24, 16), mat);
-      m.scale.y = 0.45 + rng() * 0.4; m.position.y = -2.3;
-    }
-    m.position.x = Math.cos(a) * r; m.position.z = Math.sin(a) * r; env.add(m);
-  }
-  // lollipop trees and gumdrops around the island
-  const stickGeo = new THREE.CylinderGeometry(0.14, 0.14, 4.4, 8), stickMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
-  const discGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 40);
-  for (let i = 0; i < 18; i++) {
-    const a = (i / 18) * Math.PI * 2 + rng() * 0.3, r = 38 + rng() * 26, c = COLORS[i % 5]; // outside the camera orbit
-    const tree = new THREE.Group();
-    const stick = new THREE.Mesh(stickGeo, stickMat); stick.position.y = 2.2; tree.add(stick);
-    const tex = swirlTexture(c.base, '#ffffff');
-    const side = new THREE.MeshStandardMaterial({ color: c.base, roughness: 0.25 });
-    const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.25, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.25 });
-    const disc = new THREE.Mesh(discGeo, [side, face, face]); disc.rotation.x = Math.PI / 2; disc.position.y = 4.8; tree.add(disc);
-    tree.position.set(Math.cos(a) * r, -2.3, Math.sin(a) * r);
-    tree.lookAt(0, -2.3, 0); tree.scale.setScalar(1.8 + rng() * 1.2);
-    tree.traverse(o => { o.castShadow = true; }); env.add(tree);
-  }
-  const dropGeo = new THREE.SphereGeometry(0.9, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  // distant block towers, some leaning, lit by neon seams between their rows
+  const seams = canvasTex(64, 256, g => {
+    g.fillStyle = '#0d0f13'; g.fillRect(0, 0, 64, 256);
+    g.fillStyle = zone.accent;
+    for (let y = 0; y < 256; y += 32) { g.globalAlpha = 0.85; g.fillRect(0, y, 64, 2); g.globalAlpha = 0.25; g.fillRect(0, y + 2, 64, 3); }
+    g.globalAlpha = 1;
+  }, null);
   for (let i = 0; i < 30; i++) {
-    const a = rng() * Math.PI * 2, r = 5.5 + rng() * 6, c = COLORS[Math.floor(rng() * 5)];
-    const d = new THREE.Mesh(dropGeo, new THREE.MeshStandardMaterial({ color: c.base, roughness: 0.15, emissive: c.base, emissiveIntensity: 0.15 }));
-    d.scale.set(1, 1.3, 1); d.scale.multiplyScalar(0.35 + rng() * 0.45);
-    d.position.set(Math.cos(a) * r, -2.3, Math.sin(a) * r); env.add(d);
+    const a = rng() * Math.PI * 2, r = 45 + rng() * 85, rows = 8 + Math.floor(rng() * 26), w = 3 + rng() * 3;
+    const tex = seams.clone(); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1, rows / 8); tex.needsUpdate = true;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.7 });
+    const t = new THREE.Mesh(new THREE.BoxGeometry(w, rows * 0.9, w), mat);
+    t.position.set(Math.cos(a) * r, rows * 0.45 - 2.3, Math.sin(a) * r);
+    t.rotation.y = rng() * Math.PI; t.rotation.z = (rng() - 0.5) * (rng() < 0.3 ? 0.25 : 0.04);
+    env.add(t);
   }
-  // clouds drifting high up
-  clouds = new THREE.Group(); env.add(clouds);
-  const puff = new THREE.SphereGeometry(1, 16, 12), cloudMat = new THREE.MeshStandardMaterial({ color: night ? 0x8f7fe0 : 0xffffff, roughness: 1, emissive: night ? 0x3a2c8a : 0xffffff, emissiveIntensity: night ? 0.3 : 0.35 });
-  for (let i = 0; i < 12; i++) {
-    const cl = new THREE.Group();
-    for (let k = 0; k < 5; k++) { const p = new THREE.Mesh(puff, cloudMat); p.position.set((k - 2) * 2.2, rng() * 1.2, rng() * 1.5); p.scale.setScalar(2 + rng() * 1.8); cl.add(p); }
-    const a = rng() * Math.PI * 2, r = 50 + rng() * 60;
-    cl.position.set(Math.cos(a) * r, 22 + rng() * 22, Math.sin(a) * r); cl.lookAt(0, cl.position.y, 0);
-    clouds.add(cl);
+  // floating glow cubes high around the arena
+  const cubeGeo = new THREE.BoxGeometry(1, 1, 1);
+  for (let i = 0; i < 16; i++) {
+    const c = COLORS[i % COLORS.length].base;
+    const m = new THREE.Mesh(cubeGeo, new THREE.MeshStandardMaterial({ color: 0x111317, emissive: c, emissiveIntensity: 0.9 }));
+    const a = rng() * Math.PI * 2, r = 34 + rng() * 30;
+    m.position.set(Math.cos(a) * r, 8 + rng() * 22, Math.sin(a) * r); m.scale.setScalar(0.6 + rng() * 1.6);
+    m.userData.spin = (rng() - 0.5) * 1.2; m.userData.bob = rng() * 6; m.userData.y = m.position.y;
+    env.add(m); floaters.push(m);
   }
+  // rising embers around the tower
+  const n = 260, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { const a = rng() * Math.PI * 2, r = 5 + rng() * 28; pos.set([Math.cos(a) * r, -2 + rng() * 26, Math.sin(a) * r], i * 3); }
+  const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  embers = new THREE.Points(eg, new THREE.PointsMaterial({ color: zone.accent, size: 0.16, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+  env.add(embers);
+}
+function stepEnvironment(dt, t) {
+  if (embers) {
+    const p = embers.geometry.attributes.position;
+    for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * (0.6 + (i % 7) * 0.12); if (y > 24) y = -2; p.setY(i, y); }
+    p.needsUpdate = true;
+  }
+  for (const f of floaters) { f.rotation.x += dt * f.userData.spin; f.rotation.y += dt * f.userData.spin * 0.7; f.position.y = f.userData.y + Math.sin(t * 0.6 + f.userData.bob) * 1.2; }
 }
 
 function fitCamera() { // pull back for tall towers and on tall, narrow screens so the whole tower fits
@@ -666,7 +663,7 @@ function fitCamera() { // pull back for tall towers and on tall, narrow screens 
 }
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight); fitCamera();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); fitCamera();
   if (S.mode === 'map') renderMapWorld();
 });
 
@@ -682,7 +679,7 @@ world.addContactMaterial(new CANNON.ContactMaterial(blockMat, blockMat, {
 const ground = new CANNON.Body({ mass: 0, material: blockMat, shape: new CANNON.Box(new CANNON.Vec3(3.4, 0.3, 3.4)) });
 ground.position.set(0, -0.3, 0); ground.type = CANNON.Body.KINEMATIC; world.addBody(ground);
 
-// ---------- candy block textures ----------
+// ---------- block textures ----------
 function mixHex(a, b, t) {
   const ch = s => { const n = parseInt(s.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
   const [r1, g1, b1] = ch(a), [r2, g2, b2] = ch(b);
@@ -696,7 +693,7 @@ function rr(g, x, y, w, h, r) {
 function drawStar(g, cx, cy, R) {
   g.beginPath();
   for (let i = 0; i < 10; i++) { const r = i % 2 ? R * 0.45 : R, a = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
-  g.closePath(); g.fillStyle = '#ffffff'; g.strokeStyle = '#c45f00'; g.lineWidth = R * 0.18; g.lineJoin = 'round'; g.stroke(); g.fill();
+  g.closePath(); g.fillStyle = '#ffd23a'; g.strokeStyle = '#fff6c8'; g.lineWidth = R * 0.18; g.lineJoin = 'round'; g.stroke(); g.fill();
 }
 function drawGem(g, cx, cy, R) {
   const w = R * 1.1, h = R;
@@ -709,26 +706,31 @@ function drawGem(g, cx, cy, R) {
 function drawRivets(g, w, h, s) {
   const r = s * 0.07, m = s * 0.24;
   for (const [x, y] of [[m, m], [w - m, m], [m, h - m], [w - m, h - m]]) {
-    g.fillStyle = '#5b627e'; g.beginPath(); g.arc(x, y + r * 0.3, r, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#e2e6f5'; g.beginPath(); g.arc(x, y, r * 0.8, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#1b1e24'; g.beginPath(); g.arc(x, y + r * 0.3, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#8a909b'; g.beginPath(); g.arc(x, y, r * 0.8, 0, Math.PI * 2); g.fill();
   }
 }
-function faceTexture(pal, w, h) { // Block Blast style tile: dark rim, bevel ring, face gradient, gloss streak
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+function faceTexture(pal, w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d'), s = Math.min(w, h), m = s * 0.1, r = s * 0.24;
-  g.fillStyle = pal.dark; g.fillRect(0, 0, w, h);
+  const g = c.getContext('2d'), s = Math.min(w, h), m = s * 0.11, r = s * 0.16;
+  const stone = pal.key === 'stone';
   let gr = g.createLinearGradient(0, 0, 0, h);
-  gr.addColorStop(0, pal.light); gr.addColorStop(0.5, pal.base); gr.addColorStop(1, pal.dark);
-  g.fillStyle = gr; rr(g, m * 0.35, m * 0.35, w - m * 0.7, h - m * 0.7, r); g.fill();
-  gr = g.createLinearGradient(0, m, 0, h - m);
-  gr.addColorStop(0, mixHex(pal.base, '#ffffff', 0.18)); gr.addColorStop(1, mixHex(pal.base, pal.dark, 0.35));
-  g.fillStyle = gr; rr(g, m, m, w - 2 * m, h - 2 * m, r * 0.75); g.fill();
-  g.fillStyle = pal.key === 'stone' ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.42)';
-  rr(g, m * 1.7, m * 1.35, w - m * 3.4, (h - 2 * m) * 0.3, r * 0.5); g.fill();
-  if (pal.key !== 'stone') { g.fillStyle = 'rgba(255,255,255,0.7)'; g.beginPath(); g.arc(m * 2.1, m * 2.0, s * 0.05, 0, Math.PI * 2); g.fill(); }
-  if (pal.key === 'star') drawStar(g, w / 2, h / 2 + s * 0.04, s * 0.3);
-  if (pal.key === 'gem') drawGem(g, w / 2, h / 2, s * 0.28);
-  if (pal.key === 'stone') drawRivets(g, w, h, s);
+  gr.addColorStop(0, stone ? '#4e545f' : '#2c3038'); gr.addColorStop(1, stone ? '#2a2e36' : '#101216');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  if (stone) {
+    g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = s * 0.04; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke();
+    drawRivets(g, w, h, s);
+  } else {
+    g.fillStyle = rgba(pal.base, 0.2); rr(g, m, m, w - 2 * m, h - 2 * m, r); g.fill();
+    g.save(); g.shadowColor = pal.base; g.shadowBlur = s * 0.3;
+    g.strokeStyle = pal.base; g.lineWidth = s * 0.08; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke(); g.stroke();
+    g.restore();
+    g.strokeStyle = mixHex(pal.base, '#ffffff', 0.6); g.lineWidth = s * 0.022; rr(g, m, m, w - 2 * m, h - 2 * m, r); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.08)'; rr(g, m * 1.8, m * 1.5, w - m * 3.6, (h - 2 * m) * 0.3, r * 0.5); g.fill();
+  }
+  if (pal.key === 'star') drawStar(g, w / 2, h / 2 + s * 0.03, s * 0.28);
+  if (pal.key === 'gem') drawGem(g, w / 2, h / 2, s * 0.26);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
@@ -739,7 +741,7 @@ function blockMaterials(pal) { // box face order: +x,-x (ends) +y,-y (top/bottom
   const stone = pal.key === 'stone';
   const mk = (w, h) => {
     const map = faceTexture(pal, w, h);
-    return new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: stone ? 0.2 : 0.38, roughness: stone ? 0.7 : 0.22, metalness: 0, envMapIntensity: 0.7 });
+    return new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: stone ? 0.15 : 0.95, roughness: stone ? 0.75 : 0.28, metalness: stone ? 0.2 : 0.35, envMapIntensity: 0.6 });
   };
   const end = mk(160, 96), top = mk(480, 160), side = mk(480, 96);
   const mats = [end, end, top, top, side, side];
@@ -949,7 +951,7 @@ function reveal(blk) {
     if (S.cfg.obj.type === 'gems') S.objHave++;
     pop(p, `+${v}`, '#8fe6ff'); audio.gem(); flyCoins(p, 8); comboText('GEM!', `+${v} coins`);
   } else if (blk.kind === 'star') {
-    S.potMult += 0.5; pop(p, `×${S.potMult.toFixed(1)}`, '#ffd21f'); audio.mult();
+    S.potMult += 0.5; pop(p, `×${S.potMult.toFixed(1)}`, '#b4ff39'); audio.mult();
     comboText('Multiplier!', `everything ×${S.potMult.toFixed(1)}`);
   } else {
     S.combo = blk.pal.key === S.lastColor ? S.combo + 1 : 1;
@@ -957,7 +959,7 @@ function reveal(blk) {
     if (S.cfg.obj.type === 'color' && blk.pal === S.cfg.obj.color) S.objHave++;
     const row = blk.layer < S.layers / 3 ? 5 : blk.layer < S.layers * 2 / 3 ? 3 : 2;
     const v = Math.round(row * sc * S.combo); S.potCoins += v;
-    pop(p, `+${v}`, '#ffffff'); audio.pop(S.combo); flyCoins(p, Math.min(8, 1 + Math.ceil(v / 4)));
+    pop(p, `+${v}`, blk.pal.base); audio.pop(S.combo); flyCoins(p, Math.min(8, 1 + Math.ceil(v / 4)));
     if (S.combo >= 2) comboText(COMBO_WORDS[Math.min(S.combo, COMBO_WORDS.length - 1)], `${S.combo}× combo`);
   }
   updateObjective();
@@ -1232,47 +1234,31 @@ function renderObjective() {
 // ---------- level map ----------
 const NODE_GAP = 112, ZONE_LEVELS = 10;
 const nodeX = i => 50 + Math.sin(i * 0.85) * 30;
-function zoneSvg(z, W, top, H) { // illustrated scenery for one zone band
-  const zone = ZONES[z % ZONES.length], rng = mulberry32(z * 77 + 3), out = [];
-  const id = `zg${z}`;
-  out.push(`<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ZONES[(z + 1) % ZONES.length].sky[1]}"/><stop offset=".25" stop-color="${zone.sky[0]}"/><stop offset="1" stop-color="${zone.sky[1]}"/></linearGradient></defs>`);
-  out.push(`<rect x="0" y="${top}" width="${W}" height="${H}" fill="url(#${id})"/>`);
-  if (z % ZONES.length === 3) for (let i = 0; i < 90; i++) out.push(`<circle cx="${rng() * W}" cy="${top + rng() * H}" r="${0.8 + rng() * 1.8}" fill="#fff" opacity="${0.4 + rng() * 0.6}"/>`);
-  // soft sun / moon
-  out.push(`<circle cx="${W * (0.15 + rng() * 0.7)}" cy="${top + H * 0.18}" r="46" fill="#fff8d0" opacity=".55"/><circle cx="${W * 0.5}" cy="${top + H * 0.18}" r="0" fill="none"/>`);
-  // hills hugging both edges, two tones, stacked down the band
-  for (let y = top + 60; y < top + H; y += 170 + rng() * 60) {
-    for (const side of [0, 1]) {
-      const c = zone.hills[Math.floor(rng() * zone.hills.length)], c2 = zone.hills[Math.floor(rng() * zone.hills.length)];
-      const cx = side ? W + 30 - rng() * 60 : -30 + rng() * 60, rx = 120 + rng() * 90, ry = 80 + rng() * 50;
-      out.push(`<ellipse cx="${cx}" cy="${y + 40}" rx="${rx}" ry="${ry}" fill="${c2}" opacity=".85"/>`);
-      out.push(`<ellipse cx="${cx + (side ? 30 : -30)}" cy="${y + 70}" rx="${rx * 0.9}" ry="${ry * 0.8}" fill="${c}"/>`);
+function zoneSvg(z, W, top, H) { // scenery for one zone band: dark sky, grid, neon tower silhouettes, embers
+  const zone = ZONES[z % ZONES.length], next = ZONES[(z + 1) % ZONES.length], rng = mulberry32(z * 77 + 3), out = [];
+  const id = `zg${z}`, gid = `gr${z}`, hid = `hz${z}`;
+  out.push(`<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${next.sky[1]}"/><stop offset=".2" stop-color="${zone.sky[0]}"/><stop offset=".8" stop-color="${zone.sky[0]}"/><stop offset="1" stop-color="${zone.sky[1]}"/></linearGradient>` +
+    `<pattern id="${gid}" width="44" height="44" patternUnits="userSpaceOnUse"><path d="M44 0H0V44" fill="none" stroke="${zone.accent}" stroke-opacity=".09" stroke-width="1"/></pattern>` +
+    `<radialGradient id="${hid}"><stop offset="0" stop-color="${zone.accent}" stop-opacity=".35"/><stop offset="1" stop-color="${zone.accent}" stop-opacity="0"/></radialGradient></defs>`);
+  out.push(`<rect x="0" y="${top}" width="${W}" height="${H}" fill="url(#${id})"/><rect x="0" y="${top}" width="${W}" height="${H}" fill="url(#${gid})"/>`);
+  out.push(`<ellipse cx="${W / 2}" cy="${top + H}" rx="${W * 0.9}" ry="${H * 0.35}" fill="url(#${hid})"/>`);
+  out.push(`<circle cx="${W * (0.2 + rng() * 0.6)}" cy="${top + H * 0.3}" r="70" fill="url(#${hid})"/>`);
+  // stacked-block tower silhouettes along both edges
+  const room = Math.max(40, W / 2 - 190);
+  for (let i = 0; i < 10; i++) {
+    const left = i % 2 === 0, cx = left ? 10 + rng() * room : W - 10 - rng() * room;
+    const baseY = top + 120 + rng() * (H - 160), rows = 4 + Math.floor(rng() * 9), bw = 34 + rng() * 26, lean = (rng() - 0.5) * (rng() < 0.4 ? 14 : 3);
+    const parts = [];
+    for (let k = 0; k < rows; k++) {
+      const y = baseY - k * 13, x = cx - bw / 2 + Math.sin(k * 1.7 + i) * 2;
+      const lit = rng() < 0.18;
+      parts.push(`<rect x="${x}" y="${y}" width="${bw}" height="11" rx="2" fill="#111318" stroke="${lit ? COLORS[Math.floor(rng() * 5)].base : zone.accent}" stroke-opacity="${lit ? 0.95 : 0.4}" stroke-width="1.4"/>`);
     }
+    out.push(`<g transform="rotate(${lean} ${cx} ${baseY})" opacity="${0.55 + rng() * 0.4}">${parts.join('')}</g>`);
   }
-  // lollipops, gumdrops and candy canes at the edges, clear of the centre path
-  const edgeX = () => rng() < 0.5 ? 16 + rng() * Math.max(10, W * 0.5 - 200) : W - 16 - rng() * Math.max(10, W * 0.5 - 200);
-  for (let i = 0; i < 9; i++) {
-    const x = edgeX(), y = top + 80 + rng() * (H - 120), c = COLORS[Math.floor(rng() * 5)], s = 0.8 + rng() * 0.6;
-    if (i % 3 === 0) {
-      out.push(`<g transform="translate(${x} ${y}) scale(${s})"><rect x="-3" y="0" width="6" height="58" rx="3" fill="#fff"/><circle r="24" fill="${c.base}" stroke="#fff" stroke-width="4"/>` +
-        `<path d="M0 0m-15 0a15 15 0 1 1 30 0a10 10 0 1 1 -20 0a6 6 0 1 1 12 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="-9" cy="-10" r="4" fill="#fff" opacity=".7"/></g>`);
-    } else if (i % 3 === 1) {
-      out.push(`<g transform="translate(${x} ${y}) scale(${s})"><path d="M-18 14 Q-18 -16 0 -18 Q18 -16 18 14 Z" fill="${c.base}" stroke="${c.dark}" stroke-width="3"/><ellipse cx="-6" cy="-6" rx="4" ry="6" fill="#fff" opacity=".6"/>` +
-        Array.from({ length: 6 }, () => `<circle cx="${-12 + rng() * 24}" cy="${-8 + rng() * 18}" r="1.6" fill="#fff" opacity=".8"/>`).join('') + '</g>');
-    } else {
-      out.push(`<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 60 V8 a12 12 0 0 1 24 0" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>` +
-        `<path d="M0 60 V8 a12 12 0 0 1 24 0" fill="none" stroke="#ff3b5c" stroke-width="9" stroke-dasharray="7 7" stroke-linecap="round"/></g>`);
-    }
-  }
-  // clouds
-  for (let i = 0; i < 4; i++) {
-    const x = rng() * W, y = top + 40 + rng() * (H - 80), s = 0.7 + rng() * 0.8, col = z % ZONES.length === 3 ? '#9a84f0' : '#ffffff';
-    out.push(`<g transform="translate(${x} ${y}) scale(${s})" opacity=".8"><ellipse cx="0" cy="0" rx="46" ry="16" fill="${col}"/><circle cx="-16" cy="-10" r="16" fill="${col}"/><circle cx="10" cy="-14" r="20" fill="${col}"/></g>`);
-  }
-  // sparkles
-  for (let i = 0; i < 14; i++) {
-    const x = rng() * W, y = top + rng() * H, s = 3 + rng() * 5;
-    out.push(`<path d="M${x} ${y - s}L${x + s * 0.3} ${y - s * 0.3}L${x + s} ${y}L${x + s * 0.3} ${y + s * 0.3}L${x} ${y + s}L${x - s * 0.3} ${y + s * 0.3}L${x - s} ${y}L${x - s * 0.3} ${y - s * 0.3}Z" fill="#fff" opacity=".8"/>`);
+  for (let i = 0; i < 40; i++) {
+    const x = rng() * W, y = top + rng() * H, r = 0.8 + rng() * 2;
+    out.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="${rng() < 0.7 ? zone.accent : '#ffffff'}" opacity="${0.3 + rng() * 0.6}"/>`);
   }
   return out.join('');
 }
@@ -1298,14 +1284,14 @@ function renderMapWorld() {
   for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], my = (y0 + y1) / 2; d += ` C${x0} ${my} ${x1} ${my} ${x1} ${y1}`; }
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.classList.add('path'); svg.setAttribute('viewBox', `0 0 100 ${H}`); svg.setAttribute('preserveAspectRatio', 'none');
-  svg.innerHTML = `<path d="${d}" fill="none" stroke="rgba(36,19,138,.3)" stroke-width="30" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
-    <path d="${d}" fill="none" stroke="#fff5fb" stroke-width="22" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
-    <path d="${d}" fill="none" stroke="#ff9ad0" stroke-width="6" stroke-dasharray="2 14" vector-effect="non-scaling-stroke" stroke-linecap="round"/>`;
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="30" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="#1c1f26" stroke-width="22" vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="#ff6b1a" stroke-width="3" stroke-dasharray="10 10" vector-effect="non-scaling-stroke" stroke-linecap="round" style="filter:drop-shadow(0 0 4px #ff6b1a)"/>`;
   track.append(svg);
   // zone signs
   for (let z = 0; z < total / ZONE_LEVELS; z++) {
     const s = document.createElement('div'); s.className = 'zone-sign gt';
-    s.textContent = ZONES[z % ZONES.length].name; s.style.background = ZONES[z % ZONES.length].sign;
+    s.textContent = ZONES[z % ZONES.length].name; s.style.setProperty('--zc', ZONES[z % ZONES.length].accent);
     s.style.top = (yOf(z * ZONE_LEVELS) + 52) + 'px'; track.append(s);
   }
   // nodes
@@ -1428,7 +1414,7 @@ function openDaily() {
     const d = document.createElement('div');
     const claimed = i < save.daily.next, today = i === save.daily.next && dailyAvailable();
     d.className = 'day' + (r.big ? ' big' : '') + (claimed ? ' claimed' : '') + (today ? ' today' : '');
-    const iconBg = r.coins ? '' : ' style="background:radial-gradient(circle at 35% 30%,#7fc4ff,#3a72ff);border-radius:50%;padding:4px"';
+    const iconBg = r.coins ? '' : ' style="background:#2a2e36;border-radius:8px;padding:4px"';
     d.innerHTML = `<span class="dn">Day ${i + 1}</span><svg${iconBg}><use href="#${rewardIcon(r)}"/></svg><span class="amt"></span>`;
     d.querySelector('.amt').textContent = rewardText(r);
     days.append(d);
@@ -1480,7 +1466,7 @@ function updateStability() {
   const s = Math.max(0, 1 - meter);
   const el = $('stab');
   el.style.width = (s * 100) + '%';
-  el.style.background = s > 0.6 ? 'var(--green-1)' : s > 0.35 ? 'var(--gold-1)' : 'var(--danger)';
+  el.style.background = s > 0.6 ? 'var(--lime)' : s > 0.35 ? 'var(--orange)' : 'var(--danger)';
   const warn = s <= 0.4 && S.freezeT <= 0 && (S.mode === 'play' || S.mode === 'pulling' || S.mode === 'placing');
   if (warn && !$('careful').classList.contains('on')) hintBooster('freeze');
   $('careful').classList.toggle('on', warn);
@@ -1538,7 +1524,7 @@ function flyCoins(pos3, n) {
 }
 function confetti() {
   if (reduceMotion) return;
-  const cols = ['#ff3b5c', '#ffcc1f', '#35d65b', '#2b9dff', '#a65bff', '#ffffff'];
+  const cols = ['#ff6b1a', '#b4ff39', '#ffffff', '#ff9a4d', '#22e3ff'];
   for (let i = 0; i < 70; i++) {
     const c = document.createElement('div'); c.className = 'confetti';
     c.style.left = Math.random() * 100 + 'vw'; c.style.background = cols[i % cols.length];
@@ -1659,15 +1645,15 @@ function frame(now) {
     const r = tipEl.getBoundingClientRect();
     $('ring').style.left = (r.left + r.width / 2) + 'px'; $('ring').style.top = (r.top + r.height / 2) + 'px';
   }
-  if (clouds) clouds.rotation.y += dt * 0.01;
+  stepEnvironment(dt, t);
 
   updateParticles(dt);
   controls.update();
   if (shake > 0) {
     shake = Math.max(0, shake - dt * 0.3);
     shakeOff.set((Math.random() - .5) * shake, (Math.random() - .5) * shake, (Math.random() - .5) * shake);
-    camera.position.add(shakeOff); renderer.render(scene, camera); camera.position.sub(shakeOff);
-  } else renderer.render(scene, camera);
+    camera.position.add(shakeOff); composer.render(); camera.position.sub(shakeOff);
+  } else composer.render();
 }
 
 window.topple = { S, save, startPull, bank, startLevel, showMap, measureDanger, levelConfig, openDaily, claimDaily, openShop, outOfMoves };
