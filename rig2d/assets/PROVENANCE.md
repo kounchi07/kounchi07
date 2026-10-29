@@ -31,3 +31,11 @@ meme sounds. Their docs say they come from myinstants.com and are "not explicitl
 - License: "No known restrictions on images made by the U.S. Government" (HABS, loc.gov/rr/print/res/114_habs.html).
 - Verified: item record on loc.gov (rights advisory + repository fields).
 - sha256 of the main reference (photo 9, interior with counter and coffee grinders, 017834pv.jpg): e6fb657f1e91eb31ecb58a2d56b2195641195b22c8a905b04e0786d5c113875f
+
+## PyPI curl-cffi 0.16.3 (+ cffi 2.1.1, pycparser 3.11, certifi 2026.10.19) — 2026-10-29
+- What: yt-dlp's browser-impersonation add-on, installed for studying user-named videos only (user approved: "yes, install it").
+- Source: PyPI (official registry). Versions are exactly yt-dlp 2026.10.21's own pinned extra `pin-curl-cffi` (yt-dlp PyPI metadata, repo yt-dlp/yt-dlp).
+- Publisher: curl-cffi by lexiforest (repo lexiforest/curl_cffi); cffi (python-cffi/cffi); pycparser (eliben/pycparser); certifi (certifi/python-certifi).
+- License: curl-cffi MIT; cffi MIT-0; pycparser BSD-3-Clause; certifi MPL-2.0. Nothing from them goes into videos or the repo.
+- Verified: installed with `pip --only-binary :all: --require-hashes` against PyPI's sha256 for every wheel (curl-cffi 0f1f6878…).
+- Result: impersonation works, but TikTok still refused this server, so nothing was downloaded.

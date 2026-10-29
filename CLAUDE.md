@@ -62,3 +62,4 @@ cartoon-3D style. Never invent a generic stand-in ("a box with a word on it").
 | PyPI `yt-dlp` | Video download for study only | PyPI package | Unlicense |
 | PyPI `yt-dlp-ejs` 0.8.0 | yt-dlp's YouTube JS solver (run with `--js-runtimes node`) | Pinned by yt-dlp's own PyPI metadata (`default` extra); repo yt-dlp/ejs; installed with `--require-hashes` sha256 79300e5f…bdb4 | Unlicense AND MIT AND ISC |
 | npm `three` 0.186.1 | 3D engine (Three.js) for the 3D style test | npm maintainers `mrdoob`, `mugen87`, repo mrdoob/three.js; sha512 matches registry integrity | MIT |
+| PyPI `curl-cffi` 0.16.3 (+ cffi, pycparser, certifi pins) | yt-dlp impersonation add-on, study downloads only | Exactly yt-dlp's own pinned `pin-curl-cffi` extra (yt-dlp PyPI metadata); repo lexiforest/curl_cffi; installed with `--require-hashes` | MIT (cffi MIT-0, pycparser BSD-3-Clause, certifi MPL-2.0) |
