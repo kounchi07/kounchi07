@@ -441,8 +441,11 @@ def predict_live(m, video_id):
                else "➖ normal" if pace >= 0.7 else "📉 below normal")
     print(f"  Pace: {pace:.1f}x normal → {verdict}. Rough projection: ~{ts.fmt(projected)} views "
           f"(~{projected / max(base, 1):.1f}x the channel median).")
-    if pace < 0.7 and age < 3:
-        print("  Early & slow: try a new thumbnail/title now; YouTube re-tests packaging changes.")
+    if pace < 0.7 and 2 <= age < 5:
+        print("  Still slow after 2+ days: try a new thumbnail/title; YouTube re-tests packaging changes.")
+    if age < 2:
+        print("  Under 2 days old: small channels often start slow while YouTube tests the video. "
+              "Treat this verdict as provisional and check again after day 2.")
 
 
 def add_commands(sub):
