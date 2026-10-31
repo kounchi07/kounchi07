@@ -24,7 +24,7 @@ add the chapters below to the description.
 ## Chapters (for the description)
 
 ```
-0:00 Worth Less Than a Quarter
+0:00 Worth Less Than a Slice
 1:05 Five Brothers From Brittany
 3:30 The Formula
 4:20 The Cracks
@@ -43,7 +43,7 @@ add the chapters below to the description.
 
 ## Script
 
-### 0:00 Cold open: Worth Less Than a Quarter
+### 0:00 Cold open: Worth Less Than a Slice
 
 In 2025, the Chinese giant Tencent paid **one point one six billion euros** for a minority
 stake in a new company that holds just three of Ubisoft's series: Assassin's Creed, Far Cry
@@ -63,8 +63,8 @@ dollars' worth of free currency inside their biggest online game.
 `[VISUAL: quick cuts: "CANCELLED" stamps, a locked studio door, a hacker silhouette, coins raining]`
 
 So how does the company that made Assassin's Creed end up worth less than what someone paid
-for a slice of just three of its games? To answer that, you have to see how high Ubisoft climbed. The way it
-climbed is exactly how it fell.
+for a slice of just three of its games? To answer that, you have to see how high Ubisoft
+climbed. The way it climbed is exactly how it fell.
 `[VISUAL: title card: UBISOFT, with a crack running through the logo]`
 
 ### 1:05 Five Brothers From Brittany
@@ -117,7 +117,7 @@ That same year, Ubisoft's share price hits its all-time high.
 They had beaten a billionaire. They had built worlds millions of people loved. And they had
 found something even more valuable: a formula.
 
-### 3:10 The Formula
+### 3:30 The Formula
 
 Here's how it worked. Build a huge open world. Cover the map in icons: towers to climb,
 outposts to capture, collectibles to find. Climb a tower and the map reveals more icons.
@@ -134,7 +134,7 @@ add more icons.
 
 But a formula only works as long as the people buying it haven't noticed it's a formula.
 
-### 3:55 The Cracks
+### 4:20 The Cracks
 
 The first cracks showed up in 2014.
 
@@ -154,7 +154,7 @@ Ubisoft apologized. And here's the dangerous part: **both games still sold milli
 
 When you ship a broken game and still make your money, you learn the wrong lesson.
 
-### 4:40 The Belief
+### 5:30 The Belief
 
 Somewhere along the way, Ubisoft stopped asking what players wanted, and started believing
 one thing. Every decision after this point traces back to that one sentence:
@@ -174,7 +174,7 @@ had shaped what a Ubisoft game felt like for years **[CHECK: July 2020 departure
 
 The person most responsible for the creative direction was gone. The formula stayed.
 
-### 5:20 Pirates for a Decade
+### 6:40 Pirates for a Decade
 
 Start with the pirates.
 
@@ -198,7 +198,7 @@ eleven years of work quietly faded **[CHECK: review scores / player numbers]**.
 
 But before that ship even sailed, Ubisoft tried something stranger.
 
-### 6:20 Selling Pixels
+### 8:00 Selling Pixels
 
 December 2021. Ubisoft launches **Quartz**, a platform selling NFTs, which were unique
 digital items on a blockchain, inside *Ghost Recon Breakpoint*. A helmet. A gun. Each with
@@ -216,7 +216,7 @@ asking how to make more money from the same players, not how to give them a reas
 But one failure, or two, couldn't slow Ubisoft down. Because the next game had the biggest
 brand in movie history behind it.
 
-### 6:50 The Bad Guess
+### 9:00 The Bad Guess
 
 August 2024. *Star Wars Outlaws*. The first open-world Star Wars game ever made.
 `[VISUAL: a lone smuggler on a desert planet; twin suns setting]`
@@ -259,10 +259,9 @@ delayed, delayed again, and then moved to a different studio to be rebuilt from 
 `[VISUAL: an hourglass whose sand runs out, flips itself, and runs out again]`
 
 The one thing players asked for kept slipping away, while the things nobody asked for kept
-shipping. And then Ubisoft did something that
-made players angrier than any bad game.
+shipping. And then Ubisoft did something that made players angrier than any bad game.
 
-### 8:10 The Game You Bought and Lost
+### 10:40 The Game You Bought and Lost
 
 *The Crew* was a racing game you paid full price for. In 2024, Ubisoft switched off its
 servers, and because the game needed those servers to run, the game simply stopped working.
@@ -277,7 +276,7 @@ he said, need to get "**comfortable with not owning**" their games, the same way
 used to not owning movies on Netflix **[CHECK: Philippe Tremblay quote, 2024]**.
 `[VISUAL: a game box turning transparent, then into a monthly invoice]`
 
-That decision started a movement called **Stop Killing Games**. It became a European
+Shutting down *The Crew* started a movement called **Stop Killing Games**. It became a European
 citizens' petition that passed **one million signatures**, demanding that companies stop
 deleting games people paid for **[CHECK: ECI signature count + date]**.
 `[VISUAL: a petition counter racing past one million; a crowd of player silhouettes behind it]`
@@ -285,7 +284,7 @@ deleting games people paid for **[CHECK: ECI signature count + date]**.
 To players, the message was clear. Ubisoft didn't think of you as a player. It thought of
 you as a subscriber.
 
-### 9:20 Locked Out of Their Own Game
+### 11:50 Locked Out of Their Own Game
 
 Then came the hack.
 
@@ -303,7 +302,7 @@ Ubisoft rolled back purchases and handed out login rewards as an apology. For we
 company that wanted you to live inside its games couldn't keep its own front door locked.
 `[VISUAL: a castle gate swinging open in the wind, an empty throne room behind it]`
 
-### 10:40 Let's Be Fair
+### 12:50 Let's Be Fair
 
 At this point, let's be fair to Ubisoft. Was all of this self-inflicted?
 
@@ -321,7 +320,7 @@ But here's the thing. Its competitors went through the same storm, and most of t
 lose more than ninety-five percent of their value **[CHECK: % drop from 2018 peak]**.
 Ubisoft's problem wasn't the weather. It was the ship.
 
-### 12:20 The Reset
+### 13:50 The Reset
 
 November 2025. Hours before it was due to publish its half-year results, Ubisoft postponed
 them and asked the Paris stock exchange to **suspend trading in its own shares**. For about
@@ -358,7 +357,7 @@ a fraction of what Vivendi would have paid for it.
 The company that once fought off a billionaire's takeover is now worth less than the price
 someone paid for a minority stake in three of its games.
 
-### 14:10 What Ubisoft Forgot
+### 15:20 What Ubisoft Forgot
 
 So, is Ubisoft finally getting what it deserves?
 
@@ -395,7 +394,7 @@ every week.
 |---|---|---|
 | Hook | 9/10 | Strong paradox with numbers in the first 15 seconds. Keep the €1.16B → €680M contrast on screen as text. |
 | Curiosity gaps | 8/10 | "The Formula" closes too neatly. Ending on "…hasn't noticed it's a formula" already pulls the viewer forward. |
-| Escalation | 8/10 | Pirates → Star Wars → deleted game → hack → trading halt gets worse each time. The hack could hit harder: open it with the 67-day ban line. |
+| Escalation | 8/10 | Pirates → NFTs → Star Wars → XDefiant → deleted game → hack → trading halt gets worse each time. The hack could hit harder: open it with the 67-day ban line. |
 | Specificity | 9/10 | 20+ numbers and names. Many are marked [CHECK], so verify before recording. |
 | Pacing | 7/10 | "Let's Be Fair" is the slowest stretch. Keep it under 90 seconds of voiceover and cut visuals faster there. |
 | Payoff | 9/10 | The ending answers the cold open's question and calls back to the brothers and the €680M. |
