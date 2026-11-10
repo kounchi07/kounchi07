@@ -81,8 +81,21 @@ def setting(name, default=None):
     return default
 
 
+def load_keys():
+    """All configured keys, in the order they are used: YOUTUBE_API_KEYS=k1,k2 and/or
+    YOUTUBE_API_KEY, YOUTUBE_API_KEY_2 … YOUTUBE_API_KEY_9."""
+    keys = [k.strip() for k in (setting("YOUTUBE_API_KEYS") or "").split(",") if k.strip()]
+    keys += [setting(n) for n in ["YOUTUBE_API_KEY"] + [f"YOUTUBE_API_KEY_{i}" for i in range(2, 10)]]
+    return list(dict.fromkeys(k for k in keys if k))
+
+
 def load_key():
-    return setting("YOUTUBE_API_KEY")
+    keys = load_keys()
+    return keys[0] if keys else None
+
+
+def key_id(key):
+    return hashlib.sha1(key.encode()).hexdigest()[:8]
 
 
 def need_key():
@@ -104,6 +117,8 @@ def db():
         _db = sqlite3.connect(CACHE_DB)
         _db.execute("CREATE TABLE IF NOT EXISTS cache (k TEXT PRIMARY KEY, kind TEXT, at REAL, v TEXT)")
         _db.execute("CREATE TABLE IF NOT EXISTS quota (day TEXT PRIMARY KEY, units INTEGER)")
+        _db.execute("CREATE TABLE IF NOT EXISTS key_quota (day TEXT, kid TEXT, units INTEGER, "
+                    "PRIMARY KEY (day, kid))")
     return _db
 
 
@@ -132,10 +147,34 @@ def units_today():
     return row[0] if row else 0
 
 
-def spend(units):
+def key_units(kid):
+    row = db().execute("SELECT units FROM key_quota WHERE day=? AND kid=?", (quota_day(), kid)).fetchone()
+    if row:
+        return row[0]
+    # Usage logged before per-key tracking existed belongs to the first key.
+    keys = load_keys()
+    if keys and kid == key_id(keys[0]):
+        return units_today() - (db().execute("SELECT COALESCE(SUM(units),0) FROM key_quota WHERE day=?",
+                                             (quota_day(),)).fetchone()[0])
+    return 0
+
+
+def spend(units, kid=None):
     db().execute("INSERT INTO quota VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET units = units + ?",
                  (quota_day(), units, units))
+    if kid:
+        current = key_units(kid)
+        db().execute("REPLACE INTO key_quota VALUES (?,?,?)", (quota_day(), kid, current + units))
     db().commit()
+
+
+def active_key(cost):
+    """First key with room left under today's budget; None when every key is spent."""
+    budget = int(setting("TUBESCOUT_DAILY_BUDGET", DEFAULT_BUDGET))
+    for key in load_keys():
+        if key_units(key_id(key)) + cost <= budget:
+            return key
+    return None
 
 
 def api(endpoint, key, **params):
@@ -143,17 +182,30 @@ def api(endpoint, key, **params):
     k, hit = cache_get(endpoint, ident)
     if hit is not None:
         return hit
+    cost = QUOTA_COST.get(endpoint, 1)
     budget = int(setting("TUBESCOUT_DAILY_BUDGET", DEFAULT_BUDGET))
-    if units_today() + QUOTA_COST.get(endpoint, 1) > budget:
-        sys.exit(f"Daily budget reached ({units_today()}/{budget} units). Cached results still work; "
-                 "fresh data resumes after midnight Pacific. Raise TUBESCOUT_DAILY_BUDGET to override.")
-    r = requests.get(f"{API}/{endpoint}", params={**params, "key": key}, timeout=30)
-    data = r.json()
-    if "error" in data:
-        sys.exit(f"YouTube API error: {data['error'].get('message')}")
-    spend(QUOTA_COST.get(endpoint, 1))
-    cache_put(k, endpoint, data)
-    return data
+    while True:
+        # `key` from the caller only says "a key exists"; the active key is chosen here so a
+        # run can roll over to the next configured key when one runs out.
+        use = active_key(cost)
+        if not use:
+            sys.exit(f"Daily budget reached on all {len(load_keys())} key(s) ({budget} units each). "
+                     "Cached results still work; fresh data resumes after midnight Pacific.")
+        r = requests.get(f"{API}/{endpoint}", params={**params, "key": use}, timeout=30)
+        data = r.json()
+        err = data.get("error")
+        if err and any(e.get("reason") in ("quotaExceeded", "dailyLimitExceeded")
+                       for e in err.get("errors", [])):
+            # YouTube says this key is out for today; mark it spent and try the next one.
+            db().execute("REPLACE INTO key_quota VALUES (?,?,?)", (quota_day(), key_id(use), budget))
+            db().commit()
+            print(f"  (key …{use[-4:]} hit YouTube's daily quota; switching to the next key)", file=sys.stderr)
+            continue
+        if err:
+            sys.exit(f"YouTube API error: {err.get('message')}")
+        spend(cost, key_id(use))
+        cache_put(k, endpoint, data)
+        return data
 
 
 def chunks(seq, n):
@@ -964,7 +1016,14 @@ def cmd_quota(a):
     rows = db().execute("SELECT day, units FROM quota ORDER BY day DESC LIMIT 7").fetchall()
     today = dict(rows).get(quota_day(), 0)
     n = db().execute("SELECT COUNT(*) FROM cache").fetchone()[0]
-    print(f"Today: {today} / 10,000 units used ({10_000 - today} left). Cached responses: {n}.")
+    keys = load_keys()
+    budget = int(setting("TUBESCOUT_DAILY_BUDGET", DEFAULT_BUDGET))
+    print(f"Today: {today} units used across {len(keys)} key(s); budget {budget:,} per key. "
+          f"Cached responses: {n}.")
+    for i, key in enumerate(keys, 1):
+        used = key_units(key_id(key))
+        state = "spent" if used >= budget else "active" if key == active_key(1) else "ready"
+        print(f"  key {i} (…{key[-4:]}): {used:,} / {budget:,}  [{state}]")
     for day, units in rows:
         print(f"  {day}: {units}")
     if a.clear:

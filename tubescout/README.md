@@ -192,6 +192,19 @@ day costs **0 units**. Video stats are reused for 6 hours, searches and channels
 hours, autocomplete for a week, and transcripts permanently. Add `--fresh` to force new
 data, for example `python tubescout.py --fresh channel @x`.
 
+**More than one key:** add each one to `.env`. TubeScout uses the first key until it reaches
+the daily budget, or until YouTube says that key is out of quota, then moves to the next one.
+`python tubescout.py quota` shows usage per key.
+
+```
+YOUTUBE_API_KEY=first_key
+YOUTUBE_API_KEY_2=second_key        # YOUTUBE_API_KEY_3 … _9 also work
+```
+
+YouTube's developer policies don't allow creating several projects for one use case to get
+around the quota, and keys that do this can be suspended. The approved route is a free quota
+increase request in Google Cloud (APIs & Services → YouTube Data API v3 → Quotas).
+
 There is also a **daily budget**. TubeScout stops at 9,000 units a day, so it never hits
 YouTube's 10,000 limit in the middle of a run. Cached results keep working after that.
 Change it with `TUBESCOUT_DAILY_BUDGET=...` in `.env`.
