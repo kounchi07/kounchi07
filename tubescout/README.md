@@ -185,6 +185,27 @@ What the first runs found (Nov 2026):
   a 2.3K-subscriber channel) or **found a new angle and a stronger title** (BA 5390: 511K on
   1.3K subscribers, with "Sucked Out… at 17,000 Feet").
 
+### Breaking-stories scanner (`fresh`)
+
+`fresh` searches Shorts published in the **last 72 hours** across 15 story-event keywords
+(rescued, survived, trapped, plane emergency, sinkhole, heist and others) and ranks them by:
+- **views per hour**
+- **reach:** views ÷ the channel's subscribers (high means YouTube is pushing it to new viewers)
+- **channels covering it:** how many channels have already posted the same story
+
+Each story gets 🚀 EARLY (1–2 channels), ⚡ HEATING (3–5) or 🔥 CROWDING (6+). Games, sports,
+edits and trends are filtered out.
+
+```bash
+python tubescout.py fresh                                  # about 1,500 units; a rerun within the hour is free
+python tubescout.py fresh --hours 48 --queries "cave rescue" "lottery winner" "shipwreck"
+```
+
+**How to use it:** look through the 🚀 EARLY items for **real events** you can confirm in news
+reports. Make your version **the same day**, with your own angle and a stronger title. The list
+still needs a human eye, because some fast-moving Shorts are movie clips or staged "survival
+skills" videos.
+
 ### Saving your free quota
 
 Every API answer is saved in `tubescout/cache.db`. Running the same search again the same

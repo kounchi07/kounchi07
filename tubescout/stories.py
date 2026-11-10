@@ -314,7 +314,141 @@ def cmd_saturation(a):
         print(f"  Best: {ts.fmt(s['best'])} views — {s['best_title']}. Median: {ts.fmt(s['median'])}.")
 
 
+# ---------------------------------------------------------------- breaking stories
+
+FRESH_QUERIES = [
+    "rescued", "survived", "trapped", "missing found", "plane emergency", "pilot", "crash",
+    "sinkhole", "stranded", "heist", "escaped", "discovered", "attack", "miracle", "shocking news",
+]
+
+
+# Fast-moving Shorts that aren't stories you can retell: games, sports, edits, trends.
+NOT_STORY = re.compile(
+    r"beamng|roblox|fortnite|minecraft|gmod|gta\b|\bedit\b|anime|attack on titan|motogp|motocross|"
+    r"\bufc\b|\bnba\b|\bnfl\b|football|cricket|trend|challenge|prank|asmr|gameplay|\bbaldi\b|"
+    r"steal ?an ?egg|caylus|surron|ebike|\bfyp|tiktok", re.I)
+NOT_STORY_CATEGORIES = {"10", "17", "20"}  # Music, Sports, Gaming
+
+
+def fresh_same_story(a, b, rare_words):
+    """Within a 72h window one shared rare word (a name, a place, an aircraft) is enough.
+    Rare = outside the top-10k English words, so 'pilot' or 'crash' never qualify."""
+    return same_story(a, b) or bool(a & b & rare_words)
+
+
+def fresh_verdict(n_channels):
+    if n_channels <= 2:
+        return "🚀 EARLY"
+    if n_channels <= 5:
+        return "⚡ HEATING"
+    return "🔥 CROWDING"
+
+
+def cmd_fresh(a):
+    """Shorts from the last N hours gaining views fast, grouped by story, with copy counts."""
+    key = ts.need_key()
+    before = ts.units_today()
+    # Hour-rounded window so a rerun within the same hour hits the cache.
+    since = datetime.now(timezone.utc) - timedelta(hours=a.hours)
+    after = since.strftime("%Y-%m-%dT%H:00:00Z")
+    ids = {}
+    for q in a.queries or FRESH_QUERIES:
+        print(f"  scanning: {q}", file=sys.stderr)
+        params = dict(part="id", q=q, type="video", order="viewCount", maxResults=50,
+                      publishedAfter=after, videoDuration="short")
+        if a.lang:
+            params["relevanceLanguage"] = a.lang
+        data = ts.api("search", key, **params)
+        for i in data.get("items", []):
+            ids[i["id"]["videoId"]] = q
+    vids = [v for v in ts.video_details(list(ids), key) if v["seconds"] <= 180]
+    if a.lang == "en":
+        vids = [v for v in vids if sum(ord(ch) > 0x24F for ch in v["title"]) <= len(v["title"]) * 0.1]
+    vids = [v for v in vids if is_story(v["title"]) and not NOT_STORY.search(v["title"])
+            and v.get("category") not in NOT_STORY_CATEGORIES
+            and (not a.lang or (v.get("audio_lang") or a.lang).startswith(a.lang))
+            and ts.age_days(v["published"]) * 24 <= a.hours]
+    chans = ts.channel_info({v["channel_id"] for v in vids}, key)
+    for v in vids:
+        hours = max(ts.age_days(v["published"]) * 24, 0.5)
+        subs = chans.get(v["channel_id"], {}).get("subs", 0)
+        v["hours"], v["vph"], v["subs"] = hours, v["views"] / hours, subs
+        # Views far beyond the subscriber count = YouTube is pushing it to new viewers.
+        v["reach"] = v["views"] / max(subs, 100)
+    vids = [v for v in vids if v["views"] >= a.min_views]
+
+    # Group by story; a story's copy count is how many channels already posted it in the window.
+    common = ts.common_words()
+    df = defaultdict(int)
+    for v in vids:
+        for t in story_tokens(v["title"]):
+            df[t] += 1
+    rare_words = {t for t, n in df.items() if n >= 2 and len(t) >= 5 and not t.isdigit()
+                  and t not in common}
+    groups = []
+    for v in sorted(vids, key=lambda v: -v["vph"]):
+        toks = story_tokens(v["title"])
+        for g in groups:
+            if fresh_same_story(toks, g["seed"], rare_words):
+                g["videos"].append(v)
+                break
+        else:
+            groups.append({"seed": set(toks), "videos": [v]})
+    rows = []
+    for g in groups:
+        vs = g["videos"]
+        top = max(vs, key=lambda v: v["vph"])
+        n = len({v["channel_id"] for v in vs})
+        score = math.log10(max(top["vph"], 1)) * math.log10(max(top["reach"], 1.1) * 10) / n ** 0.5
+        rows.append({"top": top, "channels": n, "verdict": fresh_verdict(n), "score": score,
+                     "total_views": sum(v["views"] for v in vs)})
+    rows.sort(key=lambda r: -r["score"])
+    rows = rows[:a.limit]
+
+    print(f"\n{'':12} {'views/hr':>8} {'views':>7} {'reach':>6} {'chans':>5} {'age':>5}  story")
+    for r in rows:
+        v = r["top"]
+        print(f"{r['verdict']:12} {ts.fmt(v['vph']):>8} {ts.fmt(v['views']):>7} {v['reach']:>5.0f}x "
+              f"{r['channels']:>5} {v['hours']:>4.0f}h  {v['title'][:70]}  — {v['channel']} "
+              f"({ts.fmt(v['subs'])} subs)")
+    print(f"\nReach = views ÷ subscribers (high = YouTube is pushing it to new people).")
+    print(f"Units used: {ts.units_today() - before}")
+
+    sec = [f"<p class=muted>Story Shorts published in the last {a.hours} hours, ranked by speed (views per "
+           "hour), reach (views ÷ the channel's subscribers) and how few channels have covered the story "
+           "so far. 🚀 EARLY = 1–2 channels: make your version today, with your own angle and a "
+           "stronger title. Always check the facts in real news reports first.</p>"
+           "<div class=wrap><table><tr><th></th><th>Verdict</th><th>Story</th><th>Views/hr</th>"
+           "<th>Views</th><th>Reach</th><th>Channels</th><th>Age</th></tr>"]
+    for r in rows:
+        v = r["top"]
+        url = f"https://www.youtube.com/shorts/{v['id']}"
+        sec.append(f"<tr><td><a href='{url}'><img loading=lazy src='https://i.ytimg.com/vi/{v['id']}/mqdefault.jpg'>"
+                   f"</a></td><td>{r['verdict']}</td><td><a href='{url}'>{html.escape(v['title'])}</a><br>"
+                   f"<span class=muted>{html.escape(v['channel'])} · {ts.fmt(v['subs'])} subs</span></td>"
+                   f"<td class=n>{ts.fmt(v['vph'])}</td><td class=n>{ts.fmt(v['views'])}</td>"
+                   f"<td class=n>{v['reach']:.0f}x</td><td class=n>{r['channels']}</td>"
+                   f"<td class=n>{v['hours']:.0f}h</td></tr>")
+    sec.append("</table></div>")
+    path = ts.write_report("fresh", f"Breaking stories: last {a.hours} hours", sec)
+    (ts.REPORTS / "fresh.json").write_text(json.dumps(
+        [{"verdict": r["verdict"], "title": r["top"]["title"], "video": r["top"]["id"],
+          "channel": r["top"]["channel"], "subs": r["top"]["subs"], "views": r["top"]["views"],
+          "views_per_hour": round(r["top"]["vph"]), "reach": round(r["top"]["reach"], 1),
+          "channels_covering": r["channels"], "hours_old": round(r["top"]["hours"], 1)} for r in rows],
+        indent=1))
+    print(f"Report: {path}")
+
+
 def add_commands(sub):
+    f = sub.add_parser("fresh", help="breaking story Shorts from the last 72h, before the copies arrive")
+    f.add_argument("--hours", type=int, default=72, help="look-back window")
+    f.add_argument("--queries", nargs="*", help="event keywords to scan (100 units each)")
+    f.add_argument("--min-views", type=int, default=20_000)
+    f.add_argument("--limit", type=int, default=30)
+    f.add_argument("--lang", default="en", help="'' to include every language")
+    f.set_defaults(fn=cmd_fresh)
+
     s = sub.add_parser("stories", help="proven story Shorts that aren't saturated yet")
     s.add_argument("--channels", nargs="*", help="extra channels to harvest (@handles or UC… ids)")
     s.add_argument("--seed", action="store_true", help="also search YouTube for more story channels (~1,200 units)")
