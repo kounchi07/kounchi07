@@ -156,6 +156,35 @@ For a live video, `predict <url>` compares its views with the channel's normal p
 same age, using a growth curve learned from the cached videos. If it's behind after a day,
 change the thumbnail or title.
 
+### Story engine (`stories`, `saturation`)
+
+`stories` pulls the full libraries of 20 story-Shorts channels (Zack D. Films, Athena_Explains,
+History Explained, Global Secrets, True Tales, World explained and others). It groups videos
+that tell the same story, keeps the stories that are **proven** (300K+ views, or 10x+ the
+channel's normal), skips stories still in a copy wave, and then searches each candidate to
+measure **saturation**:
+- how many channels told it as a Short in the past year
+- how many did so in the last 30 days
+- the median views of those retellings
+- how many retellings broke 100K, especially on small channels
+
+Each story is ranked 🟢 OPEN, 🟢 RIPE, 🟡 WARM or 🔴 CROWDED.
+
+```bash
+python tubescout.py stories                                   # about 1,600 units the first time, then mostly cached
+python tubescout.py stories --channels @somechannel --check 10
+python tubescout.py saturation "lake peigneur salt mine oil rig"   # check one story, about 100 units
+```
+
+What the first runs found (Nov 2026):
+- **Copies of mega-hits don't work.** Zack D. Films stories with 36–52M views get copied by
+  16–48 channels, and those copies get a median of about 1,300 views.
+- **About 5–10% of retellings break 100K**, and the ones that do are mostly on established
+  channels.
+- Small channels won when they **got to a news story first** (the flydubai stabbing: 3.6M on
+  a 2.3K-subscriber channel) or **found a new angle and a stronger title** (BA 5390: 511K on
+  1.3K subscribers, with "Sucked Out… at 17,000 Feet").
+
 ### Saving your free quota
 
 Every API answer is saved in `tubescout/cache.db`. Running the same search again the same

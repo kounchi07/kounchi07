@@ -15,6 +15,7 @@ Does the core of what paid "outlier finder" tools do:
   topics   <queries...>    Which subjects (brands, people, places) are hot vs saturated.
   watch / dashboard        Track channels over time, get breakout alerts, see charts.
   predict  <title|url>     Viral odds for an idea, or early verdict on a live video.
+  stories / saturation     Proven story Shorts that aren't saturated; how crowded a story is.
   quota                    API units used today; every response is cached in cache.db.
 
 Every command writes an HTML report to ./reports/.
@@ -1040,7 +1041,7 @@ def main():
     tp.add_argument("--lang", default="en")
     tp.set_defaults(fn=cmd_topics)
 
-    for module in ("tracker", "model"):
+    for module in ("tracker", "model", "stories"):
         try:
             __import__(module).add_commands(sub)
         except ImportError as e:
