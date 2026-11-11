@@ -39,10 +39,10 @@ const camera = new THREE.PerspectiveCamera(42, W / H, 0.05, 600);
 
 // ---------- helpers ----------
 const INK = new THREE.MeshBasicMaterial({ color: '#2a1a14', side: THREE.BackSide });
-INK.onBeforeCompile = sh => { sh.uniforms.thick = { value: 0.02 }; sh.vertexShader = 'uniform float thick;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize(objectNormal) * thick;'); };
+INK.onBeforeCompile = sh => { sh.uniforms.thick = { value: 0.02 }; sh.vertexShader = 'uniform float thick;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize(normal) * thick;'); };
 function outlined(mesh, parent, o = {}) {
   mesh.castShadow = o.cast !== false; mesh.receiveShadow = true; parent.add(mesh);
-  if (o.ink !== false) { const hull = new THREE.Mesh(mesh.geometry, o.inkMat || INK); hull.position.copy(mesh.position); hull.rotation.copy(mesh.rotation); hull.scale.copy(mesh.scale); parent.add(hull); mesh.userData.hull = hull; }
+  if (o.ink !== false) { const hull = new THREE.Mesh(mesh.geometry, o.inkMat || INK); hull.raycast = () => {}; mesh.add(hull); mesh.userData.hull = hull; }
   return mesh;
 }
 function canvasTex(w, h, draw, repeat) {

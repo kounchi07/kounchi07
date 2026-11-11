@@ -1,0 +1,219 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+</head><body>
+<!-- "LOVE" edit-style test (~12.5 s), all original: our emu striker in a floodlit stadium, a 3D LOVE word placed in
+     each shot (the player passes in front of it), 4 shots x 8 beats at 161 BPM (stories/love10/music.py), slow-motion
+     bicycle kick, zoom-blur + flash on every downbeat, teal/warm grade, glow, vignette, grain.
+     Render from rig2d/: node tools/render.js 3d/love10.html out/love --serve --mp4 out/love10.mp4 --audio out/love_music.wav -->
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EmuKit } from './emu_model.js';
+
+const W = 1080, H = 1920;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+let seed = 33; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const rr = (a, b) => a + (b - a) * rnd(), pick = a => a[Math.floor(rnd() * a.length)];
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+scene.fog = new THREE.Fog('#1a2440', 70, 160);
+const camera = new THREE.PerspectiveCamera(38, W / H, 0.05, 400);
+
+// ---------- helpers ----------
+const INK = new THREE.MeshBasicMaterial({ color: '#1a1014', side: THREE.BackSide });
+INK.onBeforeCompile = sh => { sh.uniforms.thick = { value: 0.018 }; sh.vertexShader = 'uniform float thick;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize(normal) * thick;'); };
+function outlined(mesh, parent, o = {}) {
+  mesh.castShadow = o.cast !== false; mesh.receiveShadow = true; parent.add(mesh);
+  if (o.ink !== false) { const hull = new THREE.Mesh(mesh.geometry, INK); hull.raycast = () => {}; mesh.add(hull); }
+  return mesh;
+}
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
+  return t;
+}
+const std = (color, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.75 }, o));
+const { makeEmu, poseEmu } = EmuKit(THREE, { outlined, canvasTex, std, rr, pick });
+
+// ---------- night sky ----------
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(300, 32, 16), new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false, map: canvasTex(16, 512, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#050a1e'); gr.addColorStop(0.45, '#14204a'); gr.addColorStop(0.5, '#3a3a6a'); gr.addColorStop(1, '#101018'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }) })));
+
+// ---------- pitch: mown stripes, line markings ----------
+const PW = 68, PL = 105;
+const pitchTex = canvasTex(1360, 2100, (g, w, h) => {
+  for (let i = 0; i < 18; i++) { g.fillStyle = i % 2 ? '#2f8a3a' : '#3a9a44'; g.fillRect(0, i * h / 18, w, h / 18 + 1); }
+  for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '20,60,20' : '120,190,90'},${rr(0.05, 0.15)})`; g.fillRect(rr(0, w), rr(0, h), rr(2, 6), rr(2, 6)); }
+  const s = w / PW; g.strokeStyle = '#f4f4ec'; g.lineWidth = 0.14 * s;
+  g.strokeRect(2 * s, 2 * s, w - 4 * s, h - 4 * s); g.beginPath(); g.moveTo(2 * s, h / 2); g.lineTo(w - 2 * s, h / 2); g.stroke();
+  g.beginPath(); g.arc(w / 2, h / 2, 9.15 * s, 0, 7); g.stroke(); g.fillStyle = '#f4f4ec'; g.beginPath(); g.arc(w / 2, h / 2, 0.3 * s, 0, 7); g.fill();
+  for (const y of [2 * s, h - 2 * s]) { const d = y < h / 2 ? 1 : -1; g.strokeRect(w / 2 - 20.16 * s, y - (d < 0 ? 16.5 * s : 0), 40.32 * s, 16.5 * s); g.strokeRect(w / 2 - 9.16 * s, y - (d < 0 ? 5.5 * s : 0), 18.32 * s, 5.5 * s); g.beginPath(); g.arc(w / 2, y + d * 11 * s, 0.3 * s, 0, 7); g.fill(); g.beginPath(); g.arc(w / 2, y + d * 11 * s, 9.15 * s, d > 0 ? 0.65 : Math.PI + 0.65, d > 0 ? Math.PI - 0.65 : 2 * Math.PI - 0.65); g.stroke(); }
+});
+const pitch = new THREE.Mesh(new THREE.PlaneGeometry(PW, PL), std('#ffffff', { map: pitchTex, roughness: 0.9 })); pitch.rotation.x = -Math.PI / 2; pitch.receiveShadow = true; scene.add(pitch);
+const apron = new THREE.Mesh(new THREE.PlaneGeometry(PW + 30, PL + 30), std('#2a6a30', { roughness: 1 })); apron.rotation.x = -Math.PI / 2; apron.position.y = -0.01; scene.add(apron);
+// goals (posts, crossbar, net)
+for (const d of [-1, 1]) {
+  const g = new THREE.Group(); g.position.set(0, 0, d * (PL / 2 - 2)); g.rotation.y = d > 0 ? 0 : Math.PI; scene.add(g);
+  const post = std('#ffffff', { roughness: 0.3 });
+  for (const x of [-3.66, 3.66]) outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.44, 12), post), g).position.set(x, 1.22, 0);
+  const bar = outlined(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 7.44, 12), post), g); bar.rotation.z = Math.PI / 2; bar.position.y = 2.44;
+  const net = new THREE.Mesh(new THREE.BoxGeometry(7.32, 2.44, 2, 24, 8, 6), new THREE.MeshBasicMaterial({ color: '#e8e8e8', wireframe: true, transparent: true, opacity: 0.35 })); net.position.set(0, 1.22, d > 0 ? 1 : 1); g.add(net);
+}
+// pitch-side LED boards (invented sponsors)
+const ADS = [['EMU COLA', '#d8202a'], ['WHEATBELT BANK', '#1a5ad8'], ['OUTBACK AIR', '#f0a020'], ['GUMTREE TEA', '#2a9a4a'], ['RED DUST TYRES', '#c83a1a'], ['SOUTHERN STAR', '#6a2ad8']];
+for (let i = 0; i < 18; i++) {
+  const [txt, col] = ADS[i % ADS.length];
+  const tex = canvasTex(1024, 128, (g, w, h) => { g.fillStyle = '#0a0a12'; g.fillRect(0, 0, w, h); g.fillStyle = col; g.fillRect(8, 8, w - 16, h - 16); g.fillStyle = '#ffffff'; g.font = 'bold 84px Inter'; g.textAlign = 'center'; g.fillText(txt, w / 2, 98); g.fillStyle = 'rgba(0,0,0,.25)'; for (let y = 0; y < h; y += 4) g.fillRect(0, y, w, 1); });
+  const b = new THREE.Mesh(new THREE.BoxGeometry(8, 0.9, 0.12), [std('#111'), std('#111'), std('#111'), std('#111'), new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.9 }), std('#111')]);
+  const side = Math.floor(i / 9), k = i % 9; b.position.set(side ? PW / 2 + 3 : -PW / 2 - 3, 0.45, -PL / 2 + 8 + k * 11); b.rotation.y = side ? -Math.PI / 2 : Math.PI / 2; scene.add(b);
+}
+// stands: tiers of seats packed with a crowd (one instanced draw call), each fan a coloured block with a pale head
+const STAND = []; { const tiers = 18, perRow = 260; const body = new THREE.BoxGeometry(0.42, 0.55, 0.3), N = tiers * perRow * 4;
+  const crowd = new THREE.InstancedMesh(body, std('#ffffff', { roughness: 0.8 }), N), heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 8, 6), std('#e8c8b0'), N);
+  const m = new THREE.Matrix4(), c = new THREE.Color(); let n = 0;
+  const shirt = () => pick(['#d8202a', '#d8202a', '#d8202a', '#ffffff', '#ffffff', '#1a1a1a', '#f0c020', '#2a4ad8']);
+  for (const [ax, len, off, rot] of [['z', PL + 20, PW / 2 + 8, 0], ['z', PL + 20, -PW / 2 - 8, Math.PI], ['x', PW + 20, PL / 2 + 8, -Math.PI / 2], ['x', PW + 20, -PL / 2 - 8, Math.PI / 2]]) {
+    const stepM = new THREE.Mesh(new THREE.BoxGeometry(ax === 'z' ? tiers * 0.9 : len, 0.1, ax === 'z' ? len : tiers * 0.9), std('#3a3a48'));
+    for (let r = 0; r < tiers; r++) {
+      const st = stepM.clone(); st.scale.set(ax === 'z' ? 1 / tiers : 1, 1, ax === 'z' ? 1 : 1 / tiers);
+      const d = Math.sign(off) * (Math.abs(off) + r * 0.9), y = 0.6 + r * 0.55;
+      if (ax === 'z') st.position.set(d, y, 0); else st.position.set(0, y, d); st.scale.y = 5.5 * 1; st.position.y = y - 0.28; scene.add(st);
+      for (let i = 0; i < perRow && n < N; i++) {
+        const u = -len / 2 + (i + rr(0, 0.6)) * len / perRow, jitter = rr(-0.08, 0.08);
+        const p = ax === 'z' ? new THREE.Vector3(d + jitter, y + 0.3, u) : new THREE.Vector3(u, y + 0.3, d + jitter);
+        m.makeTranslation(p.x, p.y, p.z); crowd.setMatrixAt(n, m); crowd.setColorAt(n, c.set(shirt()));
+        m.makeTranslation(p.x, p.y + 0.42, p.z); heads.setMatrixAt(n, m); heads.setColorAt(n, c.set(pick(['#f0d0b8', '#c89070', '#8a5a3a', '#e8b890']))); n++;
+      }
+    }
+  }
+  crowd.count = heads.count = n; scene.add(crowd, heads); }
+// camera flashes in the crowd (sprites that blink deterministically)
+const flashTex = canvasTex(64, 64, (g, w, h) => { const gr = g.createRadialGradient(32, 32, 1, 32, 32, 32); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.3, 'rgba(255,255,240,.8)'); gr.addColorStop(1, 'rgba(255,255,240,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const flashes = []; for (let i = 0; i < 160; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: flashTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); const side = i % 4;
+  const u = rr(-0.5, 0.5), r = rr(0, 17) * 0.9; if (side < 2) s.position.set((side ? 1 : -1) * (PW / 2 + 8 + r), 1 + r / 0.9 * 0.55, u * (PL + 20)); else s.position.set(u * (PW + 20), 1 + r / 0.9 * 0.55, (side === 2 ? 1 : -1) * (PL / 2 + 8 + r));
+  s.scale.setScalar(1.2); s.userData.ph = rr(0, 50); scene.add(s); flashes.push(s); }
+// floodlight towers: lattice mast + a bank of lamps (emissive, they bloom)
+const lampTex = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#222'; g.fillRect(0, 0, w, h); for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) { const gr = g.createRadialGradient(22 + c * 42, 22 + r * 42, 2, 22 + c * 42, 22 + r * 42, 18); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#ffe8b0'); g.fillStyle = gr; g.beginPath(); g.arc(22 + c * 42, 22 + r * 42, 17, 0, 7); g.fill(); } });
+for (const [x, z] of [[-PW / 2 - 22, -PL / 2 - 14], [PW / 2 + 22, -PL / 2 - 14], [-PW / 2 - 22, PL / 2 + 14], [PW / 2 + 22, PL / 2 + 14]]) {
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.2, 38, 8), std('#5a5a68', { metalness: 0.6 })); mast.position.set(x, 19, z); scene.add(mast);
+  const bank = new THREE.Mesh(new THREE.BoxGeometry(9, 4.5, 0.6), [std('#222'), std('#222'), std('#222'), std('#222'), new THREE.MeshStandardMaterial({ map: lampTex, emissive: '#ffffff', emissiveMap: lampTex, emissiveIntensity: 3 }), std('#222')]);
+  bank.position.set(x, 39, z); bank.lookAt(0, 0, 0); scene.add(bank);
+}
+
+// ---------- the striker: our emu in a red #07 jersey ----------
+const striker = makeEmu(true); const pivot = new THREE.Group(); pivot.add(striker); striker.position.y = -1.0; scene.add(pivot);
+{ const body = striker.userData.body;
+  const shirtTex = canvasTex(512, 256, (g, w, h) => { g.fillStyle = '#d8202a'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffffff'; g.fillRect(0, 26, w, 10); g.fillRect(0, h - 36, w, 10); g.fillStyle = 'rgba(0,0,0,.12)'; for (let x = 0; x < w; x += 24) g.fillRect(x, 0, 2, h); });
+  const jersey = outlined(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0.75, 1.5), std('#ffffff', { map: shirtTex, roughness: 0.6, side: THREE.DoubleSide })), body, { ink: false }); jersey.scale.set(0.335, 0.315, 0.545);
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.24), new THREE.MeshStandardMaterial({ transparent: true, roughness: 0.6, map: canvasTex(256, 180, (g, w, h) => { g.font = 'bold 150px Inter'; g.textAlign = 'center'; g.lineWidth = 10; g.strokeStyle = '#1a1a1a'; g.strokeText('07', w / 2, 150); g.fillStyle = '#ffffff'; g.fillText('07', w / 2, 150); }) }));
+  num.position.set(0, 0.06, -0.548); num.rotation.y = Math.PI; body.add(num); }
+// match ball (classic black-and-white panels)
+const ball = outlined(new THREE.Mesh(new THREE.IcosahedronGeometry(0.11, 2), std('#ffffff', { roughness: 0.35, map: canvasTex(512, 256, (g, w, h) => { g.fillStyle = '#f8f8f8'; g.fillRect(0, 0, w, h); g.fillStyle = '#151515'; for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) { const x = c * w / 6 + (r % 2) * w / 12 + 40, y = 40 + r * 85; g.beginPath(); for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2 - Math.PI / 2; g.lineTo(x + Math.cos(a) * 26, y + Math.sin(a) * 26); } g.fill(); } }) })), scene);
+
+// ---------- the 3D word: our own block letters, extruded and bevelled ----------
+function letterShape(ch) {
+  const s = new THREE.Shape(), poly = pts => { s.moveTo(...pts[0]); for (const p of pts.slice(1)) s.lineTo(...p); s.closePath(); };
+  if (ch === 'L') { poly([[0, 0], [0.62, 0], [0.62, 0.21], [0.23, 0.21], [0.23, 1], [0, 1]]); return [s, 0.62]; }
+  if (ch === 'V') { poly([[0, 1], [0.25, 1], [0.41, 0.33], [0.57, 1], [0.82, 1], [0.53, 0], [0.29, 0]]); return [s, 0.82]; }
+  if (ch === 'E') { poly([[0, 0], [0.6, 0], [0.6, 0.2], [0.23, 0.2], [0.23, 0.4], [0.52, 0.4], [0.52, 0.6], [0.23, 0.6], [0.23, 0.8], [0.6, 0.8], [0.6, 1], [0, 1]]); return [s, 0.6]; }
+  s.absellipse(0.45, 0.5, 0.45, 0.5, 0, Math.PI * 2, false); const hole = new THREE.Path(); hole.absellipse(0.45, 0.5, 0.22, 0.29, 0, Math.PI * 2, true); s.holes.push(hole); return [s, 0.9];   // O
+}
+function word(text, front, side) {
+  const g = new THREE.Group(); let x = 0; g.userData.letters = {};
+  const mats = [new THREE.MeshStandardMaterial({ color: front, roughness: 0.25, metalness: 0.3, emissive: front, emissiveIntensity: front === '#c8ccd8' ? 0 : 0.12 }), new THREE.MeshStandardMaterial({ color: side, roughness: 0.35, metalness: 0.3 })];
+  for (const ch of text) {
+    const [shape, adv] = letterShape(ch), geo = new THREE.ExtrudeGeometry(shape, { depth: 0.22, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.025, bevelSegments: 3, curveSegments: 24 });
+    const m = new THREE.Mesh(geo, mats); m.position.x = x; m.castShadow = true; g.add(m); g.userData.letters[ch] = { m, cx: x + adv / 2 }; x += adv + 0.1;
+  }
+  g.userData.width = x - 0.1; return g;
+}
+const WORDS = { blue: word('LOVE', '#2a6ad8', '#163a80'), red: word('LOVE', '#e8202a', '#7a0a10'), white: word('LOVE', '#c8ccd8', '#7a7a90'), gold: word('LOVE', '#f0b030', '#8a5a10') };
+Object.values(WORDS).forEach(w => scene.add(w));
+
+// ---------- lights: night match under floodlights ----------
+scene.add(new THREE.HemisphereLight('#8aa8ff', '#1a3a1a', 0.55));
+const key = new THREE.DirectionalLight('#fff4e0', 3.2); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.radius = 4;
+Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 80 }); scene.add(key, key.target);
+const rim = new THREE.DirectionalLight('#9ac0ff', 2.2); scene.add(rim, rim.target);
+function aimLights(at, from = [-14, 26, 12]) { key.target.position.set(...at); key.position.set(at[0] + from[0], at[1] + from[1], at[2] + from[2]); rim.target.position.set(...at); rim.position.set(at[0] - from[0], at[1] + 8, at[2] - from[2]); key.target.updateMatrixWorld(); rim.target.updateMatrixWorld(); }
+
+// ---------- post: bloom, zoom-blur transitions + flash, teal/warm grade, vignette, grain ----------
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.35, 0.45, 0.97));
+const zoomPass = new ShaderPass({ uniforms: { tDiffuse: { value: null }, amt: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
+  fragmentShader: 'uniform sampler2D tDiffuse; uniform float amt; varying vec2 vUv; void main(){ vec2 d = vUv - .5; vec4 c = vec4(0.); for (int i = 0; i < 16; i++) { float k = float(i) / 15.; c += texture2D(tDiffuse, .5 + d * (1. - amt * k)); } gl_FragColor = c / 16.; }' });
+composer.addPass(zoomPass);
+const gradePass = new ShaderPass({ uniforms: { tDiffuse: { value: null }, flash: { value: 0 }, time: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float flash, time; varying vec2 vUv;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)) + time * 91.7) * 43758.5453); }
+    void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(.3,.59,.11));
+      c.rgb = mix(vec3(l), c.rgb, 1.25);                                         // saturation
+      c.rgb += mix(vec3(-.02,.03,.06), vec3(.06,.02,-.04), smoothstep(.2,.8,l));  // teal shadows, warm highlights
+      c.rgb = (c.rgb - .5) * 1.1 + .5;                                           // contrast
+      vec2 d = vUv - .5; c.rgb *= mix(.55, 1., smoothstep(.85, .25, length(d * vec2(1.,.62))));   // vignette
+      c.rgb += (hash(vUv * 900.) - .5) * .06;                                    // grain
+      c.rgb = mix(c.rgb, vec3(1.), flash); gl_FragColor = c; }` });
+composer.addPass(gradePass);
+composer.addPass(new OutputPass());
+
+// ---------- timeline: 4 shots x 8 beats (161 BPM), slow push in every shot ----------
+const BEAT = 0.372, SEC = BEAT * 8;
+window.DURATION = +(SEC * 4 + 0.6).toFixed(2);
+const clamp = x => x < 0 ? 0 : x > 1 ? 1 : x, io = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+const V3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+function placeWord(w, letter, at, s, rotY = 0, rotX = 0, zs = 1) {   // put `letter`'s centre at world point `at` (zs thins the extrusion)
+  w.visible = true; w.scale.set(s, s, s * zs); w.rotation.set(rotX, rotY, 0);
+  const L = w.userData.letters[letter], local = new THREE.Vector3(L.cx * s, 0.5 * s, 0.11 * s * zs).applyEuler(w.rotation);
+  w.position.set(at[0] - local.x, at[1] - local.y, at[2] - local.z);
+}
+window.render = async function (t) {
+  const sec = Math.min(3, Math.floor(t / SEC)), k = clamp((t - sec * SEC) / SEC);
+  Object.values(WORDS).forEach(w => w.visible = false); ball.visible = false; pivot.rotation.set(0, 0, 0);
+  for (const f of flashes) { const p = (t * 7 + f.userData.ph) % 50; f.material.opacity = p < 0.7 ? 1 - p / 0.7 : 0; }
+  let C;
+  if (sec === 0) {        // slow-motion bicycle kick; the emu's body passes in front of the blue L
+    pivot.position.set(0, 1.55, 0); pivot.rotation.x = -0.25 - io(k) * 1.75;
+    poseEmu(striker, t, { neck: 0.3, lid: 0.2, lookX: 0.4 }); const L = striker.userData.legs; L[0].hip.rotation.x = -1.6 - io(k) * 0.8; L[0].knee.rotation.x = 0.2; L[0].ankle.rotation.x = -0.3; L[1].hip.rotation.x = 0.6;
+    ball.visible = true; const bk = clamp((k - 0.55) / 0.45); ball.position.set(0, 2.55 + bk * 1.4, 0.55 - bk * 6); ball.rotation.set(t * 3, t * 2, 0);
+    placeWord(WORDS.blue, 'L', [-5, 2.1, 0.15], 2.6, Math.PI / 2);
+    C = { c: V3([7.4, 1.9, 0.4], [5.4, 2.0, 0.1], io(k)), l: [0, 1.9, -1.0] }; aimLights([0, 1.5, 0]);
+  } else if (sec === 1) { // portrait: smug smile, red LOVE behind the head with the O framing it
+    pivot.position.set(0, 1.0, 0); poseEmu(striker, t, { lid: 0.45, lookX: 0.15, lookY: 0.1, nod: Math.sin(t * 1.5) * 0.04 });
+    const h = new THREE.Vector3(); scene.updateMatrixWorld(); striker.userData.head.getWorldPosition(h);
+    placeWord(WORDS.red, 'O', [h.x, h.y, h.z - 1.4], 1.05);
+    C = { c: V3([0.35, h.y + 0.05, h.z + 1.9], [0.15, h.y + 0.02, h.z + 1.2], io(k)), l: [h.x, h.y - 0.05, h.z] }; aimLights([0, 2, 0], [10, 14, 16]);
+  } else if (sec === 2) { // from behind: #07 walks to the crowd; the white word faces them, so we read it mirrored
+    const z = -io(k) * 2.2; pivot.position.set(0, 1.0, z); pivot.rotation.y = Math.PI; poseEmu(striker, t, { speed: 1.2, phase: 0.4, lid: 0.2 });
+    placeWord(WORDS.white, 'O', [0, 2.3, z - 3.2], 1.6, Math.PI);
+    C = { c: V3([0.6, 1.65, z + 4.2], [0.3, 1.7, z + 3.0], io(k)), l: [0, 1.75, z - 2] }; aimLights([0, 1, z], [12, 20, -14]);
+  } else {                // gold word lying on the pitch; the emu stands tall on the O
+    pivot.position.set(0, 1.0, 0); pivot.rotation.y = 0.35; poseEmu(striker, t, { lid: 0.55, neck: -0.12, nod: -0.1 + Math.sin(t * 2) * 0.03 });
+    placeWord(WORDS.gold, 'O', [0, 0.04, 0.05], 2.4, 0, -Math.PI / 2, 0.25);
+    C = { c: V3([5.2, 4.4, 7.8], [3.8, 3.5, 5.8], io(k)), l: [0.1, 0.6, -0.6] }; aimLights([0, 1, 0], [-10, 22, 14]);
+  }
+  camera.position.set(...C.c); camera.lookAt(...C.l);
+  // transitions on each downbeat: zoom blur into the cut, flash out of it
+  let amt = 0, fl = 0; for (let s = 1; s <= 4; s++) { const d = t - s * SEC; if (d > -0.12 && d < 0) amt = Math.max(amt, (0.12 + d) / 0.12 * 0.35); if (d >= 0 && d < 0.2) { amt = Math.max(amt, (1 - d / 0.2) * 0.3); fl = Math.max(fl, (1 - d / 0.2) * 0.7); } }
+  zoomPass.uniforms.amt.value = amt; gradePass.uniforms.flash.value = fl; gradePass.uniforms.time.value = t;
+  composer.render();
+};
+await window.render(0);
+window.READY = true;
+</script>
+</body></html>

@@ -43,10 +43,10 @@ const pick = a => a[Math.floor(rnd() * a.length)];
 
 // ---------- cartoon ink outlines (inverted hull): a back-face copy pushed out along the normals ----------
 const INK = new THREE.MeshBasicMaterial({ color: '#2b1d16', side: THREE.BackSide });
-INK.onBeforeCompile = sh => { sh.uniforms.thick = { value: 0.016 }; sh.vertexShader = 'uniform float thick;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize(objectNormal) * thick;'); };
+INK.onBeforeCompile = sh => { sh.uniforms.thick = { value: 0.016 }; sh.vertexShader = 'uniform float thick;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed += normalize(normal) * thick;'); };
 function outlined(mesh, parent, o = {}) {
   mesh.castShadow = o.cast !== false; mesh.receiveShadow = true; parent.add(mesh);
-  if (o.ink !== false) { const hull = new THREE.Mesh(mesh.geometry, INK); hull.position.copy(mesh.position); hull.rotation.copy(mesh.rotation); hull.scale.copy(mesh.scale); hull.raycast = () => {}; parent.add(hull); }
+  if (o.ink !== false) { const hull = new THREE.Mesh(mesh.geometry, INK); hull.raycast = () => {}; mesh.add(hull); }
   return mesh;
 }
 
