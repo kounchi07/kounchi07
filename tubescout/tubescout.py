@@ -16,6 +16,8 @@ Does the core of what paid "outlier finder" tools do:
   watch / dashboard        Track channels over time, get breakout alerts, see charts.
   predict  <title|url>     Viral odds for an idea, or early verdict on a live video.
   stories / saturation     Proven story Shorts that aren't saturated; how crowded a story is.
+  fresh                    Breaking story Shorts from the last 72 hours.
+  wave NG US               What is taking off right now for a country's audience.
   quota                    API units used today; every response is cached in cache.db.
 
 Every command writes an HTML report to ./reports/.
@@ -384,6 +386,16 @@ def channel_info(ids, key):
                 "videos": int(st.get("videoCount", 0)),
                 "uploads": c["contentDetails"]["relatedPlaylists"]["uploads"],
             }
+    return info
+
+
+def api_channels_country(key, ids):
+    """channel_info plus the channel's declared country."""
+    info = channel_info(ids, key)
+    for batch in chunks(sorted(ids), 50):
+        for c in api("channels", key, part="snippet", id=",".join(batch)).get("items", []):
+            if c["id"] in info:
+                info[c["id"]]["country"] = c["snippet"].get("country")
     return info
 
 
@@ -1100,7 +1112,7 @@ def main():
     tp.add_argument("--lang", default="en")
     tp.set_defaults(fn=cmd_topics)
 
-    for module in ("tracker", "model", "stories"):
+    for module in ("tracker", "model", "stories", "wave"):
         try:
             __import__(module).add_commands(sub)
         except ImportError as e:
