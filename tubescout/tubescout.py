@@ -456,7 +456,7 @@ def write_report(name, title, sections):
     body = "".join(sections)
     path.write_text(f"<!doctype html><html><head><meta charset=utf-8>"
                     f"<meta name=viewport content='width=device-width,initial-scale=1'>"
-                    f"<title>{html.escape(title)}</title><style>{CSS}</style></head><body>"
+                    f"<title>{html.escape(title)}</title><base target='_blank'><style>{CSS}</style></head><body>"
                     f"<h1>{html.escape(title)}</h1><p class=muted>Generated "
                     f"{datetime.now():%Y-%m-%d %H:%M} by TubeScout</p>{body}</body></html>")
     return path

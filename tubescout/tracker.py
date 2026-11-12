@@ -249,7 +249,7 @@ def cmd_dashboard(a):
 
 
 DASH = """<!doctype html><html><head><meta charset=utf-8>
-<meta name=viewport content='width=device-width,initial-scale=1'><title>TubeScout Radar</title>
+<meta name=viewport content='width=device-width,initial-scale=1'><title>TubeScout Radar</title><base target='_blank'>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
