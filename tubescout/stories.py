@@ -292,7 +292,7 @@ def write_report(rows, n_vids, n_chans):
         url = f"https://www.youtube.com/shorts/{v['id']}"
         sec.append(f"<tr><td><a href='{url}'><img loading=lazy src='https://i.ytimg.com/vi/{v['id']}/mqdefault.jpg'>"
                    f"</a></td><td>{r['verdict']}</td><td><a href='{url}'>{html.escape(v['title'])}</a><br>"
-                   f"<span class=muted>{html.escape(v['channel'])} · {r['age']:.0f} days ago</span></td>"
+                   f"<span class=muted>{ts.channel_link(v)} · {r['age']:.0f} days ago</span></td>"
                    f"<td class=n>{ts.fmt(v['views'])}</td><td class=n>{s['channels']}</td>"
                    f"<td class=n>{s['last30']}</td><td class=n>{ts.fmt(s['median'])}</td>"
                    f"<td>{s['latest'] or '-'}</td></tr>")
@@ -425,7 +425,7 @@ def cmd_fresh(a):
         url = f"https://www.youtube.com/shorts/{v['id']}"
         sec.append(f"<tr><td><a href='{url}'><img loading=lazy src='https://i.ytimg.com/vi/{v['id']}/mqdefault.jpg'>"
                    f"</a></td><td>{r['verdict']}</td><td><a href='{url}'>{html.escape(v['title'])}</a><br>"
-                   f"<span class=muted>{html.escape(v['channel'])} · {ts.fmt(v['subs'])} subs</span></td>"
+                   f"<span class=muted>{ts.channel_link(v)} · {ts.fmt(v['subs'])} subs</span></td>"
                    f"<td class=n>{ts.fmt(v['vph'])}</td><td class=n>{ts.fmt(v['views'])}</td>"
                    f"<td class=n>{v['reach']:.0f}x</td><td class=n>{r['channels']}</td>"
                    f"<td class=n>{v['hours']:.0f}h</td></tr>")

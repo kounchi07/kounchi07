@@ -462,6 +462,13 @@ def write_report(name, title, sections):
     return path
 
 
+def channel_link(v):
+    name = html.escape(v.get("channel", ""))
+    if v.get("channel_id"):
+        return f"<a href='https://www.youtube.com/channel/{v['channel_id']}'>{name} ↗</a>"
+    return name
+
+
 def video_table(videos, cols):
     head = "".join(f"<th>{c}</th>" for c, _ in cols)
     rows = []
@@ -469,7 +476,7 @@ def video_table(videos, cols):
         url = f"https://www.youtube.com/watch?v={v['id']}"
         cells = [f"<td><a href='{url}'><img loading=lazy src='{v['thumb']}'></a></td>",
                  f"<td><a href='{url}'>{html.escape(v['title'])}</a><br>"
-                 f"<span class=muted>{html.escape(v.get('channel', ''))}</span></td>"]
+                 f"<span class=muted>{channel_link(v)}</span></td>"]
         cells += [f"<td class=n>{fn(v)}</td>" for _, fn in cols[2:]]
         rows.append("<tr>" + "".join(cells) + "</tr>")
     return f"<div class=wrap><table><tr>{head}</tr>{''.join(rows)}</table></div>"

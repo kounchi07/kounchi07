@@ -139,7 +139,9 @@ def cmd_wave(a):
                      "</th><th>Channels</th><th>Small channels</th><th>Views</th><th>Example</th></tr>"
                      + "".join(f"<tr><td>{r['kind']}</td><td><b>{html.escape(r['name'])}</b></td>"
                                f"<td class=n>{r['channels']}</td><td class=n>{r['small']}</td>"
-                               f"<td class=n>{ts.fmt(r['views'])}</td><td>{html.escape(r['top']['title'][:80])}</td></tr>"
+                               f"<td class=n>{ts.fmt(r['views'])}</td><td><a href='https://www.youtube.com/watch?v={r['top']['id']}'>"
+                               f"{html.escape(r['top']['title'][:80])}</a><br><span class=muted>"
+                               f"{ts.channel_link(r['top'])}</span></td></tr>"
                                for r in w[:25]) + "</table></div>",
                      f"<h2>{html.escape(name)}: rising on smaller channels</h2>", ts.video_table(risers[:40], cols)]
         if new:
